@@ -6,7 +6,7 @@ from accounts.constants import ROLE_ADMINISTRADOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
 
 from .forms import BeneficiaryForm
-from .models import Beneficiary
+from .models import Beneficiary, BeneficiaryAuditLog
 
 
 @login_required
@@ -22,7 +22,9 @@ def beneficiary_register(request):
     if request.method == 'POST':
         form = BeneficiaryForm(request.POST)
         if form.is_valid():
-            form.save()
+            beneficiary = form.save(commit=False)
+            beneficiary._request = request
+            beneficiary.save()
             messages.success(request, 'Beneficiario registrado exitosamente.')
             return redirect('beneficiary_list')
         else:
@@ -54,7 +56,7 @@ def beneficiary_audit_log(request, beneficiary_id):
     )
     if not has_access:
         messages.error(request, 'No tienes permiso para ver esta bitácora.')
-        return redirect('beneficiary:beneficiary_list')
+        return redirect('beneficiary_list')
 
     beneficiary = get_object_or_404(Beneficiary, pk=beneficiary_id)
     logs = BeneficiaryAuditLog.objects.filter(
@@ -72,7 +74,7 @@ def beneficiary_audit_log(request, beneficiary_id):
 def global_beneficiary_audit_log(request):
     if not (request.user.is_staff or request.user.groups.filter(name='Administrador').exists()):
         messages.error(request, 'Acceso restringido a administradores.')
-        return redirect('beneficiary:beneficiary_list')
+        return redirect('beneficiary_list')
 
     logs = BeneficiaryAuditLog.objects.select_related(
         'user', 'beneficiary'
