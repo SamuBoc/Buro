@@ -1,3 +1,4 @@
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
@@ -6,9 +7,36 @@ from .forms import CaseForm
 from .models import Case, CaseDocument
 
 
+SECRETARIA_GROUP = 'secretaria'
+ESTUDIANTE_GROUP = 'estudiante'
+PROFESOR_GROUP = 'profesor'
+
+
+def user_belongs_to_group(user, group_name):
+    """Retorna True si el usuario pertenece al grupo indicado."""
+    return user.groups.filter(name=group_name).exists()
+
+
+def user_can_view_case(user, case):
+    """Evalua si el usuario autenticado puede acceder al detalle del caso."""
+    if user.is_superuser:
+        return True
+
+    if user_belongs_to_group(user, SECRETARIA_GROUP):
+        return True
+
+    if user_belongs_to_group(user, PROFESOR_GROUP):
+        return True
+
+    if user_belongs_to_group(user, ESTUDIANTE_GROUP) and case.assigned_student_id == user.id:
+        return True
+
+    return False
+
+
 def case_list(request):
     """Lista los casos juridicos registrados."""
-    cases = Case.objects.select_related('beneficiary').all()
+    cases = Case.objects.select_related('beneficiary', 'assigned_student').all()
     return render(request, 'cases/case_list.html', {
         'cases': cases,
     })
@@ -42,12 +70,18 @@ def case_create(request):
     })
 
 
+@login_required(login_url='admin:login')
 def case_detail(request, pk):
     """Muestra el detalle de un caso juridico y sus documentos asociados."""
     case = get_object_or_404(
-        Case.objects.select_related('beneficiary').prefetch_related('documents'),
+        Case.objects.select_related('beneficiary', 'assigned_student').prefetch_related('documents'),
         pk=pk
     )
+
+    if not user_can_view_case(request.user, case):
+        messages.error(request, 'No tienes permisos para acceder a este caso.')
+        return redirect('case_list')
+
     return render(request, 'cases/case_detail.html', {
         'case': case,
     })

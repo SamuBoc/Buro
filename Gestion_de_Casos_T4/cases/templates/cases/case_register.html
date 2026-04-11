@@ -36,6 +36,19 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for="{{ form.assigned_student.id_for_label }}" class="form-label fw-semibold">
+                            <i class="bi bi-mortarboard me-1"></i>{{ form.assigned_student.label }}
+                        </label>
+                        {{ form.assigned_student }}
+                        <div class="form-text">
+                            Solo se muestran usuarios que pertenecen al grupo estudiante.
+                        </div>
+                        {% if form.assigned_student.errors %}
+                            <div class="text-danger small mt-1">{{ form.assigned_student.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
                         <label for="{{ form.description.id_for_label }}" class="form-label fw-semibold">
                             <i class="bi bi-card-text me-1"></i>{{ form.description.label }}
                         </label>
