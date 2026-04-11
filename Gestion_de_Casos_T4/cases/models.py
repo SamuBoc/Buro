@@ -173,3 +173,54 @@ class Notification(models.Model):
             self.is_read = True
             self.read_at = timezone.now()
             self.save(update_fields=['is_read', 'read_at'])
+    
+class CaseAuditLog(models.Model):
+
+    ACTION_CHOICES = [
+        ('CREATED',        'Caso creado'),
+        ('UPDATED',        'Caso actualizado'),
+        ('STATUS_CHANGED', 'Estado cambiado'),
+        ('ASSIGNED',       'Estudiante asignado'),
+        ('REASSIGNED',     'Caso reasignado'),
+        ('FILE_UPLOADED',  'Archivo adjuntado'),
+        ('FILE_DELETED',   'Archivo eliminado'),
+        ('REJECTED',       'Caso rechazado'),
+        ('CLOSED',         'Caso cerrado'),
+        ('VIEWED',         'Caso consultado'),
+    ]
+
+    case = models.ForeignKey(
+        'Case',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='audit_logs',
+        verbose_name='Caso',
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Usuario responsable',
+    )
+    action          = models.CharField(max_length=20, choices=ACTION_CHOICES, verbose_name='Acción')
+    description     = models.TextField(verbose_name='Descripción de la acción')
+    previous_status = models.CharField(max_length=50, blank=True, null=True, verbose_name='Estado anterior')
+    new_status      = models.CharField(max_length=50, blank=True, null=True, verbose_name='Estado nuevo')
+    case_radicado   = models.CharField(max_length=50, blank=True, verbose_name='Radicado del caso')
+    timestamp       = models.DateTimeField(default=timezone.now, verbose_name='Fecha y hora')
+    ip_address      = models.GenericIPAddressField(null=True, blank=True, verbose_name='Dirección IP')
+
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = 'Bitácora de Caso'
+        verbose_name_plural = 'Bitácora de Casos'
+        indexes = [
+            models.Index(fields=['case', '-timestamp']),
+            models.Index(fields=['user', '-timestamp']),
+            models.Index(fields=['action']),
+        ]
+
+    def __str__(self):
+        user_str = self.user.get_full_name() if self.user else 'Sistema'
+        return f"[{self.timestamp:%d/%m/%Y %H:%M}] {user_str} — {self.get_action_display()} — {self.case_radicado}"

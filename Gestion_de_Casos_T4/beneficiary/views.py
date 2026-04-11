@@ -44,6 +44,8 @@ def beneficiary_detail(request, pk):
         'beneficiary': beneficiary
     })
 
+from .models import Beneficiary, BeneficiaryAuditLog
+
 
 @login_required
 def beneficiary_audit_log(request, beneficiary_id):

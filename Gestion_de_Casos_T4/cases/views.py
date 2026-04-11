@@ -79,6 +79,7 @@ def case_detail(request, pk):
         'case': case,
     })
 
+from .models import Case, CaseAuditLog
 
 @login_required
 def case_audit_log(request, case_id):
@@ -164,3 +165,4 @@ def unread_notifications_count(request):
         is_read=False,
     ).count()
     return JsonResponse({'unread_count': count})
+    })
