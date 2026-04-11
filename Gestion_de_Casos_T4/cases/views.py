@@ -2,13 +2,15 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.http import JsonResponse
+from django.utils import timezone
 
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
 from accounts.permissions import can_view_case
 
 from .forms import CaseForm
-from .models import Case, CaseDocument
+from .models import Case, CaseAuditLog, CaseDocument, Notification
 from .services import auto_assign_case
 
 
@@ -27,7 +29,9 @@ def case_create(request):
         if form.is_valid():
             try:
                 with transaction.atomic():
-                    case = form.save()
+                    case = form.save(commit=False)
+                    case._request = request
+                    case.save()
                     for document in form.cleaned_data['documents']:
                         CaseDocument.objects.create(case=case, file=document)
                     student = auto_assign_case(case)
@@ -75,18 +79,45 @@ def case_detail(request, pk):
         'case': case,
     })
 
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, render, redirect
-from django.contrib import messages
-from django.http import JsonResponse
-from django.utils import timezone
 
-from .models import Notification
+@login_required
+def case_audit_log(request, case_id):
+    case = get_object_or_404(Case, pk=case_id)
+
+    user = request.user
+    has_access = (
+        user.is_staff
+        or user.groups.filter(name__in=['Secretaria', 'Profesor', 'Administrador']).exists()
+        or (hasattr(case, 'assigned_student') and case.assigned_student == user)
+    )
+    if not has_access:
+        messages.error(request, 'No tienes permiso para ver la bitácora de este caso.')
+        return redirect('case_list')
+
+    logs = CaseAuditLog.objects.filter(case=case).select_related('user').order_by('-timestamp')
+
+    return render(request, 'cases/case_audit_log.html', {
+        'case':       case,
+        'logs':       logs,
+        'page_title': f'Bitácora — {case.radicado}',
+    })
+
+
+@login_required
+def global_audit_log(request):
+    if not (request.user.is_staff or request.user.groups.filter(name='Administrador').exists()):
+        messages.error(request, 'Acceso restringido a administradores.')
+        return redirect('case_list')
+
+    logs = CaseAuditLog.objects.select_related('user', 'case').order_by('-timestamp')[:500]
+    return render(request, 'cases/global_audit_log.html', {
+        'logs':       logs,
+        'page_title': 'Bitácora Global de Casos',
+    })
 
 
 @login_required
 def notification_list(request):
-
     notifications = Notification.objects.filter(
         recipient_user=request.user
     ).select_related('case').order_by('-created_at')
@@ -112,7 +143,7 @@ def mark_notification_read(request, notification_id):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({'status': 'ok', 'notification_id': notification_id})
 
-    return redirect('cases:case_detail', case_id=notification.case_id)
+    return redirect('case_detail', pk=notification.case_id)
 
 
 @login_required
@@ -123,7 +154,7 @@ def mark_all_notifications_read(request):
             is_read=False,
         ).update(is_read=True, read_at=timezone.now())
         messages.success(request, 'Todas las notificaciones marcadas como leídas.')
-    return redirect('cases:notification_list')
+    return redirect('notification_list')
 
 
 @login_required
