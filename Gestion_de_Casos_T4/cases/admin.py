@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import Case, CaseDocument
+from .models import Notification
 
 
 class CaseDocumentInline(admin.TabularInline):
@@ -41,3 +42,11 @@ class CaseDocumentAdmin(admin.ModelAdmin):
     search_fields = ('case__code', 'file')
     autocomplete_fields = ('case',)
     readonly_fields = ('uploaded_at',)
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display    = ['created_at', 'title', 'recipient_user', 'notification_type', 'is_read']
+    list_filter     = ['notification_type', 'is_read', 'created_at']
+    search_fields   = ['title', 'recipient_user__username', 'message']
+    readonly_fields = ['created_at', 'read_at']
+    ordering        = ['-created_at']
