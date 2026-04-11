@@ -120,3 +120,56 @@ class CaseDocument(models.Model):
 
     def __str__(self):
         return os.path.basename(self.file.name)
+
+class Notification(models.Model):
+
+    NOTIFICATION_TYPES = [
+        ('STATUS_CHANGE', 'Cambio de estado'),
+        ('ASSIGNMENT',    'Asignación de estudiante'),
+        ('DEADLINE',      'Alerta de vencimiento'),
+        ('GENERAL',       'Información general'),
+    ]
+
+    recipient_user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        verbose_name='Destinatario',
+    )
+    case = models.ForeignKey(
+        'Case',
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        verbose_name='Caso relacionado',
+    )
+    notification_type = models.CharField(
+        max_length=20, choices=NOTIFICATION_TYPES, default='STATUS_CHANGE'
+    )
+    title   = models.CharField(max_length=200, verbose_name='Título')
+    message = models.TextField(verbose_name='Mensaje')
+
+    previous_status = models.CharField(max_length=50, blank=True, null=True)
+    new_status      = models.CharField(max_length=50, blank=True, null=True)
+
+    is_read    = models.BooleanField(default=False, verbose_name='Leída')
+    created_at = models.DateTimeField(default=timezone.now, verbose_name='Creada el')
+    read_at    = models.DateTimeField(null=True, blank=True, verbose_name='Leída el')
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Notificación'
+        verbose_name_plural = 'Notificaciones'
+        indexes = [
+            models.Index(fields=['recipient_user', 'is_read']),
+            models.Index(fields=['case']),
+        ]
+
+    def __str__(self):
+        estado = 'Leída' if self.is_read else 'No leída'
+        return f"[{estado}] {self.title} → {self.recipient_user.get_full_name()}"
+
+    def mark_as_read(self):
+        if not self.is_read:
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save(update_fields=['is_read', 'read_at'])
