@@ -85,3 +85,40 @@ def case_detail(request, pk):
     return render(request, 'cases/case_detail.html', {
         'case': case,
     })
+
+from .models import Case, CaseAuditLog
+
+@login_required
+def case_audit_log(request, case_id):
+    case = get_object_or_404(Case, pk=case_id)
+
+    user = request.user
+    has_access = (
+        user.is_staff
+        or user.groups.filter(name__in=['Secretaria', 'Profesor', 'Administrador']).exists()
+        or (hasattr(case, 'assigned_student') and case.assigned_student == user)
+    )
+    if not has_access:
+        messages.error(request, 'No tienes permiso para ver la bitácora de este caso.')
+        return redirect('cases:case_list')
+
+    logs = CaseAuditLog.objects.filter(case=case).select_related('user').order_by('-timestamp')
+
+    return render(request, 'cases/case_audit_log.html', {
+        'case':       case,
+        'logs':       logs,
+        'page_title': f'Bitácora — {case.radicado}',
+    })
+
+
+@login_required
+def global_audit_log(request):
+    if not (request.user.is_staff or request.user.groups.filter(name='Administrador').exists()):
+        messages.error(request, 'Acceso restringido a administradores.')
+        return redirect('cases:case_list')
+
+    logs = CaseAuditLog.objects.select_related('user', 'case').order_by('-timestamp')[:500]
+    return render(request, 'cases/global_audit_log.html', {
+        'logs':       logs,
+        'page_title': 'Bitácora Global de Casos',
+    })
