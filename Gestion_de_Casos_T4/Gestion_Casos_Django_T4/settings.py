@@ -66,6 +66,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'accounts.context_processors.user_roles',
+                'cases.context_processors.notifications_count',
             ],
         },
     },
@@ -128,3 +129,16 @@ MEDIA_ROOT = BASE_DIR / 'media'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'beneficiary_list'
 LOGOUT_REDIRECT_URL = 'login'
+
+# ── Correo electrónico — HU-13 ──────────────────────────────────────────
+# Desarrollo: imprime el correo en la consola del runserver (no necesita SMTP)
+EMAIL_BACKEND      = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'Consultorio Jurídico ICESI <consultorio@icesi.edu.co>'
+
+# Para producción, comentar el backend de consola y descomentar esto:
+# EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST          = 'smtp.gmail.com'
+# EMAIL_PORT          = 587
+# EMAIL_USE_TLS       = True
+# EMAIL_HOST_USER     = 'tu_correo@icesi.edu.co'
+# EMAIL_HOST_PASSWORD = 'tu_contraseña_de_aplicacion'
