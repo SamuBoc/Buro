@@ -84,3 +84,30 @@ class CaseForm(forms.ModelForm):
             )
 
         return documents
+
+
+class CaseReassignmentForm(forms.Form):
+    assigned_student = forms.ModelChoiceField(
+        label='Nuevo estudiante',
+        queryset=User.objects.none(),
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.case = kwargs.pop('case', None)
+        super().__init__(*args, **kwargs)
+        self.fields['assigned_student'].queryset = User.objects.filter(
+            is_active=True,
+            groups__name='estudiante'
+        ).order_by('first_name', 'last_name', 'username').distinct()
+
+        if self.case and self.case.assigned_student_id:
+            self.initial.setdefault('assigned_student', self.case.assigned_student_id)
+
+    def clean_assigned_student(self):
+        assigned_student = self.cleaned_data['assigned_student']
+
+        if self.case and assigned_student.id == self.case.assigned_student_id:
+            raise ValidationError('El caso ya esta asignado a ese estudiante.')
+
+        return assigned_student

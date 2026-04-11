@@ -1,8 +1,9 @@
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.db.models import Count, F
 
 from accounts.constants import ROLE_ESTUDIANTE
-from .models import Case
+from .models import Case, CaseReassignmentLog
 
 User = get_user_model()
 
@@ -30,3 +31,20 @@ def auto_assign_case(case):
 
     case.save(update_fields=['assigned_student', 'state'])
     return student
+
+
+def reassign_case(case, new_student, changed_by):
+    old_student = case.assigned_student
+    case.assigned_student = new_student
+    case.state = Case.STATE_ASSIGNED
+
+    with transaction.atomic():
+        case.save(update_fields=['assigned_student', 'state'])
+        CaseReassignmentLog.objects.create(
+            case=case,
+            old_student=old_student,
+            new_student=new_student,
+            changed_by=changed_by,
+        )
+
+    return old_student
