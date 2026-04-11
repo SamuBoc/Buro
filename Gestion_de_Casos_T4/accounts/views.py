@@ -3,5 +3,5 @@ from django.shortcuts import render
 
 
 @login_required
-def home(request):
-    return render(request, 'home/home.html')
+def no_permission(request):
+    return render(request, 'accounts/no_permission.html', status=403)

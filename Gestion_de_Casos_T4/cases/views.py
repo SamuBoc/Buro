@@ -1,49 +1,27 @@
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 
+from accounts.constants import ROLE_ADMINISTRADOR, ROLE_SECRETARIA
+from accounts.decorators import role_required
+from accounts.permissions import can_view_case
+
 from .forms import CaseForm
 from .models import Case, CaseDocument
+from .services import auto_assign_case
 
 
-SECRETARIA_GROUP = 'secretaria'
-ESTUDIANTE_GROUP = 'estudiante'
-PROFESOR_GROUP = 'profesor'
-
-
-def user_belongs_to_group(user, group_name):
-    """Retorna True si el usuario pertenece al grupo indicado."""
-    return user.groups.filter(name=group_name).exists()
-
-
-def user_can_view_case(user, case):
-    """Evalua si el usuario autenticado puede acceder al detalle del caso."""
-    if user.is_superuser:
-        return True
-
-    if user_belongs_to_group(user, SECRETARIA_GROUP):
-        return True
-
-    if user_belongs_to_group(user, PROFESOR_GROUP):
-        return True
-
-    if user_belongs_to_group(user, ESTUDIANTE_GROUP) and case.assigned_student_id == user.id:
-        return True
-
-    return False
-
-
+@login_required
 def case_list(request):
-    """Lista los casos juridicos registrados."""
     cases = Case.objects.select_related('beneficiary', 'assigned_student').all()
     return render(request, 'cases/case_list.html', {
         'cases': cases,
     })
 
 
+@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
 def case_create(request):
-    """Registra un nuevo caso juridico junto con sus documentos."""
     if request.method == 'POST':
         form = CaseForm(request.POST, request.FILES)
         if form.is_valid():
@@ -52,8 +30,18 @@ def case_create(request):
                     case = form.save()
                     for document in form.cleaned_data['documents']:
                         CaseDocument.objects.create(case=case, file=document)
+                    student = auto_assign_case(case)
 
-                messages.success(request, f'El caso {case.code} fue registrado exitosamente.')
+                if student is None:
+                    messages.warning(
+                        request,
+                        f'El caso {case.code} fue registrado pero no hay estudiantes disponibles para asignarlo.'
+                    )
+                else:
+                    messages.success(
+                        request,
+                        f'El caso {case.code} fue registrado y asignado a {student.get_full_name() or student.username}.'
+                    )
                 return redirect('case_detail', pk=case.pk)
             except Exception:
                 messages.error(
@@ -70,15 +58,16 @@ def case_create(request):
     })
 
 
-@login_required(login_url='admin:login')
+@login_required
 def case_detail(request, pk):
-    """Muestra el detalle de un caso juridico y sus documentos asociados."""
     case = get_object_or_404(
-        Case.objects.select_related('beneficiary', 'assigned_student').prefetch_related('documents'),
+        Case.objects
+        .select_related('beneficiary', 'assigned_student')
+        .prefetch_related('documents'),
         pk=pk
     )
 
-    if not user_can_view_case(request.user, case):
+    if not can_view_case(request.user, case):
         messages.error(request, 'No tienes permisos para acceder a este caso.')
         return redirect('case_list')
 

@@ -8,9 +8,11 @@
         <h4 class="mb-0"><i class="bi bi-folder-fill me-2"></i>Casos Juridicos Registrados</h4>
         <small class="opacity-75">Total: {{ cases.count }} caso(s)</small>
     </div>
-    <a href="{% url 'case_create' %}" class="btn btn-light fw-semibold">
-        <i class="bi bi-folder-plus me-1"></i> Nuevo Caso
-    </a>
+    {% if 'secretaria' in user_roles or 'administrador' in user_roles %}
+        <a href="{% url 'case_create' %}" class="btn btn-light fw-semibold">
+            <i class="bi bi-folder-plus me-1"></i> Nuevo Caso
+        </a>
+    {% endif %}
 </div>
 
 <div class="card">
@@ -23,6 +25,7 @@
                             <th class="ps-4">Codigo</th>
                             <th>Sala</th>
                             <th>Beneficiario</th>
+                            <th>Asignado a</th>
                             <th>Estado</th>
                             <th>Fecha</th>
                             <th class="text-center">Acciones</th>
@@ -34,6 +37,13 @@
                                 <td class="ps-4 fw-semibold">{{ case.code }}</td>
                                 <td>{{ case.get_sala_display }}</td>
                                 <td>{{ case.beneficiary.name }}</td>
+                                <td>
+                                    {% if case.assigned_student %}
+                                        {{ case.assigned_student.get_full_name|default:case.assigned_student.username }}
+                                    {% else %}
+                                        <span class="text-muted">Sin asignar</span>
+                                    {% endif %}
+                                </td>
                                 <td>{{ case.state }}</td>
                                 <td>{{ case.created_at|date:"d/m/Y H:i" }}</td>
                                 <td class="text-center">
@@ -50,9 +60,11 @@
             <div class="text-center py-5">
                 <i class="bi bi-folder-x display-4 text-muted"></i>
                 <p class="mt-3 text-muted">No hay casos juridicos registrados aun.</p>
-                <a href="{% url 'case_create' %}" class="btn btn-primary mt-2">
-                    <i class="bi bi-folder-plus me-1"></i>Registrar el primero
-                </a>
+                {% if 'secretaria' in user_roles or 'administrador' in user_roles %}
+                    <a href="{% url 'case_create' %}" class="btn btn-primary mt-2">
+                        <i class="bi bi-folder-plus me-1"></i>Registrar el primero
+                    </a>
+                {% endif %}
             </div>
         {% endif %}
     </div>

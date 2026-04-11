@@ -22,7 +22,11 @@ class Case(models.Model):
         (ROOM_FAMILIA, 'Familia'),
     ]
 
-    DEFAULT_STATE = 'Registrado - Pendiente asignacion'
+    STATE_PENDING = 'Registrado - Pendiente asignacion'
+    STATE_ASSIGNED = 'Asignado a estudiante'
+    STATE_NO_STUDENTS = 'Sin estudiantes disponibles'
+
+    DEFAULT_STATE = STATE_PENDING
 
     code = models.CharField(
         max_length=20,

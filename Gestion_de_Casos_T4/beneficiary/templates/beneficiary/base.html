@@ -45,21 +45,36 @@
                 <i class="bi bi-briefcase-fill me-2"></i>Bur&oacute; Jur&iacute;dico
             </a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="{% url 'home' %}">
-                    <i class="bi bi-house-door-fill me-1"></i>Inicio
-                </a>
-                <a class="nav-link" href="{% url 'beneficiary_list' %}">
-                    <i class="bi bi-people-fill me-1"></i>Beneficiarios
-                </a>
-                <a class="nav-link" href="{% url 'beneficiary_register' %}">
-                    <i class="bi bi-person-plus-fill me-1"></i>Registrar
-                </a>
-                <a class="nav-link" href="{% url 'case_list' %}">
-                    <i class="bi bi-folder-fill me-1"></i>Casos
-                </a>
-                <a class="nav-link" href="{% url 'case_create' %}">
-                    <i class="bi bi-folder-plus me-1"></i>Nuevo Caso
-                </a>
+                {% if user.is_authenticated %}
+                    <a class="nav-link" href="{% url 'home' %}">
+                        <i class="bi bi-house-door-fill me-1"></i>Inicio
+                    </a>
+                    <a class="nav-link" href="{% url 'beneficiary_list' %}">
+                        <i class="bi bi-people-fill me-1"></i>Beneficiarios
+                    </a>
+                    {% if 'secretaria' in user_roles or 'administrador' in user_roles %}
+                        <a class="nav-link" href="{% url 'beneficiary_register' %}">
+                            <i class="bi bi-person-plus-fill me-1"></i>Registrar
+                        </a>
+                    {% endif %}
+                    <a class="nav-link" href="{% url 'case_list' %}">
+                        <i class="bi bi-folder-fill me-1"></i>Casos
+                    </a>
+                    {% if 'secretaria' in user_roles or 'administrador' in user_roles %}
+                        <a class="nav-link" href="{% url 'case_create' %}">
+                            <i class="bi bi-folder-plus me-1"></i>Nuevo Caso
+                        </a>
+                    {% endif %}
+                    <span class="nav-link">
+                        <i class="bi bi-person-circle me-1"></i>{{ user.username }}
+                    </span>
+                    <form method="post" action="{% url 'logout' %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-link btn btn-link">
+                            <i class="bi bi-box-arrow-right me-1"></i>Salir
+                        </button>
+                    </form>
+                {% endif %}
             </div>
         </div>
     </nav>
