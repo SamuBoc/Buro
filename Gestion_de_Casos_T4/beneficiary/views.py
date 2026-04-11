@@ -41,3 +41,44 @@ def beneficiary_detail(request, pk):
     return render(request, 'beneficiary/beneficiary_detail.html', {
         'beneficiary': beneficiary
     })
+
+from .models import Beneficiary, BeneficiaryAuditLog
+
+
+@login_required
+def beneficiary_audit_log(request, beneficiary_id):
+    user = request.user
+    has_access = (
+        user.is_staff
+        or user.groups.filter(name__in=['Secretaria', 'Administrador']).exists()
+    )
+    if not has_access:
+        messages.error(request, 'No tienes permiso para ver esta bitácora.')
+        return redirect('beneficiary:beneficiary_list')
+
+    beneficiary = get_object_or_404(Beneficiary, pk=beneficiary_id)
+    logs = BeneficiaryAuditLog.objects.filter(
+        beneficiary=beneficiary
+    ).select_related('user').order_by('-timestamp')
+
+    return render(request, 'beneficiary/beneficiary_audit_log.html', {
+        'beneficiary': beneficiary,
+        'logs':        logs,
+        'page_title':  f'Bitácora — {beneficiary.full_name}',
+    })
+
+
+@login_required
+def global_beneficiary_audit_log(request):
+    if not (request.user.is_staff or request.user.groups.filter(name='Administrador').exists()):
+        messages.error(request, 'Acceso restringido a administradores.')
+        return redirect('beneficiary:beneficiary_list')
+
+    logs = BeneficiaryAuditLog.objects.select_related(
+        'user', 'beneficiary'
+    ).order_by('-timestamp')[:500]
+
+    return render(request, 'beneficiary/global_beneficiary_audit_log.html', {
+        'logs':       logs,
+        'page_title': 'Bitácora Global de Datos Personales',
+    })
