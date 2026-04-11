@@ -41,3 +41,19 @@ class CaseDocumentAdmin(admin.ModelAdmin):
     search_fields = ('case__code', 'file')
     autocomplete_fields = ('case',)
     readonly_fields = ('uploaded_at',)
+
+from .models import CaseAuditLog
+
+@admin.register(CaseAuditLog)
+class CaseAuditLogAdmin(admin.ModelAdmin):
+    list_display    = ['timestamp', 'case_radicado', 'action', 'user', 'ip_address']
+    list_filter     = ['action', 'timestamp']
+    search_fields   = ['case_radicado', 'description', 'user__username']
+    readonly_fields = [
+        'case', 'user', 'action', 'description', 'timestamp',
+        'previous_status', 'new_status', 'case_radicado', 'ip_address',
+    ]
+    ordering = ['-timestamp']
+
+    def has_add_permission(self, request):              return False
+    def has_delete_permission(self, request, obj=None): return False
