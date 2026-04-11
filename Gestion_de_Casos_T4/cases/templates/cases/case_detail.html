@@ -52,6 +52,20 @@
 
                     <div class="col-md-6">
                         <div class="d-flex align-items-center mb-1">
+                            <i class="bi bi-mortarboard-fill text-primary me-2 fs-5"></i>
+                            <span class="text-muted small">Estudiante asignado</span>
+                        </div>
+                        <p class="fw-semibold mb-0 ms-4">
+                            {% if case.assigned_student %}
+                                {{ case.assigned_student.get_full_name|default:case.assigned_student.username }}
+                            {% else %}
+                                Sin asignar
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center mb-1">
                             <i class="bi bi-calendar-check-fill text-primary me-2 fs-5"></i>
                             <span class="text-muted small">Fecha de creacion</span>
                         </div>

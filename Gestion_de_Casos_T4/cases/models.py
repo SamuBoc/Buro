@@ -1,5 +1,6 @@
 import os
 
+from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
 
@@ -40,6 +41,14 @@ class Case(models.Model):
         on_delete=models.CASCADE,
         related_name='cases',
         verbose_name='Beneficiario'
+    )
+    assigned_student = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_cases',
+        verbose_name='Estudiante asignado'
     )
     state = models.CharField(
         max_length=100,
