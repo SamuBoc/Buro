@@ -1,11 +1,11 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.shortcuts import get_object_or_404, redirect, render
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from accounts.constants import ROLE_ADMINISTRADOR, ROLE_SECRETARIA
+from accounts.constants import ROLE_ADMINISTRADOR, ROLE_PROFESOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
 from accounts.permissions import can_view_case
 
@@ -32,8 +32,10 @@ def case_create(request):
                     case = form.save(commit=False)
                     case._request = request
                     case.save()
+
                     for document in form.cleaned_data['documents']:
                         CaseDocument.objects.create(case=case, file=document)
+
                     student = auto_assign_case(case)
 
                 if student is None:
@@ -65,9 +67,7 @@ def case_create(request):
 @login_required
 def case_detail(request, pk):
     case = get_object_or_404(
-        Case.objects
-        .select_related('beneficiary', 'assigned_student')
-        .prefetch_related('documents'),
+        Case.objects.select_related('beneficiary', 'assigned_student').prefetch_related('documents'),
         pk=pk
     )
 
@@ -79,41 +79,44 @@ def case_detail(request, pk):
         'case': case,
     })
 
-from .models import Case, CaseAuditLog
 
 @login_required
 def case_audit_log(request, case_id):
     case = get_object_or_404(Case, pk=case_id)
 
-    user = request.user
     has_access = (
-        user.is_staff
-        or user.groups.filter(name__in=['Secretaria', 'Profesor', 'Administrador']).exists()
-        or (hasattr(case, 'assigned_student') and case.assigned_student == user)
+        request.user.is_staff
+        or request.user.groups.filter(
+            name__in=[ROLE_SECRETARIA, ROLE_PROFESOR, ROLE_ADMINISTRADOR]
+        ).exists()
+        or case.assigned_student == request.user
     )
     if not has_access:
-        messages.error(request, 'No tienes permiso para ver la bitácora de este caso.')
+        messages.error(request, 'No tienes permiso para ver la bitacora de este caso.')
         return redirect('case_list')
 
     logs = CaseAuditLog.objects.filter(case=case).select_related('user').order_by('-timestamp')
 
     return render(request, 'cases/case_audit_log.html', {
-        'case':       case,
-        'logs':       logs,
-        'page_title': f'Bitácora — {case.radicado}',
+        'case': case,
+        'logs': logs,
+        'page_title': f'Bitacora - {case.code}',
     })
 
 
 @login_required
 def global_audit_log(request):
-    if not (request.user.is_staff or request.user.groups.filter(name='Administrador').exists()):
+    if not (
+        request.user.is_staff
+        or request.user.groups.filter(name=ROLE_ADMINISTRADOR).exists()
+    ):
         messages.error(request, 'Acceso restringido a administradores.')
         return redirect('case_list')
 
     logs = CaseAuditLog.objects.select_related('user', 'case').order_by('-timestamp')[:500]
     return render(request, 'cases/global_audit_log.html', {
-        'logs':       logs,
-        'page_title': 'Bitácora Global de Casos',
+        'logs': logs,
+        'page_title': 'Bitacora Global de Casos',
     })
 
 
@@ -127,8 +130,8 @@ def notification_list(request):
 
     return render(request, 'cases/notifications.html', {
         'notifications': notifications,
-        'unread_count':  unread_count,
-        'page_title':    'Mis Notificaciones',
+        'unread_count': unread_count,
+        'page_title': 'Mis Notificaciones',
     })
 
 
@@ -154,7 +157,7 @@ def mark_all_notifications_read(request):
             recipient_user=request.user,
             is_read=False,
         ).update(is_read=True, read_at=timezone.now())
-        messages.success(request, 'Todas las notificaciones marcadas como leídas.')
+        messages.success(request, 'Todas las notificaciones marcadas como leidas.')
     return redirect('notification_list')
 
 
@@ -165,4 +168,3 @@ def unread_notifications_count(request):
         is_read=False,
     ).count()
     return JsonResponse({'unread_count': count})
-    })
