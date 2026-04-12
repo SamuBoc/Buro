@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "beneficiary/base.html" %}
 {% block title %}Bitácora Global{% endblock %}
 
 {% block content %}
@@ -28,7 +28,7 @@
             <tr>
               <td class="text-muted small text-nowrap">{{ log.timestamp|date:"d/m/Y H:i:s" }}</td>
               <td>
-                <a href="{% url 'cases:case_audit_log' log.case.id %}"
+                <a href="{% url 'case_audit_log' log.case.id %}"
                    class="fw-semibold text-decoration-none">
                   {{ log.case_radicado }}
                 </a>

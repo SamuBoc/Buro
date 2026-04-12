@@ -25,8 +25,8 @@ def send_case_status_email(notification):
     context = {
         'notification':     notification,
         'beneficiary_name': notification.recipient_user.get_full_name(),
-        'case_radicado':    notification.case.radicado,
-        'case_asunto':      notification.case.asunto,
+        'case_radicado':    notification.case.code,
+        'case_asunto':      notification.case.description,
         'previous_status':  notification.previous_status,
         'new_status':       notification.new_status,
         'message':          notification.message,
@@ -49,7 +49,7 @@ def send_case_status_email(notification):
         logger.info(
             "Status email sent to %s | case %s | %s -> %s",
             recipient_email,
-            notification.case.radicado,
+            notification.case.code,
             notification.previous_status,
             notification.new_status,
         )
@@ -57,6 +57,6 @@ def send_case_status_email(notification):
         logger.error(
             "Failed to send email to %s | case %s | error: %s",
             recipient_email,
-            notification.case.radicado,
+            notification.case.code,
             exc,
         )
