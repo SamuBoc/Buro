@@ -7,11 +7,11 @@ from django.utils import timezone
 
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_PROFESOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
-from accounts.permissions import can_view_case
+from accounts.permissions import can_reassign_case, can_view_case
 
-from .forms import CaseForm
+from .forms import CaseForm, CaseReassignmentForm
 from .models import Case, CaseAuditLog, CaseDocument, Notification
-from .services import auto_assign_case
+from .services import auto_assign_case, reassign_case
 
 
 @login_required
@@ -67,7 +67,9 @@ def case_create(request):
 @login_required
 def case_detail(request, pk):
     case = get_object_or_404(
-        Case.objects.select_related('beneficiary', 'assigned_student').prefetch_related('documents'),
+        Case.objects
+        .select_related('beneficiary', 'assigned_student')
+        .prefetch_related('documents', 'reassignment_logs__changed_by', 'reassignment_logs__old_student', 'reassignment_logs__new_student'),
         pk=pk
     )
 
@@ -77,6 +79,39 @@ def case_detail(request, pk):
 
     return render(request, 'cases/case_detail.html', {
         'case': case,
+        'can_reassign': can_reassign_case(request.user),
+        'reassignment_form': CaseReassignmentForm(case=case),
+    })
+
+
+@role_required(ROLE_SECRETARIA, ROLE_PROFESOR, ROLE_ADMINISTRADOR)
+def case_reassign(request, pk):
+    case = get_object_or_404(
+        Case.objects.select_related('beneficiary', 'assigned_student'),
+        pk=pk
+    )
+
+    if request.method != 'POST':
+        return redirect('case_detail', pk=case.pk)
+
+    form = CaseReassignmentForm(request.POST, case=case)
+
+    if form.is_valid():
+        new_student = form.cleaned_data['assigned_student']
+        old_student = reassign_case(case, new_student, request.user)
+        previous_name = old_student.get_full_name() or old_student.username if old_student else 'Sin asignar'
+        new_name = new_student.get_full_name() or new_student.username
+        messages.success(
+            request,
+            f'El caso {case.code} fue reasignado de {previous_name} a {new_name}.'
+        )
+        return redirect('case_detail', pk=case.pk)
+
+    messages.error(request, 'Por favor seleccione un estudiante valido.')
+    return render(request, 'cases/case_detail.html', {
+        'case': case,
+        'can_reassign': can_reassign_case(request.user),
+        'reassignment_form': form,
     })
 
 

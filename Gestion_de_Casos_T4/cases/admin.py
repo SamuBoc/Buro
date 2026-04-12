@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Case, CaseDocument
+from .models import Case, CaseDocument, CaseReassignmentLog
 from .models import Notification
 
 
@@ -65,3 +65,23 @@ class CaseAuditLogAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):              return False
     def has_delete_permission(self, request, obj=None): return False
+
+
+@admin.register(CaseReassignmentLog)
+class CaseReassignmentLogAdmin(admin.ModelAdmin):
+    list_display = ('case', 'old_student', 'new_student', 'changed_by', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = (
+        'case__code',
+        'old_student__username',
+        'old_student__first_name',
+        'old_student__last_name',
+        'new_student__username',
+        'new_student__first_name',
+        'new_student__last_name',
+        'changed_by__username',
+        'changed_by__first_name',
+        'changed_by__last_name',
+    )
+    autocomplete_fields = ('case', 'old_student', 'new_student', 'changed_by')
+    readonly_fields = ('created_at',)
