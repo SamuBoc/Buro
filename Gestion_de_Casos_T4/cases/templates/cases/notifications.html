@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "beneficiary/base.html" %}
 {% block title %}Mis Notificaciones{% endblock %}
 
 {% block content %}
@@ -14,7 +14,7 @@
       {% endif %}
     </div>
     {% if unread_count > 0 %}
-    <form method="post" action="{% url 'cases:mark_all_notifications_read' %}">
+    <form method="post" action="{% url 'mark_all_notifications_read' %}">
       {% csrf_token %}
       <button type="submit" class="btn btn-outline-secondary btn-sm">
         ✓ Marcar todas como leídas
@@ -54,7 +54,7 @@
             </div>
           </div>
           <div class="ms-3">
-            <a href="{% url 'cases:mark_notification_read' notif.id %}"
+            <a href="{% url 'mark_notification_read' notif.id %}"
                class="btn btn-sm {% if not notif.is_read %}btn-primary{% else %}btn-outline-secondary{% endif %}">
               Ver caso
             </a>
