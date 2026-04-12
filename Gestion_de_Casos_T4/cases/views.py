@@ -7,9 +7,9 @@ from django.utils import timezone
 
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_PROFESOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
-from accounts.permissions import can_reassign_case, can_view_case
+from accounts.permissions import can_manage_case_deadline, can_reassign_case, can_view_case
 
-from .forms import CaseForm, CaseReassignmentForm
+from .forms import CaseDeadlineForm, CaseForm, CaseReassignmentForm
 from .models import Case, CaseAuditLog, CaseDocument, Notification
 from .services import auto_assign_case, reassign_case
 
@@ -80,6 +80,37 @@ def case_detail(request, pk):
     return render(request, 'cases/case_detail.html', {
         'case': case,
         'can_reassign': can_reassign_case(request.user),
+        'can_manage_deadline': can_manage_case_deadline(request.user),
+        'deadline_form': CaseDeadlineForm(instance=case),
+        'reassignment_form': CaseReassignmentForm(case=case),
+    })
+
+
+@role_required(ROLE_SECRETARIA, ROLE_PROFESOR, ROLE_ADMINISTRADOR)
+def case_update_deadline(request, pk):
+    case = get_object_or_404(
+        Case.objects.select_related('beneficiary', 'assigned_student'),
+        pk=pk
+    )
+
+    if request.method != 'POST':
+        return redirect('case_detail', pk=case.pk)
+
+    form = CaseDeadlineForm(request.POST, instance=case)
+
+    if form.is_valid():
+        deadline_case = form.save()
+        messages.success(
+            request,
+            f'La fecha limite del caso {deadline_case.code} fue actualizada.'
+        )
+        return redirect('case_detail', pk=case.pk)
+
+    return render(request, 'cases/case_detail.html', {
+        'case': case,
+        'can_reassign': can_reassign_case(request.user),
+        'can_manage_deadline': can_manage_case_deadline(request.user),
+        'deadline_form': form,
         'reassignment_form': CaseReassignmentForm(case=case),
     })
 

@@ -45,3 +45,14 @@ def can_reassign_case(user):
 
     roles = _user_roles(user)
     return bool(roles.intersection({ROLE_ADMINISTRADOR, ROLE_SECRETARIA, ROLE_PROFESOR}))
+
+
+def can_manage_case_deadline(user):
+    if not user.is_authenticated:
+        return False
+
+    if user.is_superuser:
+        return True
+
+    roles = _user_roles(user)
+    return bool(roles.intersection({ROLE_ADMINISTRADOR, ROLE_SECRETARIA, ROLE_PROFESOR}))

@@ -19,9 +19,10 @@ class CaseAdmin(admin.ModelAdmin):
         'beneficiary',
         'assigned_student',
         'state',
+        'deadline_date',
         'created_at',
     )
-    list_filter = ('sala', 'state', 'created_at')
+    list_filter = ('sala', 'state', 'deadline_date', 'created_at')
     search_fields = (
         'code',
         'description',
@@ -31,7 +32,7 @@ class CaseAdmin(admin.ModelAdmin):
         'assigned_student__last_name',
     )
     autocomplete_fields = ('beneficiary', 'assigned_student')
-    readonly_fields = ('code', 'created_at')
+    readonly_fields = ('code', 'created_at', 'deadline_alert_sent_at')
     inlines = [CaseDocumentInline]
 
 

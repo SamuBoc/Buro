@@ -63,6 +63,16 @@ class Case(models.Model):
         auto_now_add=True,
         verbose_name='Fecha de creacion'
     )
+    deadline_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Fecha limite de atencion'
+    )
+    deadline_alert_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Alerta de vencimiento enviada el'
+    )
 
     class Meta:
         verbose_name = 'Caso'
@@ -73,6 +83,10 @@ class Case(models.Model):
         return f'{self.code} - {self.beneficiary.name}'
 
     def save(self, *args, **kwargs):
+        if self.pk:
+            previous_case = Case.objects.filter(pk=self.pk).only('deadline_date').first()
+            if previous_case and previous_case.deadline_date != self.deadline_date:
+                self.deadline_alert_sent_at = None
         if not self.code:
             self.code = self.generate_code()
         super().save(*args, **kwargs)
