@@ -44,15 +44,13 @@ def beneficiary_detail(request, pk):
         'beneficiary': beneficiary
     })
 
-from .models import Beneficiary, BeneficiaryAuditLog
-
 
 @login_required
 def beneficiary_audit_log(request, beneficiary_id):
     user = request.user
     has_access = (
         user.is_staff
-        or user.groups.filter(name__in=['Secretaria', 'Administrador']).exists()
+        or user.groups.filter(name__in=[ROLE_SECRETARIA, ROLE_ADMINISTRADOR]).exists()
     )
     if not has_access:
         messages.error(request, 'No tienes permiso para ver esta bitácora.')
@@ -66,13 +64,13 @@ def beneficiary_audit_log(request, beneficiary_id):
     return render(request, 'beneficiary/beneficiary_audit_log.html', {
         'beneficiary': beneficiary,
         'logs':        logs,
-        'page_title':  f'Bitácora — {beneficiary.full_name}',
+        'page_title':  f'Bitácora — {beneficiary.name}',
     })
 
 
 @login_required
 def global_beneficiary_audit_log(request):
-    if not (request.user.is_staff or request.user.groups.filter(name='Administrador').exists()):
+    if not (request.user.is_staff or request.user.groups.filter(name=ROLE_ADMINISTRADOR).exists()):
         messages.error(request, 'Acceso restringido a administradores.')
         return redirect('beneficiary_list')
 

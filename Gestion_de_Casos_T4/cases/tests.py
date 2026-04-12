@@ -10,13 +10,16 @@ from django.urls import reverse
 from django.utils.datastructures import MultiValueDict
 
 from accounts.constants import (
+    ROLE_ADMINISTRADOR,
     ROLE_ESTUDIANTE,
     ROLE_PROFESOR,
     ROLE_SECRETARIA,
 )
+from accounts.models import UserProfile
 from beneficiary.models import Beneficiary
 from cases.forms import CaseForm
 from cases.models import Case, CaseDocument, CaseReassignmentLog
+from cases.services import auto_assign_case, get_available_student
 
 
 TEST_MEDIA_ROOT = Path(settings.BASE_DIR) / 'test_media'
@@ -50,6 +53,7 @@ class HU6CaseRegistrationTests(TestCase):
         self.student.groups.add(self.student_group)
 
         self.beneficiary = Beneficiary.objects.create(
+            id='1001001001',
             name='Laura Perez',
             location='Cali',
             phone='3001234567',
@@ -166,6 +170,7 @@ class HU12CaseAccessControlTests(TestCase):
         self.other_student.groups.add(self.student_group)
 
         self.beneficiary = Beneficiary.objects.create(
+            id='2002002002',
             name='Carlos Ramirez',
             location='Bogota',
             phone='3112223344',
@@ -248,6 +253,7 @@ class CaseReassignmentTests(TestCase):
         self.new_student.groups.add(self.estudiante_group)
 
         self.beneficiary = Beneficiary.objects.create(
+            id='3003003003',
             name='Carlos Gomez',
             location='Bogota',
             phone='3000000000',
@@ -296,3 +302,221 @@ class CaseReassignmentTests(TestCase):
         self.assertIn(reverse('no_permission'), response.url)
         self.case.refresh_from_db()
         self.assertEqual(self.case.assigned_student, self.old_student)
+
+
+class HU31RoleAccessControlTests(TestCase):
+
+    def setUp(self):
+        self.client = Client()
+
+        self.secretaria_group, _ = Group.objects.get_or_create(name=ROLE_SECRETARIA)
+        self.student_group, _ = Group.objects.get_or_create(name=ROLE_ESTUDIANTE)
+        self.profesor_group, _ = Group.objects.get_or_create(name=ROLE_PROFESOR)
+        self.admin_group, _ = Group.objects.get_or_create(name=ROLE_ADMINISTRADOR)
+
+        self.secretaria = User.objects.create_user(
+            username='secretaria_hu31', password='clave_segura_123'
+        )
+        self.secretaria.groups.add(self.secretaria_group)
+
+        self.student = User.objects.create_user(
+            username='estudiante_hu31', password='clave_segura_123'
+        )
+        self.student.groups.add(self.student_group)
+
+        self.profesor = User.objects.create_user(
+            username='profesor_hu31', password='clave_segura_123'
+        )
+        self.profesor.groups.add(self.profesor_group)
+
+        self.admin = User.objects.create_user(
+            username='admin_hu31', password='clave_segura_123'
+        )
+        self.admin.groups.add(self.admin_group)
+
+    def test_secretaria_can_access_case_create(self):
+        self.client.force_login(self.secretaria)
+        response = self.client.get(reverse('case_create'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_admin_can_access_case_create(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('case_create'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_student_cannot_access_case_create(self):
+        self.client.force_login(self.student)
+        response = self.client.get(reverse('case_create'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('no_permission'), response.url)
+
+    def test_profesor_cannot_access_case_create(self):
+        self.client.force_login(self.profesor)
+        response = self.client.get(reverse('case_create'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('no_permission'), response.url)
+
+    def test_anonymous_user_redirected_to_login_on_case_create(self):
+        response = self.client.get(reverse('case_create'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('login'), response.url)
+
+    def test_anonymous_user_redirected_to_login_on_case_list(self):
+        response = self.client.get(reverse('case_list'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('login'), response.url)
+
+    def test_any_authenticated_user_can_access_case_list(self):
+        for user in [self.secretaria, self.student, self.profesor, self.admin]:
+            self.client.force_login(user)
+            response = self.client.get(reverse('case_list'))
+            self.assertEqual(
+                response.status_code, 200,
+                f'{user.username} deberia poder ver la lista de casos'
+            )
+
+    def test_superuser_bypasses_role_restriction(self):
+        superuser = User.objects.create_superuser(
+            username='super_hu31', password='clave_segura_123'
+        )
+        self.client.force_login(superuser)
+        response = self.client.get(reverse('case_create'))
+        self.assertEqual(response.status_code, 200)
+
+
+class HU7AutoAssignCaseTests(TestCase):
+
+    def setUp(self):
+        self.student_group, _ = Group.objects.get_or_create(name=ROLE_ESTUDIANTE)
+
+        self.student_a = User.objects.create_user(
+            username='estudiante_a_hu7', first_name='Ana', last_name='Lopez',
+            password='clave_segura_123'
+        )
+        self.student_a.groups.add(self.student_group)
+        self.student_a.profile.max_cases = 3
+        self.student_a.profile.save()
+
+        self.student_b = User.objects.create_user(
+            username='estudiante_b_hu7', first_name='Luis', last_name='Garcia',
+            password='clave_segura_123'
+        )
+        self.student_b.groups.add(self.student_group)
+        self.student_b.profile.max_cases = 3
+        self.student_b.profile.save()
+
+        self.beneficiary = Beneficiary.objects.create(
+            id='4004004004',
+            name='Maria Test', location='Cali',
+            phone='3009999999', email='maria@test.com',
+        )
+
+    def _create_case(self, student=None):
+        case = Case.objects.create(
+            sala=Case.ROOM_CIVIL,
+            description='Caso auto test',
+            beneficiary=self.beneficiary,
+            assigned_student=student,
+            state=Case.STATE_ASSIGNED if student else Case.STATE_PENDING,
+        )
+        return case
+
+    def test_auto_assign_picks_student_with_least_load(self):
+        self._create_case(student=self.student_a)
+        self._create_case(student=self.student_a)
+
+        new_case = Case.objects.create(
+            sala=Case.ROOM_PENAL,
+            description='Caso nuevo para asignar',
+            beneficiary=self.beneficiary,
+        )
+        assigned = auto_assign_case(new_case)
+
+        self.assertEqual(assigned, self.student_b)
+        new_case.refresh_from_db()
+        self.assertEqual(new_case.assigned_student, self.student_b)
+        self.assertEqual(new_case.state, Case.STATE_ASSIGNED)
+
+    def test_auto_assign_returns_none_when_all_students_at_capacity(self):
+        self.student_a.profile.max_cases = 1
+        self.student_a.profile.save()
+        self.student_b.profile.max_cases = 1
+        self.student_b.profile.save()
+
+        self._create_case(student=self.student_a)
+        self._create_case(student=self.student_b)
+
+        new_case = Case.objects.create(
+            sala=Case.ROOM_LABORAL,
+            description='Caso sin estudiantes disponibles',
+            beneficiary=self.beneficiary,
+        )
+        assigned = auto_assign_case(new_case)
+
+        self.assertIsNone(assigned)
+        new_case.refresh_from_db()
+        self.assertIsNone(new_case.assigned_student)
+        self.assertEqual(new_case.state, Case.STATE_NO_STUDENTS)
+
+    def test_auto_assign_with_no_students_in_system(self):
+        self.student_a.groups.clear()
+        self.student_b.groups.clear()
+
+        new_case = Case.objects.create(
+            sala=Case.ROOM_FAMILIA,
+            description='Caso sin estudiantes registrados',
+            beneficiary=self.beneficiary,
+        )
+        assigned = auto_assign_case(new_case)
+
+        self.assertIsNone(assigned)
+        new_case.refresh_from_db()
+        self.assertEqual(new_case.state, Case.STATE_NO_STUDENTS)
+
+    def test_get_available_student_respects_max_cases(self):
+        self.student_a.profile.max_cases = 2
+        self.student_a.profile.save()
+        self.student_b.profile.max_cases = 2
+        self.student_b.profile.save()
+
+        self._create_case(student=self.student_a)
+        self._create_case(student=self.student_a)
+
+        student = get_available_student()
+        self.assertEqual(student, self.student_b)
+
+    def test_get_available_student_skips_inactive_users(self):
+        self.student_a.is_active = False
+        self.student_a.save()
+
+        student = get_available_student()
+        self.assertEqual(student, self.student_b)
+
+    def test_auto_assign_via_view_secretaria(self):
+        secretaria_group, _ = Group.objects.get_or_create(name=ROLE_SECRETARIA)
+        secretaria = User.objects.create_user(
+            username='secretaria_hu7', password='clave_segura_123'
+        )
+        secretaria.groups.add(secretaria_group)
+        self.client.force_login(secretaria)
+
+        test_file = SimpleUploadedFile(
+            'documento.pdf',
+            b'%PDF-1.4 test',
+            content_type='application/pdf',
+        )
+
+        response = self.client.post(reverse('case_create'), {
+            'sala': Case.ROOM_CIVIL,
+            'description': 'Caso creado por secretaria para auto-asignar',
+            'beneficiary': self.beneficiary.pk,
+            'documents': test_file,
+        })
+
+        self.assertEqual(response.status_code, 302)
+        created_case = Case.objects.order_by('-created_at').first()
+        self.assertIsNotNone(created_case.assigned_student)
+        self.assertIn(
+            created_case.assigned_student,
+            [self.student_a, self.student_b]
+        )
