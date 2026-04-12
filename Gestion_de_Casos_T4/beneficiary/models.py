@@ -5,6 +5,7 @@ from django.utils import timezone
 
 class Beneficiary(models.Model):
     name = models.CharField(max_length=200, verbose_name="Nombre")
+    id = models.CharField(max_length = 200, verbose_name="Número de Identificación", primary_key= True)
     location = models.CharField(max_length=300, verbose_name="Ubicación")
     phone = models.CharField(max_length=20, verbose_name="Teléfono")
     email = models.EmailField(verbose_name="Correo electrónico")

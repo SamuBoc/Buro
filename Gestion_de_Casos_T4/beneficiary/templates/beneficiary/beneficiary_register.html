@@ -26,6 +26,16 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for = "{{ form.id.id_for_label }}" class = "form-label fw-semibold">
+                            <i class = "bi bi-numeral me-1"></i> {{ form.id.label }}
+                        </label>
+                        {{ form.id }}
+                        {% if form.id.errors %}
+                            <div class = "text-danger small mt-1"> {{ form.id.errors|join:", " }} </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
                         <label for="{{ form.location.id_for_label }}" class="form-label fw-semibold">
                             <i class="bi bi-geo-alt me-1"></i>{{ form.location.label }}
                         </label>
@@ -53,6 +63,16 @@
                             {{ form.email }}
                             {% if form.email.errors %}
                                 <div class="text-danger small mt-1">{{ form.email.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.allow_conditions.id_for_label }}" class="form-label fw-semibold">
+                                <i class="bi bi-shield-fill-check"> Aceptar Tratamiento de datos </i>
+                            </label>
+                            {{ form.allow_conditions }}
+                            {% if form.allow_conditions.errors %}
+                                <div class="text-danger small mt-1">{{ form.allow_conditions.errors|join:", " }}</div>
                             {% endif %}
                         </div>
                     </div>
