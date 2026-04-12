@@ -63,9 +63,13 @@
 
                 <hr class="mt-4">
 
-                <div class="d-flex justify-content-end">
+                <div class="d-flex justify-content-between">
                     <a href="{% url 'beneficiary_register' %}" class="btn btn-primary">
-                        <i class="bi bi-person-plus-fill me-1"></i>Registrar otro
+                        <i class="bi bi-person-plus-fill me-1"></i> Registrar otro
+                    </a>
+
+                    <a href="{% url 'beneficiary_update' beneficiary.pk %}" class="btn btn-primary">
+                        <i class="bi bi-pencil-fill"></i> Editar
                     </a>
                 </div>
             </div>
