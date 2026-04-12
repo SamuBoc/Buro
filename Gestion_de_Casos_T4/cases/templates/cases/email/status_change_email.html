@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Actualización de su caso</title>
+  <style>
+    body        { margin:0; padding:0; background:#f4f4f4; font-family:Arial,sans-serif; }
+    .wrapper    { max-width:600px; margin:30px auto; background:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.1); }
+    .header     { background:#1a1f36; padding:24px 32px; text-align:center; }
+    .header h1  { color:#ffffff; font-size:20px; margin:0; letter-spacing:1px; }
+    .header p   { color:#a0aec0; font-size:13px; margin:4px 0 0; }
+    .body       { padding:32px; color:#2d3748; font-size:15px; line-height:1.6; }
+    .status-box { background:#f7fafc; border-left:4px solid #4299e1; border-radius:4px; padding:16px 20px; margin:20px 0; }
+    .status-row { display:flex; align-items:center; gap:12px; font-size:14px; margin-top:8px; }
+    .badge      { display:inline-block; padding:4px 12px; border-radius:20px; font-size:13px; font-weight:bold; }
+    .badge-old  { background:#e2e8f0; color:#4a5568; }
+    .badge-new  { background:#c6f6d5; color:#276749; }
+    .message    { background:#fffbeb; border:1px solid #f6e05e; border-radius:6px; padding:16px; margin:20px 0; font-size:14px; white-space:pre-line; }
+    .footer     { background:#f7fafc; padding:20px 32px; text-align:center; font-size:12px; color:#718096; border-top:1px solid #e2e8f0; }
+    .radicado   { font-family:monospace; background:#edf2f7; padding:2px 8px; border-radius:4px; font-size:13px; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>Consultorio Jurídico ICESI</h1>
+      <p>Sistema de Gestión Buro</p>
+    </div>
+    <div class="body">
+      <p>Estimado/a <strong>{{ beneficiary_name }}</strong>,</p>
+      <p>Le informamos que el estado de su caso ha sido actualizado.</p>
+
+      <div class="status-box">
+        <p style="margin:0 0 8px;font-size:13px;color:#718096;">
+          Radicado: <span class="radicado">{{ case_radicado }}</span>
+          &nbsp;|&nbsp; Asunto: <strong>{{ case_asunto }}</strong>
+        </p>
+        <div class="status-row">
+          <span class="badge badge-old">{{ previous_status }}</span>
+          <span style="font-size:18px;color:#718096;">→</span>
+          <span class="badge badge-new">{{ new_status }}</span>
+        </div>
+      </div>
+
+      <div class="message">{{ message }}</div>
+
+      <p style="font-size:13px;color:#718096;">
+        Para más información contáctenos en
+        <a href="mailto:{{ support_email }}">{{ support_email }}</a>
+        o acérquese a nuestras instalaciones en la Universidad ICESI.
+      </p>
+    </div>
+    <div class="footer">
+      <p>© Consultorio Jurídico ICESI — Universidad ICESI, Cali, Colombia</p>
+      <p>Este mensaje es generado automáticamente por el sistema Buro. No responda a este correo.</p>
+    </div>
+  </div>
+</body>
+</html>

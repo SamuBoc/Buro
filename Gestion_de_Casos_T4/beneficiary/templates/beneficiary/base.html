@@ -65,6 +65,18 @@
                             <i class="bi bi-folder-plus me-1"></i>Nuevo Caso
                         </a>
                     {% endif %}
+
+                    {# HU-13: Badge de notificaciones #}
+                    <a class="nav-link position-relative" href="{% url 'notification_list' %}">
+                        <i class="bi bi-bell-fill me-1"></i>Notificaciones
+                        {% if unread_notifications_count > 0 %}
+                        <span class="position-absolute top-0 start-100 translate-middle
+                                     badge rounded-pill bg-danger" style="font-size:10px;">
+                            {{ unread_notifications_count }}
+                        </span>
+                        {% endif %}
+                    </a>
+
                     <span class="nav-link">
                         <i class="bi bi-person-circle me-1"></i>{{ user.username }}
                     </span>
