@@ -1,15 +1,13 @@
 from django.contrib import admin
 from .models import Beneficiary
-
+from .models import BeneficiaryAuditLog
 
 @admin.register(Beneficiary)
 class BeneficiaryAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'location', 'phone', 'email', 'date_register')
-    search_fields = ('name', 'email', 'phone')
+    search_fields = ('name', 'email', 'phone', 'id')
     list_filter = ('date_register',)
     ordering = ('-date_register',)
-
-from .models import BeneficiaryAuditLog
 
 @admin.register(BeneficiaryAuditLog)
 class BeneficiaryAuditLogAdmin(admin.ModelAdmin):

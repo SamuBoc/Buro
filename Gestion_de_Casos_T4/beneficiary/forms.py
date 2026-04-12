@@ -3,13 +3,20 @@ from .models import Beneficiary
 
 
 class BeneficiaryForm(forms.ModelForm):
+
+    allow_conditions = forms.BooleanField(required=True)
+
     class Meta:
         model = Beneficiary
-        fields = ['name', 'location', 'phone', 'email']
+        fields = ['name', 'id', 'location', 'phone', 'email']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Nombre completo',
+            }),
+            'id' : forms.TextInput(attrs={
+                'class' : 'form-control',
+                'placeholder' : 'C.C',
             }),
             'location': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -26,6 +33,7 @@ class BeneficiaryForm(forms.ModelForm):
         }
         labels = {
             'name': 'Nombre',
+            'id' : 'Número de Identificación',
             'location': 'Ubicación',
             'phone': 'Teléfono',
             'email': 'Correo electrónico',
