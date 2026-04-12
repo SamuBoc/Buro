@@ -224,3 +224,46 @@ class CaseAuditLog(models.Model):
     def __str__(self):
         user_str = self.user.get_full_name() if self.user else 'Sistema'
         return f"[{self.timestamp:%d/%m/%Y %H:%M}] {user_str} — {self.get_action_display()} — {self.case_radicado}"
+
+
+class CaseReassignmentLog(models.Model):
+    case = models.ForeignKey(
+        Case,
+        on_delete=models.CASCADE,
+        related_name='reassignment_logs',
+        verbose_name='Caso'
+    )
+    old_student = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name='Estudiante anterior'
+    )
+    new_student = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name='Estudiante nuevo'
+    )
+    changed_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='case_reassignment_logs',
+        verbose_name='Reasignado por'
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Fecha de registro'
+    )
+
+    class Meta:
+        verbose_name = 'Bitacora de reasignacion'
+        verbose_name_plural = 'Bitacora de reasignaciones'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.case.code} - reasignado'
