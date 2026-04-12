@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
 
-from .forms import BeneficiaryForm
+from .forms import BeneficiaryForm, Update_Beneficiary_Form
 from .models import Beneficiary, BeneficiaryAuditLog
 
 
@@ -17,6 +17,15 @@ def beneficiary_list(request):
     })
 
 
+"""
+Allow register a new benefeciary with all the data neccessary to save it in DataBase.
+This function have a restriction role that only allow 'Secretaria' and 'Administrador'
+add a new beneficiary.
+
+If one of the allow roles will send the register beneficiary form, function make validation
+of the form (No empty files, avaible char...). If ones fields are wrong, system will make a 
+request to user about fix this mistake.
+"""
 @role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
 def beneficiary_register(request):
     if request.method == 'POST':
@@ -34,6 +43,31 @@ def beneficiary_register(request):
 
     return render(request, 'beneficiary/beneficiary_register.html', {
         'form': form
+    })
+
+"""
+Roles 'Secretaria' or 'Administrador' could update/modify a register beneficiary.
+"""
+@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
+def beneficiary_update(request, pk):
+
+    beneficiary = get_object_or_404(Beneficiary, pk=pk)
+
+    if request.method == 'POST':
+        form = Update_Beneficiary_Form(request.POST, instance=beneficiary)
+
+        if form.is_valid():
+            form.save()
+            return redirect('beneficiary_list')
+        
+        else:
+            print(form.errors) 
+            messages.error(request, "Corrige los errores del formulario")
+    
+    else: form = Update_Beneficiary_Form(instance=beneficiary)
+
+    return render(request, 'beneficiary/beneficiary_update.html', {
+        'form' : form
     })
 
 
