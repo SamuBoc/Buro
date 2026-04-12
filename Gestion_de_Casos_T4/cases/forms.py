@@ -33,7 +33,7 @@ class CaseForm(forms.ModelForm):
 
     class Meta:
         model = Case
-        fields = ['sala', 'description', 'beneficiary', 'assigned_student']
+        fields = ['sala', 'description', 'beneficiary', 'assigned_student', 'deadline_date']
         widgets = {
             'sala': forms.Select(attrs={'class': 'form-select'}),
             'description': forms.Textarea(attrs={
@@ -43,12 +43,14 @@ class CaseForm(forms.ModelForm):
             }),
             'beneficiary': forms.Select(attrs={'class': 'form-select'}),
             'assigned_student': forms.Select(attrs={'class': 'form-select'}),
+            'deadline_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         }
         labels = {
             'sala': 'Sala juridica',
             'description': 'Descripcion del problema',
             'beneficiary': 'Beneficiario asociado',
             'assigned_student': 'Estudiante asignado',
+            'deadline_date': 'Fecha limite de atencion',
         }
 
     def __init__(self, *args, **kwargs):
@@ -65,7 +67,10 @@ class CaseForm(forms.ModelForm):
         })
 
     def clean_documents(self):
-        documents = self.files.getlist('documents')
+        documents = self.cleaned_data.get('documents') or self.files.getlist('documents')
+
+        if not isinstance(documents, (list, tuple)):
+            documents = [documents]
 
         if not documents:
             raise ValidationError('Debe cargar al menos un documento para el caso.')
@@ -84,6 +89,18 @@ class CaseForm(forms.ModelForm):
             )
 
         return documents
+
+
+class CaseDeadlineForm(forms.ModelForm):
+    class Meta:
+        model = Case
+        fields = ['deadline_date']
+        widgets = {
+            'deadline_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        }
+        labels = {
+            'deadline_date': 'Fecha limite de atencion',
+        }
 
 
 class CaseReassignmentForm(forms.Form):

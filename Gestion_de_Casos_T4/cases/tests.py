@@ -3,11 +3,13 @@ from pathlib import Path
 
 from django.contrib.auth.models import Group, User
 from django.contrib.messages import get_messages
+from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.conf import settings
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils.datastructures import MultiValueDict
+from django.utils import timezone
 
 from accounts.constants import (
     ROLE_ADMINISTRADOR,
@@ -18,7 +20,7 @@ from accounts.constants import (
 from accounts.models import UserProfile
 from beneficiary.models import Beneficiary
 from cases.forms import CaseForm
-from cases.models import Case, CaseDocument, CaseReassignmentLog
+from cases.models import Case, CaseDocument, CaseReassignmentLog, Notification
 from cases.services import auto_assign_case, get_available_student
 
 
@@ -302,6 +304,81 @@ class CaseReassignmentTests(TestCase):
         self.assertIn(reverse('no_permission'), response.url)
         self.case.refresh_from_db()
         self.assertEqual(self.case.assigned_student, self.old_student)
+
+
+class HU11DeadlineTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+
+        self.secretaria_group, _ = Group.objects.get_or_create(name=ROLE_SECRETARIA)
+        self.profesor_group, _ = Group.objects.get_or_create(name=ROLE_PROFESOR)
+        self.student_group, _ = Group.objects.get_or_create(name=ROLE_ESTUDIANTE)
+
+        self.secretaria = User.objects.create_user(
+            username='secretaria_hu11',
+            password='testpass123'
+        )
+        self.secretaria.groups.add(self.secretaria_group)
+
+        self.profesor = User.objects.create_user(
+            username='profesor_hu11',
+            password='testpass123'
+        )
+        self.profesor.groups.add(self.profesor_group)
+
+        self.student = User.objects.create_user(
+            username='estudiante_hu11',
+            password='testpass123'
+        )
+        self.student.groups.add(self.student_group)
+
+        self.beneficiary = Beneficiary.objects.create(
+            id='4004004004',
+            name='Maria Lopez',
+            location='Cali',
+            phone='3001112233',
+            email='maria@example.com'
+        )
+
+        self.case = Case.objects.create(
+            sala=Case.ROOM_PENAL,
+            description='Caso con vencimiento próximo',
+            beneficiary=self.beneficiary,
+            assigned_student=self.student,
+            state=Case.STATE_ASSIGNED,
+        )
+
+    def test_secretary_can_register_deadline_from_case_detail(self):
+        self.client.login(username='secretaria_hu11', password='testpass123')
+
+        deadline_value = timezone.localdate() + timezone.timedelta(days=7)
+        response = self.client.post(
+            reverse('case_update_deadline', args=[self.case.pk]),
+            {'deadline_date': deadline_value.isoformat()},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.case.refresh_from_db()
+        self.assertEqual(self.case.deadline_date, deadline_value)
+
+    def test_deadline_alert_command_creates_notifications_once(self):
+        self.case.deadline_date = timezone.localdate() + timezone.timedelta(days=2)
+        self.case.save(update_fields=['deadline_date'])
+
+        call_command('generate_deadline_alerts', days=3)
+
+        notifications = Notification.objects.filter(case=self.case, notification_type='DEADLINE')
+        self.assertEqual(notifications.count(), 3)
+        self.assertTrue(notifications.filter(recipient_user=self.student).exists())
+        self.assertTrue(notifications.filter(recipient_user=self.secretaria).exists())
+        self.assertTrue(notifications.filter(recipient_user=self.profesor).exists())
+
+        call_command('generate_deadline_alerts', days=3)
+
+        self.assertEqual(
+            Notification.objects.filter(case=self.case, notification_type='DEADLINE').count(),
+            3,
+        )
 
 
 class HU31RoleAccessControlTests(TestCase):

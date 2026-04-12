@@ -59,6 +59,19 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for="{{ form.deadline_date.id_for_label }}" class="form-label fw-semibold">
+                            <i class="bi bi-hourglass-split me-1"></i>{{ form.deadline_date.label }}
+                        </label>
+                        {{ form.deadline_date }}
+                        <div class="form-text">
+                            Puede dejar este campo vacío y registrarlo luego desde el detalle del caso.
+                        </div>
+                        {% if form.deadline_date.errors %}
+                            <div class="text-danger small mt-1">{{ form.deadline_date.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
                         <label for="{{ form.documents.id_for_label }}" class="form-label fw-semibold">
                             <i class="bi bi-paperclip me-1"></i>{{ form.documents.label }}
                         </label>
