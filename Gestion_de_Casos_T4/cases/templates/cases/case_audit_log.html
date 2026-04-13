@@ -1,0 +1,58 @@
+{% extends "beneficiary/base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4>{{ page_title }}</h4>
+            <a href="{% url 'case_detail' case.pk %}" class="btn btn-secondary btn-sm">Volver al caso</a>
+        </div>
+
+        <div class="card">
+            <div class="card-body p-0">
+                {% if logs %}
+                <div class="table-responsive">
+                    <table class="table table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Usuario</th>
+                                <th>Accion</th>
+                                <th>Descripcion</th>
+                                <th>Estado anterior</th>
+                                <th>Estado nuevo</th>
+                                <th>IP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs %}
+                            <tr>
+                                <td class="small">{{ log.timestamp|date:"d/m/Y H:i:s" }}</td>
+                                <td>
+                                    {% if log.user %}
+                                        {{ log.user.get_full_name|default:log.user.username }}
+                                    {% else %}
+                                        Sistema
+                                    {% endif %}
+                                </td>
+                                <td>{{ log.get_action_display }}</td>
+                                <td class="small">{{ log.description }}</td>
+                                <td class="small">{{ log.previous_status|default:"-" }}</td>
+                                <td class="small">{{ log.new_status|default:"-" }}</td>
+                                <td class="small">{{ log.ip_address|default:"-" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    No hay acciones registradas para este caso.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

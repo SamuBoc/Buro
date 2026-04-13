@@ -1,0 +1,79 @@
+{% extends 'beneficiary/base.html' %}
+
+{% block title %}{{ beneficiary.name }} - Buró Jurídico{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="page-header d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="mb-0"><i class="bi bi-person-vcard-fill me-2"></i>Detalle del Beneficiario</h4>
+                <small class="opacity-75">ID: #{{ beneficiary.id }}</small>
+            </div>
+            <a href="{% url 'beneficiary_list' %}" class="btn btn-light btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Volver
+            </a>
+        </div>
+
+        <div class="card">
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="d-flex align-items-center mb-1">
+                            <i class="bi bi-person-fill text-primary me-2 fs-5"></i>
+                            <span class="text-muted small">Nombre</span>
+                        </div>
+                        <p class="fw-semibold fs-5 mb-0 ms-4">{{ beneficiary.name }}</p>
+                    </div>
+
+                    <hr class="my-1">
+
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center mb-1">
+                            <i class="bi bi-geo-alt-fill text-primary me-2 fs-5"></i>
+                            <span class="text-muted small">Ubicación</span>
+                        </div>
+                        <p class="fw-semibold mb-0 ms-4">{{ beneficiary.location }}</p>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center mb-1">
+                            <i class="bi bi-telephone-fill text-primary me-2 fs-5"></i>
+                            <span class="text-muted small">Teléfono</span>
+                        </div>
+                        <p class="fw-semibold mb-0 ms-4">{{ beneficiary.phone }}</p>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center mb-1">
+                            <i class="bi bi-envelope-fill text-primary me-2 fs-5"></i>
+                            <span class="text-muted small">Correo electrónico</span>
+                        </div>
+                        <p class="fw-semibold mb-0 ms-4">{{ beneficiary.email }}</p>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center mb-1">
+                            <i class="bi bi-calendar-check-fill text-primary me-2 fs-5"></i>
+                            <span class="text-muted small">Fecha de registro</span>
+                        </div>
+                        <p class="fw-semibold mb-0 ms-4">{{ beneficiary.date_register|date:"d/m/Y" }}</p>
+                    </div>
+                </div>
+
+                <hr class="mt-4">
+
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'beneficiary_register' %}" class="btn btn-primary">
+                        <i class="bi bi-person-plus-fill me-1"></i> Registrar otro
+                    </a>
+
+                    <a href="{% url 'beneficiary_update' beneficiary.pk %}" class="btn btn-primary">
+                        <i class="bi bi-pencil-fill"></i> Editar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

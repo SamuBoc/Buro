@@ -1,0 +1,11 @@
+ROLE_SECRETARIA = 'secretaria'
+ROLE_ESTUDIANTE = 'estudiante'
+ROLE_PROFESOR = 'profesor'
+ROLE_ADMINISTRADOR = 'administrador'
+
+ALL_ROLES = [
+    ROLE_SECRETARIA,
+    ROLE_ESTUDIANTE,
+    ROLE_PROFESOR,
+    ROLE_ADMINISTRADOR,
+]

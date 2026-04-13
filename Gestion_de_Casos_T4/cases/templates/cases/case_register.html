@@ -1,0 +1,102 @@
+{% extends 'beneficiary/base.html' %}
+
+{% block title %}Registrar Caso - Buro Juridico{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="page-header">
+            <h4 class="mb-0"><i class="bi bi-folder-plus me-2"></i>Registrar Nuevo Caso Juridico</h4>
+            <small class="opacity-75">Complete la informacion del caso y adjunte sus documentos de soporte</small>
+        </div>
+
+        <div class="card">
+            <div class="card-body p-4">
+                <form method="POST" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.sala.id_for_label }}" class="form-label fw-semibold">
+                            <i class="bi bi-building me-1"></i>{{ form.sala.label }}
+                        </label>
+                        {{ form.sala }}
+                        {% if form.sala.errors %}
+                            <div class="text-danger small mt-1">{{ form.sala.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.beneficiary.id_for_label }}" class="form-label fw-semibold">
+                            <i class="bi bi-person-vcard me-1"></i>{{ form.beneficiary.label }}
+                        </label>
+                        {{ form.beneficiary }}
+                        {% if form.beneficiary.errors %}
+                            <div class="text-danger small mt-1">{{ form.beneficiary.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.assigned_student.id_for_label }}" class="form-label fw-semibold">
+                            <i class="bi bi-mortarboard me-1"></i>{{ form.assigned_student.label }}
+                        </label>
+                        {{ form.assigned_student }}
+                        <div class="form-text">
+                            Solo se muestran usuarios que pertenecen al grupo estudiante.
+                        </div>
+                        {% if form.assigned_student.errors %}
+                            <div class="text-danger small mt-1">{{ form.assigned_student.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label fw-semibold">
+                            <i class="bi bi-card-text me-1"></i>{{ form.description.label }}
+                        </label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <div class="text-danger small mt-1">{{ form.description.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.deadline_date.id_for_label }}" class="form-label fw-semibold">
+                            <i class="bi bi-hourglass-split me-1"></i>{{ form.deadline_date.label }}
+                        </label>
+                        {{ form.deadline_date }}
+                        <div class="form-text">
+                            Puede dejar este campo vacío y registrarlo luego desde el detalle del caso.
+                        </div>
+                        {% if form.deadline_date.errors %}
+                            <div class="text-danger small mt-1">{{ form.deadline_date.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.documents.id_for_label }}" class="form-label fw-semibold">
+                            <i class="bi bi-paperclip me-1"></i>{{ form.documents.label }}
+                        </label>
+                        {{ form.documents }}
+                        <div class="form-text">
+                            Formatos permitidos: PDF, JPG, PNG, DOCX y XLSX.
+                        </div>
+                        {% if form.documents.errors %}
+                            <div class="text-danger small mt-1">{{ form.documents.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'case_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="bi bi-save me-1"></i>Guardar Caso
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
