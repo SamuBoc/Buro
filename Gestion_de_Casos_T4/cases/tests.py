@@ -306,6 +306,88 @@ class CaseReassignmentTests(TestCase):
         self.assertEqual(self.case.assigned_student, self.old_student)
 
 
+class HU10CaseRejectionTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+
+        self.secretaria_group, _ = Group.objects.get_or_create(name=ROLE_SECRETARIA)
+        self.profesor_group, _ = Group.objects.get_or_create(name=ROLE_PROFESOR)
+
+        self.secretaria = User.objects.create_user(
+            username='secretaria_hu10',
+            password='testpass123'
+        )
+        self.secretaria.groups.add(self.secretaria_group)
+
+        self.profesor = User.objects.create_user(
+            username='profesor_hu10',
+            password='testpass123'
+        )
+        self.profesor.groups.add(self.profesor_group)
+
+        self.beneficiary = Beneficiary.objects.create(
+            id='3103103103',
+            name='Ana Rojas',
+            location='Bogota',
+            phone='3009876543',
+            email='ana.rojas@example.com'
+        )
+
+        self.case = Case.objects.create(
+            sala=Case.ROOM_CIVIL,
+            description='Caso para validar rechazo',
+            beneficiary=self.beneficiary,
+            state=Case.STATE_PENDING,
+        )
+
+    def test_secretaria_can_reject_case_with_reason(self):
+        self.client.force_login(self.secretaria)
+
+        response = self.client.post(
+            reverse('case_reject', args=[self.case.pk]),
+            {'rejection_reason': 'No competencia del consultorio juridico.'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.case.refresh_from_db()
+        self.assertEqual(self.case.state, Case.STATE_REJECTED)
+        self.assertEqual(
+            self.case.rejection_reason,
+            'No competencia del consultorio juridico.'
+        )
+
+    def test_secretaria_cannot_reject_case_without_reason(self):
+        self.client.force_login(self.secretaria)
+
+        response = self.client.post(
+            reverse('case_reject', args=[self.case.pk]),
+            {'rejection_reason': '   '},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.case.refresh_from_db()
+        self.assertEqual(self.case.state, Case.STATE_PENDING)
+        self.assertIsNone(self.case.rejection_reason)
+        self.assertContains(response, 'Debe ingresar una causal de rechazo válida.')
+
+    def test_profesor_can_reject_case_with_reason(self):
+        self.client.force_login(self.profesor)
+
+        response = self.client.post(
+            reverse('case_reject', args=[self.case.pk]),
+            {'rejection_reason': 'El asunto no es de naturaleza juridica.'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.case.refresh_from_db()
+        self.assertEqual(self.case.state, Case.STATE_REJECTED)
+        self.assertEqual(
+            self.case.rejection_reason,
+            'El asunto no es de naturaleza juridica.'
+        )
+
+
 class HU11DeadlineTests(TestCase):
     def setUp(self):
         self.client = Client()

@@ -25,6 +25,7 @@ class Case(models.Model):
     STATE_PENDING = 'Registrado - Pendiente asignacion'
     STATE_ASSIGNED = 'Asignado a estudiante'
     STATE_NO_STUDENTS = 'Sin estudiantes disponibles'
+    STATE_REJECTED = 'Rechazado'
 
     DEFAULT_STATE = STATE_PENDING
 
@@ -72,6 +73,11 @@ class Case(models.Model):
         null=True,
         blank=True,
         verbose_name='Alerta de vencimiento enviada el'
+    )
+    rejection_reason = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name='Causal de rechazo'
     )
 
     class Meta:

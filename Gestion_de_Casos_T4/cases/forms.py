@@ -117,7 +117,6 @@ class CaseReassignmentForm(forms.Form):
             is_active=True,
             groups__name='estudiante'
         ).order_by('first_name', 'last_name', 'username').distinct()
-
         if self.case and self.case.assigned_student_id:
             self.initial.setdefault('assigned_student', self.case.assigned_student_id)
 
@@ -128,3 +127,25 @@ class CaseReassignmentForm(forms.Form):
             raise ValidationError('El caso ya esta asignado a ese estudiante.')
 
         return assigned_student
+
+
+class CaseRejectionForm(forms.ModelForm):
+    class Meta:
+        model = Case
+        fields = ['rejection_reason']
+        widgets = {
+            'rejection_reason': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Ingrese la causal del rechazo del caso...',
+            }),
+        }
+        labels = {
+            'rejection_reason': 'Causal de rechazo',
+        }
+
+    def clean_rejection_reason(self):
+        rejection_reason = self.cleaned_data.get('rejection_reason')
+        if not rejection_reason or not rejection_reason.strip():
+            raise ValidationError('Debe ingresar una causal de rechazo válida.')
+        return rejection_reason
