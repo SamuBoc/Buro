@@ -7,7 +7,6 @@ logger = logging.getLogger(__name__)
 
 
 def send_case_status_email(notification):
-   
     if notification.notification_type != 'STATUS_CHANGE':
         return
 
@@ -24,7 +23,7 @@ def send_case_status_email(notification):
 
     context = {
         'notification':     notification,
-        'beneficiary_name': notification.recipient_user.get_full_name(),
+        'beneficiary_name': notification.case.beneficiary.name,
         'case_radicado':    notification.case.code,
         'case_asunto':      notification.case.description,
         'previous_status':  notification.previous_status,
