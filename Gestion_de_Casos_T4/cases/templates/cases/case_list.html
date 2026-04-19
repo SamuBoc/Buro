@@ -3,6 +3,63 @@
 {% block title %}Casos Juridicos - Buro Juridico{% endblock %}
 
 {% block content %}
+<style>
+    .priority-badge {
+        font-weight: 600;
+        padding: 0.35rem 0.6rem;
+        border-radius: 999px;
+    }
+
+    .priority-critical {
+        background-color: #9b1c1c;
+        color: #fff;
+    }
+
+    .priority-high {
+        background-color: #dc3545;
+        color: #fff;
+    }
+
+    .priority-medium {
+        background-color: #f59e0b;
+        color: #1f2937;
+    }
+
+    .priority-low {
+        background-color: #198754;
+        color: #fff;
+    }
+
+    .priority-none {
+        background-color: #6c757d;
+        color: #fff;
+    }
+
+    .deadline-note {
+        display: block;
+        font-size: 0.82rem;
+        margin-top: 0.2rem;
+    }
+
+    .deadline-overdue {
+        color: #9b1c1c;
+        font-weight: 600;
+    }
+
+    .deadline-soon {
+        color: #dc3545;
+        font-weight: 600;
+    }
+
+    .deadline-normal {
+        color: #495057;
+    }
+
+    .deadline-none {
+        color: #6c757d;
+    }
+</style>
+
 <div class="page-header d-flex justify-content-between align-items-center">
     <div>
         <h4 class="mb-0"><i class="bi bi-folder-fill me-2"></i>Casos Juridicos Registrados</h4>
@@ -27,6 +84,8 @@
                             <th>Beneficiario</th>
                             <th>Asignado a</th>
                             <th>Estado</th>
+                            <th>Vencimiento</th>
+                            <th>Prioridad</th>
                             <th>Fecha</th>
                             <th class="text-center">Acciones</th>
                         </tr>
@@ -45,6 +104,17 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ case.state }}</td>
+                                <td>
+                                    {% if case.deadline_date %}
+                                        <div>{{ case.deadline_date|date:"d/m/Y" }}</div>
+                                    {% else %}
+                                        <div class="text-muted">Sin fecha limite</div>
+                                    {% endif %}
+                                    <small class="deadline-note {{ case.deadline_class }}">{{ case.deadline_status_text }}</small>
+                                </td>
+                                <td>
+                                    <span class="priority-badge {{ case.priority_class }}">{{ case.priority_label }}</span>
+                                </td>
                                 <td>{{ case.created_at|date:"d/m/Y H:i" }}</td>
                                 <td class="text-center">
                                     <a href="{% url 'case_detail' case.pk %}" class="btn btn-sm btn-outline-primary">
