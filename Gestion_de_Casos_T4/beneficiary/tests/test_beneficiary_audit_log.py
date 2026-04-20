@@ -7,10 +7,8 @@ from beneficiary.models import Beneficiary, BeneficiaryAuditLog
 from beneficiary.signals import log_beneficiary_view, log_beneficiary_doc_action
 
 
-
-def make_beneficiary(name='Ana Lopez', email='ana@test.com', id='1001'):
+def make_beneficiary(name='Ana Lopez', email='ana@test.com'):
     return Beneficiary.objects.create(
-        id=id,
         name=name,
         location='Cali',
         phone='3009876543',
