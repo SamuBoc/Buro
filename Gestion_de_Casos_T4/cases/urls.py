@@ -14,4 +14,5 @@ urlpatterns = [
     path('<int:case_id>/bitacora/', views.case_audit_log, name='case_audit_log'),
     path('bitacora/global/',        views.global_audit_log, name='global_audit_log'),
     path('<int:pk>/reasignar/', views.case_reassign, name='case_reassign'),
+    path('<int:pk>/rechazar/', views.case_reject, name='case_reject'),
 ]

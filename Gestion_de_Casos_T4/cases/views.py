@@ -9,7 +9,7 @@ from accounts.constants import ROLE_ADMINISTRADOR, ROLE_PROFESOR, ROLE_SECRETARI
 from accounts.decorators import role_required
 from accounts.permissions import can_manage_case_deadline, can_reassign_case, can_view_case
 
-from .forms import CaseDeadlineForm, CaseForm, CaseReassignmentForm
+from .forms import CaseDeadlineForm, CaseForm, CaseReassignmentForm, CaseRejectionForm
 from .models import Case, CaseAuditLog, CaseDocument, Notification
 from .services import auto_assign_case, reassign_case
 
@@ -83,6 +83,7 @@ def case_detail(request, pk):
         'can_manage_deadline': can_manage_case_deadline(request.user),
         'deadline_form': CaseDeadlineForm(instance=case),
         'reassignment_form': CaseReassignmentForm(case=case),
+        'rejection_form': CaseRejectionForm(instance=case),
     })
 
 
@@ -112,6 +113,7 @@ def case_update_deadline(request, pk):
         'can_manage_deadline': can_manage_case_deadline(request.user),
         'deadline_form': form,
         'reassignment_form': CaseReassignmentForm(case=case),
+        'rejection_form': CaseRejectionForm(instance=case),
     })
 
 
@@ -142,7 +144,52 @@ def case_reassign(request, pk):
     return render(request, 'cases/case_detail.html', {
         'case': case,
         'can_reassign': can_reassign_case(request.user),
+        'can_manage_deadline': can_manage_case_deadline(request.user),
+        'deadline_form': CaseDeadlineForm(instance=case),
         'reassignment_form': form,
+        'rejection_form': CaseRejectionForm(instance=case),
+    })
+
+
+@role_required(ROLE_SECRETARIA, ROLE_PROFESOR, ROLE_ADMINISTRADOR)
+def case_reject(request, pk):
+    case = get_object_or_404(
+        Case.objects.select_related('beneficiary', 'assigned_student'),
+        pk=pk
+    )
+
+    if request.method != 'POST':
+        return redirect('case_detail', pk=case.pk)
+
+    form = CaseRejectionForm(request.POST, instance=case)
+
+    if form.is_valid():
+        try:
+            with transaction.atomic():
+                case.state = Case.STATE_REJECTED
+                case.rejection_reason = form.cleaned_data['rejection_reason']
+                case._request = request
+                case.save()
+
+                messages.success(
+                    request,
+                    f'El caso {case.code} ha sido rechazado exitosamente.'
+                )
+        except Exception:
+            messages.error(
+                request,
+                'Ocurrió un problema al rechazar el caso. Intente nuevamente.'
+            )
+        return redirect('case_detail', pk=case.pk)
+
+    messages.error(request, 'Por favor ingrese una causal de rechazo válida.')
+    return render(request, 'cases/case_detail.html', {
+        'case': case,
+        'can_reassign': can_reassign_case(request.user),
+        'can_manage_deadline': can_manage_case_deadline(request.user),
+        'deadline_form': CaseDeadlineForm(instance=case),
+        'reassignment_form': CaseReassignmentForm(case=case),
+        'rejection_form': form,
     })
 
 
