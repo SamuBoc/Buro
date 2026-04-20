@@ -161,7 +161,8 @@ class BeneficiaryAuditLogModelTest(TestCase):
         self.assertGreaterEqual(total, 500)
 
     def test_audit_log_isolation_between_beneficiaries(self):
-        other = make_beneficiary(name='Carlos Ruiz', email='carlos@test.com', id='1002')
+        # FIX: removed id='1002' — el ID es auto-generado por el sistema (HU-2)
+        other = make_beneficiary(name='Carlos Ruiz', email='carlos@test.com')
         log_beneficiary_view(self.beneficiary, self.user)
         log_beneficiary_view(other, self.user)
         logs_ana = BeneficiaryAuditLog.objects.filter(beneficiary=self.beneficiary)
@@ -179,7 +180,8 @@ class BeneficiaryAuditLogViewTest(TestCase):
         self.admin = make_user('admin_bv', group_name=ROLE_ADMINISTRADOR)
         self.secretaria = make_user('sec_bv', group_name=ROLE_SECRETARIA)
         self.estudiante = make_user('est_bv')
-        self.beneficiary = make_beneficiary('Carlos Ruiz', 'carlos@test.com', id='2001')
+        # FIX: removed id='2001' — el ID es auto-generado por el sistema (HU-2)
+        self.beneficiary = make_beneficiary('Carlos Ruiz', 'carlos@test.com')
 
     def test_beneficiary_audit_log_accessible_by_admin(self):
         self.client.login(username='admin_bv', password='pass1234')
