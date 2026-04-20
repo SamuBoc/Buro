@@ -29,7 +29,6 @@ def make_user(username, password='pass1234', group_name=None):
 def datos_validos(**overrides):
     """Retorna un diccionario con datos completos y válidos para el formulario."""
     base = {
-        'id': '1001',
         'name': 'Maria Lopez',
         'location': 'Cali, Valle',
         'phone': '3001234567',
@@ -81,7 +80,7 @@ class HU1_RegistroExitosoTest(TestCase):
     def test_registro_con_datos_completos_guarda_en_db(self):
         """POSITIVO: Enviar el formulario completo crea el beneficiario en la base de datos."""
         self.client.post(reverse('beneficiary_register'), datos_validos())
-        self.assertTrue(Beneficiary.objects.filter(id='1001').exists())
+        self.assertTrue(Beneficiary.objects.filter(email='maria@test.com').exists())
 
     def test_registro_exitoso_redirige_a_lista(self):
         """POSITIVO: Tras un registro exitoso, el sistema redirige a la lista de beneficiarios."""
@@ -92,20 +91,27 @@ class HU1_RegistroExitosoTest(TestCase):
     def test_registro_guarda_nombre_correctamente(self):
         """POSITIVO: El nombre ingresado se almacena exactamente como fue enviado."""
         self.client.post(reverse('beneficiary_register'), datos_validos())
-        beneficiario = Beneficiary.objects.get(id='1001')
+        beneficiario = Beneficiary.objects.get(email='maria@test.com')
         self.assertEqual(beneficiario.name, 'Maria Lopez')
 
     def test_registro_guarda_email_correctamente(self):
         """POSITIVO: El correo electrónico se almacena correctamente en la DB."""
         self.client.post(reverse('beneficiary_register'), datos_validos())
-        beneficiario = Beneficiary.objects.get(id='1001')
+        beneficiario = Beneficiary.objects.get(email='maria@test.com')
         self.assertEqual(beneficiario.email, 'maria@test.com')
 
     def test_registro_asigna_fecha_automaticamente(self):
         """POSITIVO: La fecha de registro se asigna sola al crear el beneficiario."""
         self.client.post(reverse('beneficiary_register'), datos_validos())
-        beneficiario = Beneficiary.objects.get(id='1001')
+        beneficiario = Beneficiary.objects.get(email='maria@test.com')
         self.assertIsNotNone(beneficiario.date_register)
+
+    def test_registro_genera_id_automaticamente(self):
+        """POSITIVO: El sistema genera automáticamente el identificador único al registrar."""
+        self.client.post(reverse('beneficiary_register'), datos_validos())
+        beneficiario = Beneficiary.objects.get(email='maria@test.com')
+        self.assertTrue(beneficiario.id.startswith('BEN-'))
+
 
 class HU1_CamposIncompletosTest(TestCase):
 
@@ -118,33 +124,25 @@ class HU1_CamposIncompletosTest(TestCase):
         """NEGATIVO: El formulario no se guarda si el nombre está vacío."""
         response = self.client.post(reverse('beneficiary_register'), datos_validos(name=''))
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Beneficiary.objects.filter(id='1001').exists())
-
-    def test_falla_sin_documento_de_identidad(self):
-        """NEGATIVO: El formulario no se guarda si el número de identificación está vacío."""
-        data = datos_validos()
-        data['id'] = ''
-        response = self.client.post(reverse('beneficiary_register'), data)
-        self.assertEqual(response.status_code, 200)
         self.assertEqual(Beneficiary.objects.count(), 0)
 
     def test_falla_sin_ubicacion(self):
         """NEGATIVO: El formulario no se guarda si la ubicación está vacía."""
         response = self.client.post(reverse('beneficiary_register'), datos_validos(location=''))
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Beneficiary.objects.filter(id='1001').exists())
+        self.assertEqual(Beneficiary.objects.count(), 0)
 
     def test_falla_sin_telefono(self):
         """NEGATIVO: El formulario no se guarda si el teléfono está vacío."""
         response = self.client.post(reverse('beneficiary_register'), datos_validos(phone=''))
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Beneficiary.objects.filter(id='1001').exists())
+        self.assertEqual(Beneficiary.objects.count(), 0)
 
     def test_falla_sin_email(self):
         """NEGATIVO: El formulario no se guarda si el correo electrónico está vacío."""
         response = self.client.post(reverse('beneficiary_register'), datos_validos(email=''))
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Beneficiary.objects.filter(id='1001').exists())
+        self.assertEqual(Beneficiary.objects.count(), 0)
 
     def test_falla_con_email_invalido(self):
         """NEGATIVO: El formulario rechaza un correo con formato incorrecto."""
@@ -153,14 +151,4 @@ class HU1_CamposIncompletosTest(TestCase):
             datos_validos(email='esto-no-es-un-correo')
         )
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Beneficiary.objects.filter(id='1001').exists())
-
-    def test_no_se_registran_dos_beneficiarios_con_mismo_id(self):
-        """NEGATIVO: No se puede registrar un beneficiario con un ID que ya existe en el sistema."""
-        self.client.post(reverse('beneficiary_register'), datos_validos())
-        response = self.client.post(
-            reverse('beneficiary_register'),
-            datos_validos(name='Otro Nombre', email='otro@test.com')
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(Beneficiary.objects.count(), 1)
+        self.assertEqual(Beneficiary.objects.count(), 0)

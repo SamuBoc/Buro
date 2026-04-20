@@ -66,6 +66,15 @@
                         </a>
                     {% endif %}
 
+                    {% if 'administrador' in user_roles %}
+                        <a class="nav-link" href="{% url 'global_audit_log' %}">
+                            <i class="bi bi-journal-text me-1"></i>Bitácora Casos
+                        </a>
+                        <a class="nav-link" href="{% url 'global_beneficiary_audit_log' %}">
+                            <i class="bi bi-shield-fill me-1"></i>Bitácora HABEAS DATA
+                        </a>
+                    {% endif %}
+
                     {# HU-13: Badge de notificaciones #}
                     <a class="nav-link position-relative" href="{% url 'notification_list' %}">
                         <i class="bi bi-bell-fill me-1"></i>Notificaciones
