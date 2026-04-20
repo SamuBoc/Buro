@@ -5,7 +5,12 @@ from django.utils import timezone
 
 class Beneficiary(models.Model):
     name = models.CharField(max_length=200, verbose_name="Nombre")
-    id = models.CharField(max_length = 200, verbose_name="Número de Identificación", primary_key= True)
+    id = models.CharField(
+        max_length=200,
+        verbose_name="Número de Identificación",
+        primary_key=True,
+        editable=False,
+    )
     location = models.CharField(max_length=300, verbose_name="Ubicación")
     phone = models.CharField(max_length=20, verbose_name="Teléfono")
     email = models.EmailField(verbose_name="Correo electrónico")
@@ -18,6 +23,23 @@ class Beneficiary(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = self._generate_id()
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def _generate_id(cls):
+        year = timezone.now().year
+        prefix = f'BEN-{year}-'
+        last = cls.objects.filter(id__startswith=prefix).order_by('-id').first()
+        if last:
+            last_sequence = int(last.id.split('-')[-1])
+            next_sequence = last_sequence + 1
+        else:
+            next_sequence = 1
+        return f'{prefix}{next_sequence:04d}'
 
 class BeneficiaryAuditLog(models.Model):
 
