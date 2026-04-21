@@ -463,6 +463,62 @@ class HU11DeadlineTests(TestCase):
         )
 
 
+class CaseQuickViewPriorityTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        secretaria_group, _ = Group.objects.get_or_create(name=ROLE_SECRETARIA)
+
+        self.secretaria = User.objects.create_user(
+            username='secretaria_quick_view',
+            password='testpass123'
+        )
+        self.secretaria.groups.add(secretaria_group)
+
+        self.beneficiary = Beneficiary.objects.create(
+            id='5005005005',
+            name='Pedro Martinez',
+            location='Medellin',
+            phone='3005556677',
+            email='pedro@example.com'
+        )
+
+    def test_case_list_shows_deadline_status_and_priority_colors(self):
+        today = timezone.localdate()
+
+        overdue_case = Case.objects.create(
+            sala=Case.ROOM_CIVIL,
+            description='Caso vencido',
+            beneficiary=self.beneficiary,
+            deadline_date=today - timezone.timedelta(days=1),
+        )
+        high_case = Case.objects.create(
+            sala=Case.ROOM_LABORAL,
+            description='Caso alta prioridad',
+            beneficiary=self.beneficiary,
+            deadline_date=today + timezone.timedelta(days=2),
+        )
+        no_deadline_case = Case.objects.create(
+            sala=Case.ROOM_PENAL,
+            description='Caso sin fecha limite',
+            beneficiary=self.beneficiary,
+        )
+
+        self.client.force_login(self.secretaria)
+        response = self.client.get(reverse('case_list'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, overdue_case.code)
+        self.assertContains(response, high_case.code)
+        self.assertContains(response, no_deadline_case.code)
+
+        self.assertContains(response, 'priority-critical')
+        self.assertContains(response, 'priority-high')
+        self.assertContains(response, 'priority-none')
+        self.assertContains(response, 'Vencido hace 1 dia(s)')
+        self.assertContains(response, 'Vence en 2 dia(s)')
+        self.assertContains(response, 'Sin fecha limite')
+
+
 class HU31RoleAccessControlTests(TestCase):
 
     def setUp(self):

@@ -14,9 +14,61 @@ from .models import Case, CaseAuditLog, CaseDocument, Notification
 from .services import auto_assign_case, reassign_case
 
 
+def _build_deadline_priority(case, today):
+    if not case.deadline_date:
+        return {
+            'text': 'Sin fecha limite',
+            'days_remaining': None,
+            'priority_label': 'Sin prioridad',
+            'priority_class': 'priority-none',
+            'deadline_class': 'deadline-none',
+        }
+
+    days_remaining = (case.deadline_date - today).days
+
+    if days_remaining < 0:
+        priority_label = 'Critica'
+        priority_class = 'priority-critical'
+        deadline_text = f'Vencido hace {abs(days_remaining)} dia(s)'
+        deadline_class = 'deadline-overdue'
+    elif days_remaining <= 2:
+        priority_label = 'Alta'
+        priority_class = 'priority-high'
+        deadline_text = 'Vence hoy' if days_remaining == 0 else f'Vence en {days_remaining} dia(s)'
+        deadline_class = 'deadline-soon'
+    elif days_remaining <= 7:
+        priority_label = 'Media'
+        priority_class = 'priority-medium'
+        deadline_text = f'Vence en {days_remaining} dia(s)'
+        deadline_class = 'deadline-normal'
+    else:
+        priority_label = 'Baja'
+        priority_class = 'priority-low'
+        deadline_text = f'Vence en {days_remaining} dia(s)'
+        deadline_class = 'deadline-normal'
+
+    return {
+        'text': deadline_text,
+        'days_remaining': days_remaining,
+        'priority_label': priority_label,
+        'priority_class': priority_class,
+        'deadline_class': deadline_class,
+    }
+
+
 @login_required
 def case_list(request):
-    cases = Case.objects.select_related('beneficiary', 'assigned_student').all()
+    today = timezone.localdate()
+    cases = list(Case.objects.select_related('beneficiary', 'assigned_student').all())
+
+    for case in cases:
+        deadline_priority = _build_deadline_priority(case, today)
+        case.deadline_status_text = deadline_priority['text']
+        case.days_remaining = deadline_priority['days_remaining']
+        case.priority_label = deadline_priority['priority_label']
+        case.priority_class = deadline_priority['priority_class']
+        case.deadline_class = deadline_priority['deadline_class']
+
     return render(request, 'cases/case_list.html', {
         'cases': cases,
     })
