@@ -27,9 +27,10 @@ def make_user(username, password='pass1234', group_name=None):
 
 
 def datos_base(**overrides):
-    """Datos completos del formulario, sin el campo allow_conditions por defecto."""
+    """Datos completos del formulario, sin el campo allow_conditions por defecto.
+    FIX: se eliminó 'id' — el sistema lo genera automáticamente (HU-2).
+    """
     base = {
-        'id': '5001',
         'name': 'Carlos Ruiz',
         'location': 'Medellin, Antioquia',
         'phone': '3109876543',
@@ -50,7 +51,8 @@ class HU3_AutorizacionAceptadaTest(TestCase):
         data = datos_base()
         data['allow_conditions'] = True
         self.client.post(reverse('beneficiary_register'), data)
-        self.assertTrue(Beneficiary.objects.filter(id='5001').exists())
+        # FIX: se verifica por email en lugar de id fijo — el ID es auto-generado (HU-2)
+        self.assertTrue(Beneficiary.objects.filter(email='carlos@test.com').exists())
 
     def test_con_autorizacion_marcada_redirige_a_lista(self):
         """POSITIVO: Aceptar la autorización y enviar el formulario redirige correctamente."""
@@ -78,7 +80,8 @@ class HU3_AutorizacionNoAceptadaTest(TestCase):
         data = datos_base()
         # allow_conditions ausente = casilla no marcada
         self.client.post(reverse('beneficiary_register'), data)
-        self.assertFalse(Beneficiary.objects.filter(id='5001').exists())
+        # FIX: se verifica por email en lugar de id fijo — el ID es auto-generado (HU-2)
+        self.assertFalse(Beneficiary.objects.filter(email='carlos@test.com').exists())
 
     def test_sin_autorizacion_el_formulario_vuelve_a_mostrarse(self):
         """NEGATIVO: Sin autorización, el sistema devuelve el formulario con código 200 (no redirige)."""
@@ -99,4 +102,4 @@ class HU3_AutorizacionNoAceptadaTest(TestCase):
         data = datos_base()
         data['allow_conditions'] = False
         self.client.post(reverse('beneficiary_register'), data)
-        self.assertFalse(Beneficiary.objects.filter(id='5001').exists())
+        self.assertFalse(Beneficiary.objects.filter(email='carlos@test.com').exists())

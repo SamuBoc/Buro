@@ -8,15 +8,11 @@ class BeneficiaryForm(forms.ModelForm):
 
     class Meta:
         model = Beneficiary
-        fields = ['name', 'id', 'location', 'phone', 'email']
+        fields = ['name', 'location', 'phone', 'email']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Nombre completo',
-            }),
-            'id' : forms.TextInput(attrs={
-                'class' : 'form-control',
-                'placeholder' : 'C.C',
             }),
             'location': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -32,26 +28,21 @@ class BeneficiaryForm(forms.ModelForm):
             }),
         }
         labels = {
-            'name': 'Nombre',
-            'id' : 'Número de Identificación',
+            'name':     'Nombre',
             'location': 'Ubicación',
-            'phone': 'Teléfono',
-            'email': 'Correo electrónico',
+            'phone':    'Teléfono',
+            'email':    'Correo electrónico',
         }
 
+
 class Update_Beneficiary_Form(forms.ModelForm):
-    
     class Meta:
         model = Beneficiary
-        fields = ['name', 'id', 'location', 'phone', 'email']
+        fields = ['name', 'location', 'phone', 'email']  # ← id eliminado
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Nombre completo',
-            }),
-            'id' : forms.TextInput(attrs={
-                'class' : 'form-control',
-                'placeholder' : 'C.C',
             }),
             'location': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -67,9 +58,8 @@ class Update_Beneficiary_Form(forms.ModelForm):
             }),
         }
         labels = {
-            'name': 'Nombre',
-            'id' : 'Número de Identificación',
+            'name':     'Nombre',
             'location': 'Ubicación',
-            'phone': 'Teléfono',
-            'email': 'Correo electrónico',
+            'phone':    'Teléfono',
+            'email':    'Correo electrónico',
         }

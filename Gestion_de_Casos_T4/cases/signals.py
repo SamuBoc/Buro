@@ -69,32 +69,26 @@ def notification_post_save(sender, instance, created, **kwargs):
 
 
 def _create_status_notification(case, previous_status, new_status, triggered_by):
-    beneficiary = getattr(case, 'beneficiary', None)
-    if not beneficiary:
-        return
-
-    recipient = getattr(beneficiary, 'user', None)
-    if not recipient:
+    if not triggered_by:
         return
 
     status_messages = {
-        'Registrado - Pendiente asignacion': 'Su caso ha sido recibido y registrado en el sistema.',
-        'Asignado a estudiante':             'Su caso está siendo atendido por el estudiante asignado.',
-        'Sin estudiantes disponibles':       'Su caso fue registrado pero no hay estudiantes disponibles en este momento.',
+        'Registrado - Pendiente asignacion': 'El caso ha sido recibido y registrado en el sistema.',
+        'Asignado a estudiante':             'El caso ha sido asignado a un estudiante.',
+        'Sin estudiantes disponibles':       'El caso fue registrado pero no hay estudiantes disponibles.',
     }
-    detail = status_messages.get(new_status, f'El estado de su caso ha cambiado a: {new_status}.')
+    detail = status_messages.get(new_status, f'El estado del caso ha cambiado a: {new_status}.')
 
     Notification.objects.create(
-        recipient_user=recipient,
+        recipient_user=triggered_by,
         case=case,
         notification_type='STATUS_CHANGE',
-        title=f'Actualización de su caso {case.code}',
+        title=f'Cambio de estado — {case.code}',
         message=(
-            f'Estimado/a {beneficiary.name},\n\n'
-            f'Le informamos que el estado de su caso ({case.code}) '
+            f'El estado del caso {case.code} '
+            f'(Beneficiario: {case.beneficiary.name}) '
             f'ha cambiado de "{previous_status}" a "{new_status}".\n\n'
-            f'{detail}\n\n'
-            f'Para más información comuníquese con el Consultorio Jurídico ICESI.'
+            f'{detail}'
         ),
         previous_status=previous_status,
         new_status=new_status,
