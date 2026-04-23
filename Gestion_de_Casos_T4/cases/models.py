@@ -69,6 +69,14 @@ class Case(models.Model):
         related_name='cases',
         verbose_name='Beneficiario'
     )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_cases',
+        verbose_name='Creado por'
+    )
     assigned_student = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
