@@ -8,6 +8,14 @@ from beneficiary.models import Beneficiary
 
 
 class Case(models.Model):
+    STATUS_DRAFT = 'borrador'
+    STATUS_COMPLETE = 'completo'
+
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Borrador'),
+        (STATUS_COMPLETE, 'Completo'),
+    ]
+
     ROOM_CIVIL = 'civil'
     ROOM_LABORAL = 'laboral'
     ROOM_PENAL = 'penal'
@@ -35,17 +43,39 @@ class Case(models.Model):
         editable=False,
         verbose_name='Codigo'
     )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_COMPLETE,
+        verbose_name='Estado del formulario'
+    )
     sala = models.CharField(
         max_length=20,
         choices=ROOM_CHOICES,
+        null=True,
+        blank=True,
         verbose_name='Sala juridica'
     )
-    description = models.TextField(verbose_name='Descripcion del problema')
+    description = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name='Descripcion del problema'
+    )
     beneficiary = models.ForeignKey(
         Beneficiary,
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name='cases',
         verbose_name='Beneficiario'
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_cases',
+        verbose_name='Creado por'
     )
     assigned_student = models.ForeignKey(
         User,
@@ -86,7 +116,8 @@ class Case(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f'{self.code} - {self.beneficiary.name}'
+        beneficiary_name = self.beneficiary.name if self.beneficiary else 'Sin beneficiario'
+        return f'{self.code} - {beneficiary_name}'
 
     def save(self, *args, **kwargs):
         if self.pk:

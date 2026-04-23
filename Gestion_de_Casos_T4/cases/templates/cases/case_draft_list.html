@@ -1,0 +1,69 @@
+{% extends 'beneficiary/base.html' %}
+
+{% block title %}Mis Borradores - Buro Juridico{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h4 class="mb-0"><i class="bi bi-journal-text me-2"></i>Mis Borradores de Casos</h4>
+        <small class="opacity-75">Continua los formularios que dejaste incompletos</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'case_list' %}" class="btn btn-outline-light fw-semibold">
+            <i class="bi bi-arrow-left me-1"></i> Volver a casos
+        </a>
+        {% if 'secretaria' in user_roles or 'administrador' in user_roles %}
+            <a href="{% url 'case_create' %}" class="btn btn-light fw-semibold">
+                <i class="bi bi-folder-plus me-1"></i> Nuevo borrador
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        {% if drafts %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Codigo</th>
+                            <th>Sala</th>
+                            <th>Beneficiario</th>
+                            <th>Descripcion</th>
+                            <th>Creado</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for draft in drafts %}
+                            <tr>
+                                <td class="ps-4 fw-semibold">{{ draft.code }}</td>
+                                <td>{{ draft.get_sala_display|default:"Pendiente" }}</td>
+                                <td>{{ draft.beneficiary.name|default:"Pendiente" }}</td>
+                                <td>{{ draft.description|default:"Sin descripcion"|truncatechars:60 }}</td>
+                                <td>{{ draft.created_at|date:"d/m/Y H:i" }}</td>
+                                <td class="text-center">
+                                    <a href="{% url 'case_edit_draft' draft.pk %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil-square"></i> Continuar edicion
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-journal-x display-4 text-muted"></i>
+                <p class="mt-3 text-muted">No tienes borradores guardados en este momento.</p>
+                {% if 'secretaria' in user_roles or 'administrador' in user_roles %}
+                    <a href="{% url 'case_create' %}" class="btn btn-primary mt-2">
+                        <i class="bi bi-folder-plus me-1"></i>Crear un borrador
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

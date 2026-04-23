@@ -5,6 +5,8 @@ from . import views
 urlpatterns = [
     path('', views.case_list, name='case_list'),
     path('registrar/', views.case_create, name='case_create'),
+    path('borradores/', views.case_draft_list, name='case_draft_list'),
+    path('borradores/<int:pk>/editar/', views.case_edit_draft, name='case_edit_draft'),
     path('<int:pk>/', views.case_detail, name='case_detail'),
     path('<int:pk>/fecha-limite/', views.case_update_deadline, name='case_update_deadline'),
     path('notificaciones/',                            views.notification_list,           name='notification_list'),
