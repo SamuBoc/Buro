@@ -14,6 +14,27 @@ from .models import Case, CaseAuditLog, CaseDocument, Notification
 from .services import auto_assign_case, reassign_case
 
 
+def _get_user_draft(user):
+    return (
+        Case.objects
+        .filter(created_by=user, status=Case.STATUS_DRAFT)
+        .order_by('-created_at', '-pk')
+        .first()
+    )
+
+
+def _can_access_draft(user, case):
+    return user.is_superuser or case.created_by_id == user.id
+
+
+def _render_case_form(request, form, draft_case=None, is_editing_draft=False):
+    return render(request, 'cases/case_register.html', {
+        'form': form,
+        'draft_case': draft_case,
+        'is_editing_draft': is_editing_draft,
+    })
+
+
 def _build_deadline_priority(case, today):
     if not case.deadline_date:
         return {
@@ -76,21 +97,44 @@ def case_list(request):
 
 @role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
 def case_create(request):
+    draft_case = _get_user_draft(request.user)
+
     if request.method == 'POST':
-        form = CaseForm(request.POST, request.FILES)
+        submit_action = request.POST.get('submit_action', 'complete')
+        is_draft_submission = submit_action == 'draft'
+        form = CaseForm(
+            request.POST,
+            request.FILES,
+            instance=draft_case,
+            allow_partial=is_draft_submission,
+        )
+
         if form.is_valid():
             try:
                 with transaction.atomic():
                     case = form.save(commit=False)
+                    case.created_by = request.user
                     case._request = request
+                    case.status = (
+                        Case.STATUS_DRAFT
+                        if is_draft_submission
+                        else Case.STATUS_COMPLETE
+                    )
                     case.save()
 
-                    for document in form.cleaned_data['documents']:
+                    for document in form.cleaned_data.get('documents', []):
                         CaseDocument.objects.create(case=case, file=document)
 
-                    student = auto_assign_case(case)
+                    student = None
+                    if case.status == Case.STATUS_COMPLETE:
+                        student = auto_assign_case(case)
 
-                if student is None:
+                if is_draft_submission:
+                    messages.success(
+                        request,
+                        f'Se guardo el borrador del caso {case.code}. Puedes continuarlo despues.'
+                    )
+                elif student is None:
                     messages.warning(
                         request,
                         f'El caso {case.code} fue registrado pero no hay estudiantes disponibles para asignarlo.'
@@ -100,6 +144,8 @@ def case_create(request):
                         request,
                         f'El caso {case.code} fue registrado y asignado a {student.get_full_name() or student.username}.'
                     )
+                if is_draft_submission:
+                    return redirect('case_create')
                 return redirect('case_detail', pk=case.pk)
             except Exception:
                 messages.error(
@@ -109,11 +155,104 @@ def case_create(request):
         else:
             messages.error(request, 'Por favor corrija los errores del formulario.')
     else:
-        form = CaseForm()
+        form = CaseForm(instance=draft_case, allow_partial=bool(draft_case))
+        if draft_case:
+            messages.info(
+                request,
+                f'Tienes un borrador pendiente ({draft_case.code}). Puedes continuar completandolo.'
+            )
 
-    return render(request, 'cases/case_register.html', {
-        'form': form,
+    return _render_case_form(request, form, draft_case=draft_case)
+
+
+@login_required
+def case_draft_list(request):
+    drafts = (
+        Case.objects
+        .filter(created_by=request.user, status=Case.STATUS_DRAFT)
+        .select_related('beneficiary', 'assigned_student')
+        .order_by('-created_at')
+    )
+
+    return render(request, 'cases/case_draft_list.html', {
+        'drafts': drafts,
     })
+
+
+@login_required
+def case_edit_draft(request, pk):
+    draft_case = get_object_or_404(
+        Case.objects.select_related('beneficiary', 'assigned_student'),
+        pk=pk,
+        status=Case.STATUS_DRAFT,
+    )
+
+    if not _can_access_draft(request.user, draft_case):
+        messages.error(request, 'No tienes permisos para editar este borrador.')
+        return redirect('case_draft_list')
+
+    if request.method == 'POST':
+        submit_action = request.POST.get('submit_action', 'draft')
+        is_draft_submission = submit_action == 'draft'
+        form = CaseForm(
+            request.POST,
+            request.FILES,
+            instance=draft_case,
+            allow_partial=is_draft_submission,
+        )
+
+        if form.is_valid():
+            try:
+                with transaction.atomic():
+                    case = form.save(commit=False)
+                    case.created_by = draft_case.created_by or request.user
+                    case._request = request
+                    case.status = (
+                        Case.STATUS_DRAFT if is_draft_submission else Case.STATUS_COMPLETE
+                    )
+                    case.save()
+
+                    for document in form.cleaned_data.get('documents', []):
+                        CaseDocument.objects.create(case=case, file=document)
+
+                    student = None
+                    if case.status == Case.STATUS_COMPLETE:
+                        student = auto_assign_case(case)
+
+                if is_draft_submission:
+                    messages.success(
+                        request,
+                        f'Se actualizo el borrador del caso {case.code}.'
+                    )
+                    return redirect('case_edit_draft', pk=case.pk)
+
+                if student is None:
+                    messages.warning(
+                        request,
+                        f'El caso {case.code} fue completado pero no hay estudiantes disponibles para asignarlo.'
+                    )
+                else:
+                    messages.success(
+                        request,
+                        f'El caso {case.code} fue completado y asignado a {student.get_full_name() or student.username}.'
+                    )
+                return redirect('case_detail', pk=case.pk)
+            except Exception:
+                messages.error(
+                    request,
+                    'Ocurrio un problema al actualizar el borrador. Intente nuevamente.'
+                )
+        else:
+            messages.error(request, 'Por favor corrija los errores del formulario.')
+    else:
+        form = CaseForm(instance=draft_case, allow_partial=True)
+
+    return _render_case_form(
+        request,
+        form,
+        draft_case=draft_case,
+        is_editing_draft=True,
+    )
 
 
 @login_required

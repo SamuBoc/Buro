@@ -54,6 +54,7 @@ class CaseForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.allow_partial = kwargs.pop('allow_partial', False)
         super().__init__(*args, **kwargs)
         self.fields['beneficiary'].empty_label = 'Seleccione un beneficiario'
         self.fields['beneficiary'].queryset = self.fields['beneficiary'].queryset.order_by('name')
@@ -65,12 +66,22 @@ class CaseForm(forms.ModelForm):
         self.fields['documents'].widget.attrs.update({
             'accept': '.pdf,.jpg,.jpeg,.png,.docx,.xlsx'
         })
+        if self.allow_partial:
+            self.fields['sala'].required = False
+            self.fields['description'].required = False
+            self.fields['beneficiary'].required = False
+            self.fields['documents'].required = False
 
     def clean_documents(self):
         documents = self.cleaned_data.get('documents') or self.files.getlist('documents')
 
         if not isinstance(documents, (list, tuple)):
             documents = [documents]
+
+        documents = [document for document in documents if document]
+
+        if not documents and self.allow_partial:
+            return []
 
         if not documents:
             raise ValidationError('Debe cargar al menos un documento para el caso.')
