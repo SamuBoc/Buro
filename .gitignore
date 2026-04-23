@@ -22,4 +22,3 @@ staticfiles/
 .DS_Store
 Thumbs.db
 
-**/migrations/
