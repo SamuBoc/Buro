@@ -280,6 +280,56 @@ class HU32CaseDraftTests(TestCase):
         self.assertEqual(response.context['draft_case'], draft_case)
         self.assertContains(response, 'Texto recuperado del borrador')
 
+    def test_user_can_see_only_own_drafts_in_draft_list(self):
+        own_draft = Case.objects.create(
+            description='Borrador propio',
+            created_by=self.secretaria,
+            status=Case.STATUS_DRAFT,
+        )
+        other_user = User.objects.create_user(
+            username='otra_secretaria_hu32',
+            password='clave_segura_123'
+        )
+        other_user.groups.add(self.secretaria_group)
+        Case.objects.create(
+            description='Borrador ajeno',
+            created_by=other_user,
+            status=Case.STATUS_DRAFT,
+        )
+
+        self.client.force_login(self.secretaria)
+        response = self.client.get(reverse('case_draft_list'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, own_draft.code)
+        self.assertNotContains(response, 'Borrador ajeno')
+
+    def test_user_can_continue_editing_existing_draft(self):
+        draft_case = Case.objects.create(
+            description='Version inicial del borrador',
+            created_by=self.secretaria,
+            status=Case.STATUS_DRAFT,
+        )
+
+        self.client.force_login(self.secretaria)
+        response = self.client.post(
+            reverse('case_edit_draft', args=[draft_case.pk]),
+            {
+                'sala': Case.ROOM_CIVIL,
+                'description': 'Version actualizada del borrador',
+                'beneficiary': self.beneficiary.pk,
+                'submit_action': 'draft',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        draft_case.refresh_from_db()
+        self.assertEqual(draft_case.status, Case.STATUS_DRAFT)
+        self.assertEqual(draft_case.sala, Case.ROOM_CIVIL)
+        self.assertEqual(draft_case.description, 'Version actualizada del borrador')
+        self.assertEqual(draft_case.beneficiary, self.beneficiary)
+
 
 class CaseReassignmentTests(TestCase):
     def setUp(self):
