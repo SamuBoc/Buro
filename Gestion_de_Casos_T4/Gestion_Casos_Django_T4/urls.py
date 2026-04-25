@@ -12,6 +12,7 @@ urlpatterns = [
     path('', include('home.urls')),
     path('casos/', include('cases.urls')),
     path('beneficiarios/', include('beneficiary.urls')),
+    path('citas/', include('cite.urls')),
 ]
 
 if settings.DEBUG:

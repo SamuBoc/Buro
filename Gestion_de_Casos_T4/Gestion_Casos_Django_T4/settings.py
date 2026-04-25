@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'accounts',
     'beneficiary',
     'cases',
+    'cite',
     'home',
 ]
 
