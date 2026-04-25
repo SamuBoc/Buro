@@ -4,18 +4,18 @@ from .models import Cite
 
 
 class CiteForm(forms.ModelForm):
-    modality_cite = forms.ChoiceField(
-        choices=[('', 'Seleccione una modalidad')] + list(Cite.MODALITY_CHOICES),
-        required=True,
-        label='Tipo de atencion',
-        widget=forms.Select(attrs={'class': 'form-select'})
-    )
-
     class Meta:
         model = Cite
-        fields = ['modality_cite', 'request_cite', 'description']
+        fields = ['modality_cite', 'request_cite', 'date_assigned','description']
         widgets = {
+            'modality_cite': forms.Select(attrs={
+                'class': 'form-select'
+            }),
             'request_cite': forms.Select(attrs={'class': 'form-select'}),
+            'date_assigned': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date',
+            }),
             'description': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 4,
@@ -23,8 +23,10 @@ class CiteForm(forms.ModelForm):
             }),
         }
         labels = {
+            'modality_cite': 'Modalidad de Atención',
             'request_cite': 'Canal de solicitud',
             'description': 'Descripcion de la consulta',
+            'date_assigned': 'Asignar fecha'
         }
 
     def clean_modality_cite(self):

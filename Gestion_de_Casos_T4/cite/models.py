@@ -1,5 +1,6 @@
 from django.db import models
 from beneficiary.models import Beneficiary
+from datetime import date
 
 
 class Cite(models.Model):
@@ -12,6 +13,8 @@ class Cite(models.Model):
         related_name="cites"
     )
 
+    date_assigned = models.DateField()
+    
     MODALITY_INPERSON = 'PRESENCIAL'
     MODALITY_PHONE = 'TELEFONICA'
     MODALITY_VIRTUAL = 'VIRTUAL'
