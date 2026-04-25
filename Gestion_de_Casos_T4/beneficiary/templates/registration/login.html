@@ -19,11 +19,15 @@
                 <form method="POST">
                     {% csrf_token %}
                     <div class="mb-3">
-                        <label for="id_username" class="form-label">Usuario</label>
+                        <label for="id_username" class="form-label">
+                            <i class="bi bi-person-circle me-1"></i> Usuario
+                        </label>
                         <input type="text" name="username" id="id_username" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label for="id_password" class="form-label">Contraseña</label>
+                        <label for="id_password" class="form-label">
+                            <i class="bi bi-shield-lock-fill me-1"></i>Contraseña
+                        </label>
                         <input type="password" name="password" id="id_password" class="form-control" required>
                     </div>
                     <button type="submit" class="btn btn-primary w-100">Ingresar</button>
