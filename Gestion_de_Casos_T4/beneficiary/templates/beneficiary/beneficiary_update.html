@@ -26,6 +26,16 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for="{{ form.colombian_identification.id_for_label }}" class="form-label fw-semibold">
+                            <i class="bi bi-person-vcard"></i> {{ form.colombian_identification.label }}
+                        </label>
+                        {{ form.colombian_identification }}
+                        {% if form.name.errors %}
+                            <div class="text-danger small mt-1">{{ form.colombian_identification.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
                         <label for = "{{ form.id.id_for_label }}" class = "form-label fw-semibold">
                             <i class = "bi bi-numeral me-1"></i> {{ form.id.label }}
                         </label>

@@ -8,11 +8,15 @@ class BeneficiaryForm(forms.ModelForm):
 
     class Meta:
         model = Beneficiary
-        fields = ['name', 'location', 'phone', 'email']
+        fields = ['name', 'colombian_identification', 'location', 'phone', 'email']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Nombre completo',
+            }),
+            'colombian_identification' : forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Identificación',
             }),
             'location': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -29,6 +33,7 @@ class BeneficiaryForm(forms.ModelForm):
         }
         labels = {
             'name':     'Nombre',
+            'colombian_identification' : 'Identificación',
             'location': 'Ubicación',
             'phone':    'Teléfono',
             'email':    'Correo electrónico',
@@ -38,11 +43,15 @@ class BeneficiaryForm(forms.ModelForm):
 class Update_Beneficiary_Form(forms.ModelForm):
     class Meta:
         model = Beneficiary
-        fields = ['name', 'location', 'phone', 'email']  # ← id eliminado
+        fields = ['name', 'colombian_identification', 'location', 'phone', 'email']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Nombre completo',
+            }),
+            'colombian_identification' : forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Identificación',
             }),
             'location': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -59,6 +68,7 @@ class Update_Beneficiary_Form(forms.ModelForm):
         }
         labels = {
             'name':     'Nombre',
+            'colombian_identification': 'Identificación',
             'location': 'Ubicación',
             'phone':    'Teléfono',
             'email':    'Correo electrónico',

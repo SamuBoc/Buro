@@ -22,6 +22,7 @@
                     <tr>
                         <th class="ps-4">#</th>
                         <th>Nombre</th>
+                        <th>Identificación</th>
                         <th>Ubicación</th>
                         <th>Teléfono</th>
                         <th>Correo electrónico</th>
@@ -34,12 +35,13 @@
                     <tr>
                         <td class="ps-4 text-muted">{{ b.id }}</td>
                         <td class="fw-semibold">{{ b.name }}</td>
+                        <td><i class="bi bi-person-vcard me-1"></i>{{ b.colombian_identification }}</td>
                         <td><i class="bi bi-geo-alt text-muted me-1"></i>{{ b.location }}</td>
                         <td><i class="bi bi-telephone text-muted me-1"></i>{{ b.phone }}</td>
                         <td><i class="bi bi-envelope text-muted me-1"></i>{{ b.email }}</td>
                         <td>{{ b.date_register|date:"d/m/Y" }}</td>
                         <td class="text-center">
-                            <a href="{% url 'beneficiary_detail' b.pk %}" class="btn btn-sm btn-outline-primary">
+                            <a href="{% url 'beneficiary_detail' b.pk %}" class="btn btn-sm btn-secondary">
                                 <i class="bi bi-eye"></i> Ver
                             </a>
                         </td>

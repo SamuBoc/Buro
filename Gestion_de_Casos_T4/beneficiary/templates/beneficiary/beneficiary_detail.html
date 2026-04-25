@@ -20,8 +20,8 @@
                 <div class="row g-3">
                     <div class="col-12">
                         <div class="d-flex align-items-center mb-1">
-                            <i class="bi bi-person-fill text-primary me-2 fs-5"></i>
-                            <span class="text-muted small">Nombre</span>
+                            <i class="bi bi-person-fill me-2"></i>
+                            <span class="small">Nombre</span>
                         </div>
                         <p class="fw-semibold fs-5 mb-0 ms-4">{{ beneficiary.name }}</p>
                     </div>
@@ -30,32 +30,40 @@
 
                     <div class="col-md-6">
                         <div class="d-flex align-items-center mb-1">
-                            <i class="bi bi-geo-alt-fill text-primary me-2 fs-5"></i>
-                            <span class="text-muted small">Ubicación</span>
+                            <i class="bi bi-person-vcard me-2"></i>
+                            <span class="small">Identificación</span>
+                        </div>
+                        <p class="fw-semibold mb-0 ms-4">{{ beneficiary.colombian_identification }}</p>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center mb-1">
+                            <i class="bi bi-geo-alt-fill me-2 fs-5"></i>
+                            <span class="small">Ubicación</span>
                         </div>
                         <p class="fw-semibold mb-0 ms-4">{{ beneficiary.location }}</p>
                     </div>
 
                     <div class="col-md-6">
                         <div class="d-flex align-items-center mb-1">
-                            <i class="bi bi-telephone-fill text-primary me-2 fs-5"></i>
-                            <span class="text-muted small">Teléfono</span>
+                            <i class="bi bi-telephone-fill me-2 fs-5"></i>
+                            <span class="small">Teléfono</span>
                         </div>
                         <p class="fw-semibold mb-0 ms-4">{{ beneficiary.phone }}</p>
                     </div>
 
                     <div class="col-md-6">
                         <div class="d-flex align-items-center mb-1">
-                            <i class="bi bi-envelope-fill text-primary me-2 fs-5"></i>
-                            <span class="text-muted small">Correo electrónico</span>
+                            <i class="bi bi-envelope-fill me-2 fs-5"></i>
+                            <span class="small">Correo electrónico</span>
                         </div>
                         <p class="fw-semibold mb-0 ms-4">{{ beneficiary.email }}</p>
                     </div>
 
                     <div class="col-md-6">
                         <div class="d-flex align-items-center mb-1">
-                            <i class="bi bi-calendar-check-fill text-primary me-2 fs-5"></i>
-                            <span class="text-muted small">Fecha de registro</span>
+                            <i class="bi bi-calendar-check-fill me-2 fs-5"></i>
+                            <span class="small">Fecha de registro</span>
                         </div>
                         <p class="fw-semibold mb-0 ms-4">{{ beneficiary.date_register|date:"d/m/Y" }}</p>
                     </div>
@@ -68,11 +76,11 @@
                         <i class="bi bi-person-plus-fill me-1"></i> Registrar otro
                     </a>
 
-                    <a href="{% url 'create_cite' beneficiary.pk %}" class="btn btn-outline-primary">
+                    <a href="{% url 'create_cite' beneficiary.pk %}" class="btn btn-tertiary">
                         <i class="bi bi-calendar-plus me-1"></i> Agendar cita
                     </a>
 
-                    <a href="{% url 'beneficiary_cites' beneficiary.pk %}" class="btn btn-outline-primary">
+                    <a href="{% url 'beneficiary_cites' beneficiary.pk %}" class="btn btn-tertiary">
                         <i class="bi bi-calendar-week me-1"></i> Ver citas
                     </a>
 

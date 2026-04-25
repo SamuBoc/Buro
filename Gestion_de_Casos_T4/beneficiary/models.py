@@ -11,6 +11,7 @@ class Beneficiary(models.Model):
         primary_key=True,
         editable=False,
     )
+    colombian_identification = models.CharField(max_length=20, verbose_name="Cédula de Ciudadanía", default='')
     location = models.CharField(max_length=300, verbose_name="Ubicación")
     phone = models.CharField(max_length=20, verbose_name="Teléfono")
     email = models.EmailField(verbose_name="Correo electrónico")
