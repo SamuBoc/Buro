@@ -1,4 +1,5 @@
 import shutil
+from datetime import timedelta
 from pathlib import Path
 
 from django.contrib.auth.models import Group, User
@@ -537,7 +538,7 @@ class HU11DeadlineTests(TestCase):
     def test_secretary_can_register_deadline_from_case_detail(self):
         self.client.login(username='secretaria_hu11', password='testpass123')
 
-        deadline_value = timezone.localdate() + timezone.timedelta(days=7)
+        deadline_value = timezone.localdate() + timedelta(days=7)
         response = self.client.post(
             reverse('case_update_deadline', args=[self.case.pk]),
             {'deadline_date': deadline_value.isoformat()},
@@ -548,7 +549,7 @@ class HU11DeadlineTests(TestCase):
         self.assertEqual(self.case.deadline_date, deadline_value)
 
     def test_deadline_alert_command_creates_notifications_once(self):
-        self.case.deadline_date = timezone.localdate() + timezone.timedelta(days=2)
+        self.case.deadline_date = timezone.localdate() + timedelta(days=2)
         self.case.save(update_fields=['deadline_date'])
 
         call_command('generate_deadline_alerts', days=3)
@@ -593,13 +594,13 @@ class CaseQuickViewPriorityTests(TestCase):
             sala=Case.ROOM_CIVIL,
             description='Caso vencido',
             beneficiary=self.beneficiary,
-            deadline_date=today - timezone.timedelta(days=1),
+            deadline_date=today - timedelta(days=1),
         )
         high_case = Case.objects.create(
             sala=Case.ROOM_LABORAL,
             description='Caso alta prioridad',
             beneficiary=self.beneficiary,
-            deadline_date=today + timezone.timedelta(days=2),
+            deadline_date=today + timedelta(days=2),
         )
         no_deadline_case = Case.objects.create(
             sala=Case.ROOM_PENAL,
@@ -839,3 +840,161 @@ class HU7AutoAssignCaseTests(TestCase):
             created_case.assigned_student,
             [self.student_a, self.student_b]
         )
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1'])
+class HU37ReportByStateTests(TestCase):
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEST_MEDIA_ROOT, ignore_errors=True)
+
+    def setUp(self):
+        self.client = Client()
+        self.url = reverse('case_report_by_state')
+
+        self.admin_group, _ = Group.objects.get_or_create(name=ROLE_ADMINISTRADOR)
+        self.profesor_group, _ = Group.objects.get_or_create(name=ROLE_PROFESOR)
+        self.secretaria_group, _ = Group.objects.get_or_create(name=ROLE_SECRETARIA)
+        self.estudiante_group, _ = Group.objects.get_or_create(name=ROLE_ESTUDIANTE)
+
+        self.admin_user = User.objects.create_user(
+            username='admin_hu37',
+            password='clave_segura_123',
+        )
+        self.admin_user.groups.add(self.admin_group)
+
+        self.estudiante_user = User.objects.create_user(
+            username='estudiante_hu37',
+            password='clave_segura_123',
+        )
+        self.estudiante_user.groups.add(self.estudiante_group)
+
+        self.secretaria_user = User.objects.create_user(
+            username='secretaria_hu37',
+            password='clave_segura_123',
+        )
+        self.secretaria_user.groups.add(self.secretaria_group)
+
+        self.beneficiary = Beneficiary.objects.create(
+            name='Reporte Test',
+            location='Cali',
+            phone='3000000000',
+            email='reporte@test.com',
+        )
+
+        self.case_pending = Case.objects.create(
+            sala=Case.ROOM_CIVIL,
+            description='Caso pendiente',
+            beneficiary=self.beneficiary,
+            state=Case.STATE_PENDING,
+        )
+        self.case_assigned_1 = Case.objects.create(
+            sala=Case.ROOM_PENAL,
+            description='Caso asignado 1',
+            beneficiary=self.beneficiary,
+            state=Case.STATE_ASSIGNED,
+        )
+        self.case_assigned_2 = Case.objects.create(
+            sala=Case.ROOM_PENAL,
+            description='Caso asignado 2',
+            beneficiary=self.beneficiary,
+            state=Case.STATE_ASSIGNED,
+        )
+        self.case_rejected = Case.objects.create(
+            sala=Case.ROOM_LABORAL,
+            description='Caso rechazado',
+            beneficiary=self.beneficiary,
+            state=Case.STATE_REJECTED,
+        )
+
+    def _rows_by_state(self, response):
+        return {row['estado']: row for row in response.context['rows']}
+
+    def test_admin_can_view_report(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['total'], 4)
+
+    def test_profesor_can_view_report(self):
+        profesor = User.objects.create_user(
+            username='profesor_hu37',
+            password='clave_segura_123',
+        )
+        profesor.groups.add(self.profesor_group)
+        self.client.force_login(profesor)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_estudiante_is_denied(self):
+        self.client.force_login(self.estudiante_user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+
+    def test_secretaria_is_denied(self):
+        self.client.force_login(self.secretaria_user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+
+    def test_anonymous_is_redirected(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+
+    def test_counts_per_state_are_correct(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.get(self.url)
+        rows = self._rows_by_state(response)
+
+        self.assertEqual(rows[Case.STATE_PENDING]['cantidad'], 1)
+        self.assertEqual(rows[Case.STATE_ASSIGNED]['cantidad'], 2)
+        self.assertEqual(rows[Case.STATE_REJECTED]['cantidad'], 1)
+        self.assertEqual(rows[Case.STATE_NO_STUDENTS]['cantidad'], 0)
+
+    def test_percentages_sum_to_100_when_data_exists(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.get(self.url)
+        total_pct = sum(row['porcentaje'] for row in response.context['rows'])
+        self.assertAlmostEqual(total_pct, 100.0, places=0)
+
+    def test_filter_by_sala(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.get(self.url, {'sala': Case.ROOM_PENAL})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['total'], 2)
+        rows = self._rows_by_state(response)
+        self.assertEqual(rows[Case.STATE_ASSIGNED]['cantidad'], 2)
+        self.assertEqual(rows[Case.STATE_PENDING]['cantidad'], 0)
+
+    def test_filter_by_date_range_excludes_outside_cases(self):
+        old_case = Case.objects.create(
+            sala=Case.ROOM_CIVIL,
+            description='Caso antiguo',
+            beneficiary=self.beneficiary,
+            state=Case.STATE_PENDING,
+        )
+        Case.objects.filter(pk=old_case.pk).update(
+            created_at=timezone.now() - timedelta(days=365)
+        )
+
+        self.client.force_login(self.admin_user)
+        today = timezone.localdate()
+        response = self.client.get(self.url, {
+            'desde': (today - timedelta(days=7)).isoformat(),
+            'hasta': today.isoformat(),
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['total'], 4)
+
+    def test_invalid_sala_filter_is_ignored(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.get(self.url, {'sala': 'fake-sala'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['total'], 4)
+        self.assertEqual(response.context['filtro_sala'], '')
+
+    def test_invalid_date_filter_is_ignored(self):
+        self.client.force_login(self.admin_user)
+        response = self.client.get(self.url, {'desde': 'not-a-date'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['total'], 4)

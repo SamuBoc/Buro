@@ -1,6 +1,9 @@
+from datetime import datetime
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -472,3 +475,80 @@ def unread_notifications_count(request):
         is_read=False,
     ).count()
     return JsonResponse({'unread_count': count})
+
+
+REPORT_KNOWN_STATES = [
+    Case.STATE_PENDING,
+    Case.STATE_ASSIGNED,
+    Case.STATE_NO_STUDENTS,
+    Case.STATE_REJECTED,
+]
+
+
+def _parse_report_date(raw_value):
+    if not raw_value:
+        return None
+    try:
+        return datetime.strptime(raw_value, '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
+
+@role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
+def case_report_by_state(request):
+    desde_raw = (request.GET.get('desde') or '').strip()
+    hasta_raw = (request.GET.get('hasta') or '').strip()
+    sala_raw = (request.GET.get('sala') or '').strip()
+
+    desde_date = _parse_report_date(desde_raw)
+    hasta_date = _parse_report_date(hasta_raw)
+
+    valid_salas = {value for value, _ in Case.ROOM_CHOICES}
+    sala_filter = sala_raw if sala_raw in valid_salas else ''
+
+    cases = Case.objects.all()
+    if desde_date:
+        cases = cases.filter(created_at__date__gte=desde_date)
+    if hasta_date:
+        cases = cases.filter(created_at__date__lte=hasta_date)
+    if sala_filter:
+        cases = cases.filter(sala=sala_filter)
+
+    total = cases.count()
+
+    state_counts = {
+        row['state']: row['count']
+        for row in cases.values('state').annotate(count=Count('id'))
+    }
+
+    rows = []
+    for state in REPORT_KNOWN_STATES:
+        cantidad = state_counts.pop(state, 0)
+        porcentaje = round((cantidad / total * 100), 1) if total else 0.0
+        rows.append({
+            'estado': state,
+            'cantidad': cantidad,
+            'porcentaje': porcentaje,
+        })
+    for extra_state, cantidad in state_counts.items():
+        porcentaje = round((cantidad / total * 100), 1) if total else 0.0
+        rows.append({
+            'estado': extra_state or 'Sin estado',
+            'cantidad': cantidad,
+            'porcentaje': porcentaje,
+        })
+
+    chart_labels = [row['estado'] for row in rows]
+    chart_values = [row['cantidad'] for row in rows]
+
+    return render(request, 'cases/report_by_state.html', {
+        'page_title': 'Reporte de casos por estado',
+        'rows': rows,
+        'total': total,
+        'filtro_desde': desde_raw,
+        'filtro_hasta': hasta_raw,
+        'filtro_sala': sala_filter,
+        'salas': Case.ROOM_CHOICES,
+        'chart_labels': chart_labels,
+        'chart_values': chart_values,
+    })
