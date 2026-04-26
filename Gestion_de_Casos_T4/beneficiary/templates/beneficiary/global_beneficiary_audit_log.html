@@ -2,47 +2,74 @@
 {% block title %}Bitácora Global — Datos Personales{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4 py-3">
+<div class="row justify-content-center">
+  <div class="col-lg-11">
 
-  <div class="d-flex align-items-center gap-3 mb-4">
-    <h2 class="fw-bold mb-0">🛡️ Bitácora Global de Datos Personales</h2>
-    <span class="badge bg-warning text-dark ms-auto">Ley 1581/2012</span>
-  </div>
-
-  <div class="card shadow-sm">
-    <div class="card-body p-0">
-      {% if logs %}
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-          <thead class="table-dark">
-            <tr>
-              <th>Fecha y hora</th>
-              <th>Beneficiario</th>
-              <th>Documento</th>
-              <th>Usuario</th>
-              <th>Acción</th>
-              <th>Descripción</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for log in logs %}
-            <tr>
-              <td class="text-muted small text-nowrap">{{ log.timestamp|date:"d/m/Y H:i:s" }}</td>
-              <td>{{ log.beneficiary_name|default:"—" }}</td>
-              <td class="small text-muted">{{ log.beneficiary_document|default:"—" }}</td>
-              <td class="small">{{ log.user.get_full_name|default:"Sistema" }}</td>
-              <td><span class="badge bg-secondary">{{ log.get_action_display }}</span></td>
-              <td class="small text-muted">{{ log.description|truncatechars:80 }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+    <div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <h5 class="mb-0">
+            <i class="bi bi-shield-lock-fill me-2"></i>Bitácora Global de Datos Personales
+          </h5>
+          <span class="ley-badge">🛡️ Ley 1581/2012</span>
+        </div>
+        <span class="text-muted small">
+          Historial de acceso y modificación de datos personales
+        </span>
       </div>
-      {% else %}
-      <div class="text-center py-5 text-muted">Sin registros aún.</div>
-      {% endif %}
+      <span class="badge rounded-pill"
+            style="background-color:#5454e9; color:#fff; font-size:0.78rem; padding:5px 13px;">
+        Últimos {{ logs|length }} registros
+      </span>
     </div>
-  </div>
 
+    <div class="card">
+      <div class="card-body p-0">
+        {% if logs %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="audit-thead">
+              <tr>
+                <th style="width:140px;">Fecha y hora</th>
+                <th>Beneficiario</th>
+                <th style="width:120px;">Documento</th>
+                <th>Usuario</th>
+                <th style="width:170px;">Acción</th>
+                <th>Descripción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for log in logs %}
+              <tr>
+                <td class="small text-muted text-nowrap">
+                  {{ log.timestamp|date:"d/m/Y" }}<br>
+                  <strong class="text-dark">{{ log.timestamp|time:"H:i:s" }}</strong>
+                </td>
+                <td class="fw-semibold small">{{ log.beneficiary_name|default:"—" }}</td>
+                <td class="small text-muted">{{ log.beneficiary_document|default:"—" }}</td>
+                <td class="small">
+                  {{ log.user.get_full_name|default:log.user.username|default:"Sistema" }}
+                </td>
+                <td>
+                  <span class="badge badge-icesi-default">
+                    {{ log.get_action_display }}
+                  </span>
+                </td>
+                <td class="small text-muted">{{ log.description|truncatechars:80 }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+          <i class="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>
+          <p class="mb-0">Sin registros aún.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
 </div>
 {% endblock %}
