@@ -5,8 +5,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
 
-from .forms import BeneficiaryForm, Update_Beneficiary_Form
-from .models import Beneficiary, BeneficiaryAuditLog
+from .forms import BeneficiaryForm, DocumentBeneficiaryForm, Update_Beneficiary_Form
+from .models import Beneficiary, BeneficiaryAuditLog, DocumentBeneficiary
 
 
 @login_required
@@ -30,20 +30,31 @@ request to user about fix this mistake.
 def beneficiary_register(request):
     if request.method == 'POST':
         form = BeneficiaryForm(request.POST)
-        if form.is_valid():
+        doc_form = DocumentBeneficiaryForm(request.POST, request.FILES)
+
+        if form.is_valid() and doc_form.is_valid():
             beneficiary = form.save(commit=False)
             beneficiary._request = request
             beneficiary.save()
-            messages.success(request, 'Beneficiario registrado exitosamente.')
+
+            documento = doc_form.save(commit=False)
+            documento.beneficiary = beneficiary
+            documento.save()
+
             return redirect('beneficiary_list')
         else:
+            print(form.errors)
+            print(doc_form.errors)
             messages.error(request, 'Por favor corrige los errores del formulario.')
     else:
         form = BeneficiaryForm()
+        doc_form = DocumentBeneficiaryForm()
 
     return render(request, 'beneficiary/beneficiary_register.html', {
-        'form': form
+        'form': form,
+        'doc_form': doc_form,
     })
+
 
 """
 Roles 'Secretaria' or 'Administrador' could update/modify a register beneficiary.
@@ -53,29 +64,44 @@ def beneficiary_update(request, pk):
 
     beneficiary = get_object_or_404(Beneficiary, pk=pk)
 
+    saved_document = DocumentBeneficiary.objects.filter(beneficiary=beneficiary).first()
+
     if request.method == 'POST':
         form = Update_Beneficiary_Form(request.POST, instance=beneficiary)
+        doc_form = DocumentBeneficiaryForm(request.POST, request.FILES, instance=saved_document)
 
         if form.is_valid():
             form.save()
+
+            if request.FILES.get('file'):
+                documento = doc_form.save(commit=False)
+                documento.beneficiary = beneficiary
+                documento.save()
+
+            messages.success(request, 'Beneficiario actualizado exitosamente.')
             return redirect('beneficiary_list')
-        
         else:
-            print(form.errors) 
+            print(form.errors)
             messages.error(request, "Corrige los errores del formulario")
-    
-    else: form = Update_Beneficiary_Form(instance=beneficiary)
+
+    else:
+        form = Update_Beneficiary_Form(instance=beneficiary)
+        doc_form = DocumentBeneficiaryForm(instance=saved_document)
 
     return render(request, 'beneficiary/beneficiary_update.html', {
-        'form' : form
+        'form': form,
+        'doc_form': doc_form,
+        'documento_existente': saved_document,
     })
 
 
 @login_required
 def beneficiary_detail(request, pk):
     beneficiary = get_object_or_404(Beneficiary, pk=pk)
+    documento = DocumentBeneficiary.objects.filter(beneficiary=beneficiary).first()
     return render(request, 'beneficiary/beneficiary_detail.html', {
-        'beneficiary': beneficiary
+        'beneficiary': beneficiary,
+        'documento': documento,
     })
 
 

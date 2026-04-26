@@ -1,5 +1,5 @@
 from django import forms
-from .models import Beneficiary
+from .models import Beneficiary, DocumentBeneficiary
 
 
 class BeneficiaryForm(forms.ModelForm):
@@ -14,7 +14,7 @@ class BeneficiaryForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Nombre completo',
             }),
-            'colombian_identification' : forms.TextInput(attrs={
+            'colombian_identification': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Identificación',
             }),
@@ -32,11 +32,26 @@ class BeneficiaryForm(forms.ModelForm):
             }),
         }
         labels = {
-            'name':     'Nombre',
-            'colombian_identification' : 'Identificación',
-            'location': 'Ubicación',
-            'phone':    'Teléfono',
-            'email':    'Correo electrónico',
+            'name':                    'Nombre',
+            'colombian_identification': 'Identificación',
+            'location':                'Ubicación',
+            'phone':                   'Teléfono',
+            'email':                   'Correo electrónico',
+        }
+
+
+class DocumentBeneficiaryForm(forms.ModelForm):
+    class Meta:
+        model = DocumentBeneficiary
+        fields = ['file']
+        widgets = {
+            'file': forms.ClearableFileInput(attrs={
+                'class': 'form-control',
+                'accept': '.pdf,.png,.jpg,.jpeg',
+            }),
+        }
+        labels = {
+            'file': 'Documento de identidad',
         }
 
 
@@ -49,7 +64,7 @@ class Update_Beneficiary_Form(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Nombre completo',
             }),
-            'colombian_identification' : forms.TextInput(attrs={
+            'colombian_identification': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Identificación',
             }),
@@ -67,9 +82,9 @@ class Update_Beneficiary_Form(forms.ModelForm):
             }),
         }
         labels = {
-            'name':     'Nombre',
+            'name':                    'Nombre',
             'colombian_identification': 'Identificación',
-            'location': 'Ubicación',
-            'phone':    'Teléfono',
-            'email':    'Correo electrónico',
+            'location':                'Ubicación',
+            'phone':                   'Teléfono',
+            'email':                   'Correo electrónico',
         }
