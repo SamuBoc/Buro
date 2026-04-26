@@ -1,0 +1,274 @@
+/* Reset y tipografía */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    font-family: 'Open Sans', "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 0.92rem;
+    background-color: #F4F6F9; /* Gris muy sutil, más institucional que el azul claro */
+    color: #333333;
+    min-height: 100vh;
+}
+
+/* --- Barra de Navegación --- */
+.navbar {
+    background-color: #00244E !important; /* Azul oscuro oficial de Icesi */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #ffffff !important;
+    font-weight: 800;
+    font-size: 0.95rem;
+    text-decoration: none;
+    max-width: 70vw;
+}
+.navbar-brand img {
+    height: 35px; /* Aumentado ligeramente para mejor visibilidad */
+    width: auto;
+    filter: brightness(0) invert(1);
+    flex-shrink: 0;
+}
+.brand-sep {
+    display: inline-block;
+    width: 1px;
+    height: 24px;
+    background-color: rgba(255,255,255,0.35);
+    flex-shrink: 0;
+}
+.brand-sub {
+    font-weight: 400;
+    font-size: 0.78rem;
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.nav-link {
+    color: rgba(255,255,255,0.85) !important;
+    font-weight: 600;
+    font-size: 0.88rem;
+    padding: 8px 14px !important;
+    border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+.nav-link:hover, .nav-link:focus {
+    color: #ffffff !important;
+    background-color: rgba(255,255,255,0.12);
+}
+
+/* --- Menú Desplegable --- */
+.navbar .dropdown-menu {
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 36, 78, 0.15);
+    min-width: 220px;
+    padding: 6px 0;
+}
+.navbar .dropdown-item {
+    font-size: 0.88rem;
+    color: #333333;
+    padding: 9px 18px;
+    border-radius: 4px;
+    margin: 1px 6px;
+    width: calc(100% - 12px);
+    transition: background 0.12s;
+}
+.navbar .dropdown-item:hover {
+    background-color: #F0F4F8;
+    color: #00244E;
+}
+.navbar .dropdown-item:active {
+    background-color: #0055A5; /* Azul medio de Icesi */
+    color: #ffffff;
+}
+.navbar .dropdown-divider {
+    margin: 4px 12px;
+    border-color: #e5e7eb;
+}
+.navbar .dropdown-item-text {
+    font-size: 0.82rem;
+    color: #777;
+    padding: 6px 18px;
+}
+
+/* Modo responsivo del Navbar */
+@media (max-width: 991.98px) {
+    .navbar .dropdown-menu {
+        box-shadow: none;
+        border: none;
+        border-radius: 6px;
+        background-color: rgba(255,255,255,0.05);
+        min-width: 100%;
+    }
+    .navbar .dropdown-item { color: rgba(255,255,255,0.9) !important; }
+    .navbar .dropdown-item:hover {
+        background-color: rgba(255,255,255,0.12);
+        color: #fff !important;
+    }
+    .navbar .dropdown-divider { border-color: rgba(255,255,255,0.15); }
+    .navbar .dropdown-item-text { color: rgba(255,255,255,0.55) !important; }
+}
+.navbar-toggler {
+    border: 1px solid rgba(255,255,255,0.4);
+    padding: 4px 8px;
+}
+.navbar-toggler-icon { filter: invert(1); }
+
+/* --- Contenedores y Tarjetas --- */
+.page-header {
+    background-color: #ffffff;
+    border-left: 4px solid #0055A5; /* Azul medio de Icesi */
+    border-radius: 6px;
+    padding: 14px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+.page-header h5 {
+    color: #00244E;
+    font-weight: 700;
+    margin-bottom: 0;
+    font-size: 1.1rem;
+}
+
+.card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 36, 78, 0.05);
+    background-color: #ffffff;
+    color: #333333;
+    transition: box-shadow 0.2s;
+}
+.card:hover {
+    box-shadow: 0 4px 12px rgba(0, 36, 78, 0.12);
+}
+
+/* --- Tablas --- */
+thead.audit-thead th {
+    background-color: #00244E;
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: none;
+    padding: 12px 14px;
+    white-space: nowrap;
+}
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 85, 165, 0.05);
+}
+
+/* --- Botones --- */
+.btn {
+    font-weight: 600;
+    font-size: 0.88rem;
+    border-radius: 4px;
+    padding: 7px 18px;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.btn-primary {
+    background-color: #0055A5;
+    border-color: #0055A5;
+    color: #ffffff;
+}
+.btn-primary:hover {
+    background-color: #004080;
+    border-color: #004080;
+}
+.btn-secondary {
+    background-color: #00244E;
+    border-color: #00244E;
+    color: #ffffff;
+}
+.btn-secondary:hover {
+    background-color: #001833;
+    border-color: #001833;
+}
+.btn-tertiary {
+    background: transparent;
+    border-color: #0055A5;
+    color: #0055A5;
+    font-weight: 600;
+}
+.btn-tertiary:hover {
+    background-color: #0055A5;
+    color: #ffffff;
+}
+
+/* --- Badges / Etiquetas --- */
+.badge-icesi-created { background-color: #10B981; color: #fff; }
+.badge-icesi-updated { background-color: #0055A5; color: #fff; }
+.badge-icesi-viewed  { background-color: #38BDF8; color: #fff; }
+.badge-icesi-deleted { background-color: #EF4444; color: #fff; }
+.badge-icesi-status  { background-color: #F59E0B; color: #000; }
+.badge-icesi-file    { background-color: #00244E; color: #fff; }
+.badge-icesi-default { background-color: #E5E7EB; color: #333333; }
+
+.ley-badge {
+    background-color: #0055A5;
+    color: #fff;
+    font-size: 0.72rem;
+    padding: 4px 11px;
+    border-radius: 999px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.diff-old { text-decoration: line-through; color: #9ca3af; }
+.diff-new  { color: #10B981; font-weight: 600; }
+
+.alert {
+    border-radius: 6px;
+    border: none;
+    font-size: 0.88rem;
+}
+
+/* --- Sección de Notificaciones (Nuevas Clases) --- */
+.notif-unread {
+    border-left: 5px solid #0055A5 !important;
+}
+
+.btn-icesi-unread {
+    background-color: #0055A5 !important;
+    border-color: #0055A5 !important;
+    color: white !important;
+}
+
+.btn-icesi-unread:hover {
+    background-color: #004080 !important;
+    color: white !important;
+}
+
+/* --- Footer --- */
+footer.icesi-footer {
+    background-color: #00244E;
+    color: rgba(255,255,255,0.7);
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 16px;
+    margin-top: auto;
+}
+footer.icesi-footer a {
+    color: rgba(255,255,255,0.9);
+    font-weight: 600;
+    transition: color 0.2s;
+}
+footer.icesi-footer a:hover {
+    color: #ffffff;
+    text-decoration: underline;
+}
+
+/* Responsive Extra */
+@media (max-width: 575.98px) {
+    .page-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+    }
+    .page-header > div, .page-header > span { width: 100%; }
+    .page-header .d-flex.gap-2 { flex-wrap: wrap; }
+    .container { padding-left: 15px; padding-right: 15px; }
+}
