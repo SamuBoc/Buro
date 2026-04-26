@@ -1,12 +1,3 @@
-"""
-Tests - HU-3: Registrar autorización de tratamiento de datos personales
-Requerimiento Funcional: RF3 (CAS1.3)
-
-Criterios de aceptación cubiertos:
-  - Scenario: Autorización aceptada
-  - Scenario: Autorización no aceptada
-"""
-
 from django.contrib.auth.models import User, Group
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -27,11 +18,9 @@ def make_user(username, password='pass1234', group_name=None):
 
 
 def datos_base(**overrides):
-    """Datos completos del formulario, sin el campo allow_conditions por defecto.
-    FIX: se eliminó 'id' — el sistema lo genera automáticamente (HU-2).
-    """
     base = {
         'name': 'Carlos Ruiz',
+        'colombian_identification': '1012345678',
         'location': 'Medellin, Antioquia',
         'phone': '3109876543',
         'email': 'carlos@test.com',
@@ -51,7 +40,6 @@ class HU3_AutorizacionAceptadaTest(TestCase):
         data = datos_base()
         data['allow_conditions'] = True
         self.client.post(reverse('beneficiary_register'), data)
-        # FIX: se verifica por email en lugar de id fijo — el ID es auto-generado (HU-2)
         self.assertTrue(Beneficiary.objects.filter(email='carlos@test.com').exists())
 
     def test_con_autorizacion_marcada_redirige_a_lista(self):
@@ -64,7 +52,6 @@ class HU3_AutorizacionAceptadaTest(TestCase):
 
     def test_formulario_contiene_campo_autorizacion(self):
         """POSITIVO: El formulario de registro incluye el campo de autorización de datos."""
-        self.client.login(username='sec_hu3', password='pass1234')
         response = self.client.get(reverse('beneficiary_register'))
         self.assertContains(response, 'allow_conditions')
 
@@ -78,9 +65,7 @@ class HU3_AutorizacionNoAceptadaTest(TestCase):
     def test_registro_bloqueado_sin_autorizacion(self):
         """NEGATIVO: Sin marcar la autorización, el beneficiario NO se guarda en la DB."""
         data = datos_base()
-        # allow_conditions ausente = casilla no marcada
         self.client.post(reverse('beneficiary_register'), data)
-        # FIX: se verifica por email en lugar de id fijo — el ID es auto-generado (HU-2)
         self.assertFalse(Beneficiary.objects.filter(email='carlos@test.com').exists())
 
     def test_sin_autorizacion_el_formulario_vuelve_a_mostrarse(self):
@@ -92,7 +77,6 @@ class HU3_AutorizacionNoAceptadaTest(TestCase):
     def test_sin_autorizacion_con_todos_los_demas_campos_completos(self):
         """NEGATIVO: Aunque todos los demás campos estén bien, sin autorización no se registra."""
         data = datos_base()
-        # Todos los campos válidos pero sin allow_conditions
         response = self.client.post(reverse('beneficiary_register'), data)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Beneficiary.objects.count(), 0)

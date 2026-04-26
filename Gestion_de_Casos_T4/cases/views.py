@@ -552,3 +552,133 @@ def case_report_by_state(request):
         'chart_labels': chart_labels,
         'chart_values': chart_values,
     })
+
+import io
+from django.http import HttpResponse
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+
+
+@role_required(ROLE_ADMINISTRADOR)
+def export_cases_excel(request):
+    """HU-40: Exporta todos los casos a un archivo Excel."""
+    cases = Case.objects.select_related(
+        'beneficiary', 'assigned_student'
+    ).order_by('-created_at')
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Casos'
+
+    headers = [
+        'Código', 'Sala', 'Beneficiario', 'Estudiante Asignado',
+        'Estado', 'Fecha de Creación', 'Fecha Límite'
+    ]
+    header_fill = PatternFill(start_color='1A3A5C', end_color='1A3A5C', fill_type='solid')
+    header_font = Font(color='FFFFFF', bold=True)
+
+    for col, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center')
+
+    for row_idx, case in enumerate(cases, start=2):
+        ws.cell(row=row_idx, column=1).value = case.code
+        ws.cell(row=row_idx, column=2).value = case.get_sala_display()
+        ws.cell(row=row_idx, column=3).value = case.beneficiary.name
+        ws.cell(row=row_idx, column=4).value = (
+            case.assigned_student.get_full_name() or case.assigned_student.username
+            if case.assigned_student else 'Sin asignar'
+        )
+        ws.cell(row=row_idx, column=5).value = case.state
+        ws.cell(row=row_idx, column=6).value = case.created_at.strftime('%d/%m/%Y')
+        ws.cell(row=row_idx, column=7).value = (
+            case.deadline_date.strftime('%d/%m/%Y') if case.deadline_date else '—'
+        )
+
+    column_widths = [15, 12, 25, 25, 35, 18, 15]
+    for col, width in enumerate(column_widths, start=1):
+        ws.column_dimensions[ws.cell(row=1, column=col).column_letter].width = width
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    response = HttpResponse(
+        buffer,
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="reporte_casos.xlsx"'
+    return response
+
+
+@role_required(ROLE_ADMINISTRADOR)
+def export_cases_pdf(request):
+    """HU-40: Exporta todos los casos a un archivo PDF."""
+    cases = Case.objects.select_related(
+        'beneficiary', 'assigned_student'
+    ).order_by('-created_at')
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(letter),
+        rightMargin=0.5 * inch,
+        leftMargin=0.5 * inch,
+        topMargin=0.5 * inch,
+        bottomMargin=0.5 * inch,
+    )
+
+    styles = getSampleStyleSheet()
+    elements = []
+
+    title = Paragraph(
+        '<b>Reporte de Casos — Consultorio Jurídico ICESI</b>',
+        styles['Title']
+    )
+    elements.append(title)
+    elements.append(Spacer(1, 0.2 * inch))
+
+    data = [['Código', 'Sala', 'Beneficiario', 'Estudiante Asignado', 'Estado', 'Fecha Creación']]
+
+    for case in cases:
+        data.append([
+            case.code,
+            case.get_sala_display(),
+            case.beneficiary.name,
+            (
+                case.assigned_student.get_full_name() or case.assigned_student.username
+                if case.assigned_student else 'Sin asignar'
+            ),
+            case.state,
+            case.created_at.strftime('%d/%m/%Y'),
+        ])
+
+    table = Table(data, colWidths=[1.2*inch, 1*inch, 2*inch, 2*inch, 2.5*inch, 1.3*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND',  (0, 0), (-1, 0),  colors.HexColor('#1A3A5C')),
+        ('TEXTCOLOR',   (0, 0), (-1, 0),  colors.white),
+        ('FONTNAME',    (0, 0), (-1, 0),  'Helvetica-Bold'),
+        ('FONTSIZE',    (0, 0), (-1, 0),  9),
+        ('ALIGN',       (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN',      (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTSIZE',    (0, 1), (-1, -1), 8),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F4F6F9')]),
+        ('GRID',        (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
+        ('TOPPADDING',  (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+
+    elements.append(table)
+    doc.build(elements)
+    buffer.seek(0)
+
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="reporte_casos.pdf"'
+    return response

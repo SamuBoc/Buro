@@ -1,12 +1,3 @@
-"""
-Tests - HU-5: Actualizar información personal de beneficiarios
-Requerimiento Funcional: USU1.5 (CAS1.5)
-
-Criterios de aceptación cubiertos:
-  - Scenario: Actualización exitosa de datos
-  - Scenario: Cancelación de cambios
-"""
-
 from django.contrib.auth.models import User, Group
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -14,10 +5,6 @@ from django.urls import reverse
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_SECRETARIA
 from beneficiary.models import Beneficiary
 
-
-# ─────────────────────────────────────────────
-# Helpers
-# ─────────────────────────────────────────────
 
 def make_user(username, password='pass1234', group_name=None):
     user = User.objects.create_user(
@@ -31,19 +18,15 @@ def make_user(username, password='pass1234', group_name=None):
     return user
 
 
-def make_beneficiary(id='8001', name='Laura Torres', email='laura@test.com'):
+def make_beneficiary(name='Laura Torres', email='laura@test.com'):
     return Beneficiary.objects.create(
-        id=id,
         name=name,
+        colombian_identification='1001234567',
         location='Cali, Valle',
         phone='3001234567',
         email=email,
     )
 
-
-# ═════════════════════════════════════════════
-# BLOQUE 1: Acceso al formulario de edición
-# ═════════════════════════════════════════════
 
 class HU5_AccesoEdicionTest(TestCase):
 
@@ -90,11 +73,6 @@ class HU5_AccesoEdicionTest(TestCase):
         self.assertEqual(response.status_code, 404)
 
 
-# ═════════════════════════════════════════════
-# BLOQUE 2: Actualización exitosa de datos
-# Scenario: La secretaria modifica campos y guarda
-# ═════════════════════════════════════════════
-
 class HU5_ActualizacionExitosaTest(TestCase):
 
     def setUp(self):
@@ -108,8 +86,8 @@ class HU5_ActualizacionExitosaTest(TestCase):
 
     def _datos_actualizados(self, **overrides):
         base = {
-            'id': self.beneficiary.pk,
             'name': 'Laura Torres',
+            'colombian_identification': '1001234567',
             'location': 'Bogota, Cundinamarca',
             'phone': '3109999999',
             'email': 'laura@test.com',
@@ -142,11 +120,6 @@ class HU5_ActualizacionExitosaTest(TestCase):
         self.assertEqual(actualizado.email, 'nuevo@test.com')
 
 
-# ═════════════════════════════════════════════
-# BLOQUE 3: Cancelación de cambios y datos inválidos
-# Scenario: La secretaria cancela la edición
-# ═════════════════════════════════════════════
-
 class HU5_CancelacionYDatosInvalidosTest(TestCase):
 
     def setUp(self):
@@ -156,8 +129,7 @@ class HU5_CancelacionYDatosInvalidosTest(TestCase):
         self.beneficiary = make_beneficiary()
 
     def test_cancelar_no_modifica_los_datos(self):
-        """POSITIVO: Al cancelar (ir a la lista sin enviar), los datos originales se mantienen."""
-        # Simula cancelar: simplemente hace GET a la lista sin haber hecho POST
+        """POSITIVO: Al cancelar, los datos originales se mantienen."""
         response = self.client.get(reverse('beneficiary_list'))
         intacto = Beneficiary.objects.get(pk=self.beneficiary.pk)
         self.assertEqual(intacto.name, 'Laura Torres')
@@ -167,8 +139,8 @@ class HU5_CancelacionYDatosInvalidosTest(TestCase):
         """NEGATIVO: Enviar un email con formato inválido no actualiza el registro."""
         url = reverse('beneficiary_update', args=[self.beneficiary.pk])
         data = {
-            'id': self.beneficiary.pk,
             'name': 'Laura Torres',
+            'colombian_identification': '1001234567',
             'location': 'Cali, Valle',
             'phone': '3001234567',
             'email': 'esto-no-es-email',
@@ -182,8 +154,8 @@ class HU5_CancelacionYDatosInvalidosTest(TestCase):
         """NEGATIVO: Enviar el nombre vacío no actualiza el registro."""
         url = reverse('beneficiary_update', args=[self.beneficiary.pk])
         data = {
-            'id': self.beneficiary.pk,
             'name': '',
+            'colombian_identification': '1001234567',
             'location': 'Cali, Valle',
             'phone': '3001234567',
             'email': 'laura@test.com',

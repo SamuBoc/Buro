@@ -18,4 +18,6 @@ urlpatterns = [
     path('<int:pk>/reasignar/', views.case_reassign, name='case_reassign'),
     path('<int:pk>/rechazar/', views.case_reject, name='case_reject'),
     path('reportes/por-estado/', views.case_report_by_state, name='case_report_by_state'),
+    path('exportar/excel/', views.export_cases_excel, name='export_cases_excel'),
+    path('exportar/pdf/', views.export_cases_pdf, name='export_cases_pdf'),
 ]
