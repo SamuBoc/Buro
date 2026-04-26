@@ -1,3 +1,4 @@
+import os
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -41,6 +42,37 @@ class Beneficiary(models.Model):
         else:
             next_sequence = 1
         return f'{prefix}{next_sequence:04d}'
+
+
+def beneficiary_document_path(instance, file_name):
+    extension = os.path.splitext(file_name)[1]
+    return f'beneficiary/{instance.beneficiary.name}/Documento_Identidad{extension}'
+
+
+class DocumentBeneficiary(models.Model):
+    beneficiary = models.ForeignKey(
+        Beneficiary,
+        on_delete=models.CASCADE,
+        verbose_name="Beneficiario",
+        related_name="documentos"
+    )
+    file = models.FileField(
+        upload_to=beneficiary_document_path,
+        verbose_name='Archivo'
+    )
+    date_upload = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Fecha de Carga'
+    )
+
+    class Meta:
+        verbose_name = 'Documento de Identidad del Beneficiario'
+        verbose_name_plural = 'Documentos de Identidad del Beneficiario'
+        ordering = ['-date_upload']
+
+    def __str__(self):
+        return f"Documento de {self.beneficiary.name}"
+
 
 class BeneficiaryAuditLog(models.Model):
 
