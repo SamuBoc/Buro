@@ -30,38 +30,37 @@
         .navbar {
             background-color: #0D2957 !important;
             box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-            padding: 0 0;
-        }
-        .navbar .container {
-            padding-top: 10px;
-            padding-bottom: 10px;
         }
         .navbar-brand {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             color: #ffffff !important;
             font-weight: 800;
-            font-size: 1rem;
-            letter-spacing: 0.01em;
+            font-size: 0.95rem;
             text-decoration: none;
+            max-width: 70vw;
         }
         .navbar-brand img {
-            height: 32px;
+            height: 28px;
             width: auto;
             filter: brightness(0) invert(1);
+            flex-shrink: 0;
         }
-        .navbar-brand .brand-sep {
+        .brand-sep {
             display: inline-block;
             width: 1px;
-            height: 22px;
+            height: 20px;
             background-color: rgba(255,255,255,0.35);
-            margin: 0 6px;
+            flex-shrink: 0;
         }
-        .navbar-brand .brand-sub {
+        .brand-sub {
             font-weight: 400;
-            font-size: 0.82rem;
+            font-size: 0.78rem;
             opacity: 0.85;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .nav-link {
             color: rgba(255,255,255,0.85) !important;
@@ -79,8 +78,29 @@
             border: none;
             border-radius: 10px;
             box-shadow: 0 8px 24px rgba(13,41,87,0.18);
-            min-width: 230px;
+            min-width: 220px;
             padding: 6px 0;
+        }
+        @media (max-width: 991.98px) {
+            .navbar .dropdown-menu {
+                box-shadow: none;
+                border-radius: 6px;
+                background-color: rgba(255,255,255,0.07);
+                min-width: 100%;
+            }
+            .navbar .dropdown-item {
+                color: rgba(255,255,255,0.9) !important;
+            }
+            .navbar .dropdown-item:hover {
+                background-color: rgba(255,255,255,0.12);
+                color: #fff !important;
+            }
+            .navbar .dropdown-divider {
+                border-color: rgba(255,255,255,0.15);
+            }
+            .navbar .dropdown-item-text {
+                color: rgba(255,255,255,0.55) !important;
+            }
         }
         .navbar .dropdown-item {
             font-size: 0.88rem;
@@ -112,29 +132,35 @@
             border: 1px solid rgba(255,255,255,0.4);
             padding: 4px 8px;
         }
-        .navbar-toggler-icon {
-            filter: invert(1);
-        }
-
-        .nav-link .badge {
-            font-size: 0.65rem;
-        }
+        .navbar-toggler-icon { filter: invert(1); }
 
         .page-header {
             background-color: #ffffff;
             border-left: 4px solid #5454e9;
             border-radius: 10px;
-            padding: 16px 24px;
-            margin-bottom: 24px;
+            padding: 14px 20px;
+            margin-bottom: 20px;
             box-shadow: 0 1px 6px rgba(84,84,233,0.08);
         }
-        .page-header h1,
-        .page-header h2,
-        .page-header h4,
         .page-header h5 {
             color: #0D2957;
             font-weight: 800;
             margin-bottom: 0;
+            font-size: 1rem;
+        }
+        @media (max-width: 575.98px) {
+            .page-header {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 10px !important;
+            }
+            .page-header > div,
+            .page-header > span {
+                width: 100%;
+            }
+            .page-header .d-flex.gap-2 {
+                flex-wrap: wrap;
+            }
         }
 
         .card {
@@ -148,27 +174,30 @@
         .card:hover {
             box-shadow: 0 4px 18px rgba(84,84,233,0.18);
         }
-        .card-header {
-            background-color: #0D2957;
-            color: #ffffff;
-            border-radius: 10px 10px 0 0 !important;
-            font-weight: 600;
-            padding: 14px 20px;
-            border: none;
-        }
 
         thead.audit-thead th {
             background-color: #0D2957;
             color: #ffffff;
-            font-size: 0.78rem;
+            font-size: 0.75rem;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             border: none;
-            padding: 12px 16px;
+            padding: 11px 14px;
+            white-space: nowrap;
         }
         .table-hover tbody tr:hover {
             background-color: rgba(84,84,233,0.05);
+        }
+        @media (max-width: 767.98px) {
+            .table td, .table th {
+                padding: 8px 10px;
+                font-size: 0.8rem;
+            }
+            thead.audit-thead th {
+                font-size: 0.7rem;
+                padding: 9px 10px;
+            }
         }
 
         .btn {
@@ -177,6 +206,7 @@
             border-radius: 6px;
             padding: 7px 18px;
             transition: all 0.15s;
+            white-space: nowrap;
         }
         .btn-primary {
             background-color: #5454e9;
@@ -198,14 +228,6 @@
             border-color: #0a1f42;
             color: #ffffff;
         }
-        .btn-outline-primary {
-            color: #5454e9;
-            border-color: #5454e9;
-        }
-        .btn-outline-primary:hover {
-            background-color: #5454e9;
-            color: #ffffff;
-        }
         .btn-tertiary {
             background: transparent;
             border-color: #5454e9;
@@ -217,32 +239,33 @@
             color: #ffffff;
         }
 
+        .badge-icesi-created { background-color: #2ea86e; color: #fff; }
+        .badge-icesi-updated { background-color: #5454e9; color: #fff; }
+        .badge-icesi-viewed  { background-color: #0ea5e9; color: #fff; }
+        .badge-icesi-deleted { background-color: #dc3545; color: #fff; }
+        .badge-icesi-status  { background-color: #f59e0b; color: #000; }
+        .badge-icesi-file    { background-color: #0D2957; color: #fff; }
+        .badge-icesi-default { background-color: #E4E9FF; color: #3F4159; }
+
+        .ley-badge {
+            background-color: #5454e9;
+            color: #fff;
+            font-size: 0.72rem;
+            padding: 4px 11px;
+            border-radius: 999px;
+            font-weight: 600;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .diff-old { text-decoration: line-through; color: #9ca3af; }
+        .diff-new  { color: #2ea86e; font-weight: 600; }
+
         .alert {
             border-radius: 8px;
             border: none;
             font-size: 0.88rem;
         }
-
-        /* ── BADGES AUDIT ── */
-        .badge-icesi-created  { background-color: #2ea86e; color: #fff; }
-        .badge-icesi-updated  { background-color: #5454e9; color: #fff; }
-        .badge-icesi-viewed   { background-color: #0ea5e9; color: #fff; }
-        .badge-icesi-deleted  { background-color: #dc3545; color: #fff; }
-        .badge-icesi-status   { background-color: #f59e0b; color: #000; }
-        .badge-icesi-file     { background-color: #0D2957; color: #fff; }
-        .badge-icesi-default  { background-color: #E4E9FF; color: #3F4159; }
-        .ley-badge {
-            background-color: #5454e9;
-            color: #fff;
-            font-size: 0.75rem;
-            padding: 5px 12px;
-            border-radius: 999px;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-
-        .diff-old { text-decoration: line-through; color: #9ca3af; }
-        .diff-new { color: #2ea86e; font-weight: 600; }
 
         footer.icesi-footer {
             background-color: #0D2957;
@@ -254,6 +277,17 @@
         }
         footer.icesi-footer a {
             color: rgba(255,255,255,0.85);
+        }
+
+        @media (max-width: 575.98px) {
+            .container {
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+            .col-lg-11 {
+                padding-left: 0;
+                padding-right: 0;
+            }
         }
     </style>
 </head>
