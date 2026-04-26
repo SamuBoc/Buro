@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Bitácora Global de Casos{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-11">
+
+    <div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <h5 class="mb-0"><i class="bi bi-journals me-2"></i>Bitácora Global de Casos</h5>
+        </div>
+        <span class="text-muted small">Historial completo de acciones sobre todos los casos</span>
+      </div>
+      <span class="badge rounded-pill"
+            style="background-color:#0055A5; color:#fff; font-size:0.78rem; padding:5px 13px;">
+        Últimos {{ logs|length }} registros
+      </span>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-0">
+        {% if logs %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="audit-thead">
+              <tr>
+                <th style="width:140px;">Fecha y hora</th>
+                <th style="width:140px;">Radicado</th>
+                <th>Usuario</th>
+                <th style="width:170px;">Acción</th>
+                <th>Descripción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for log in logs %}
+              <tr>
+                <td class="small text-muted text-nowrap">
+                  {{ log.timestamp|date:"d/m/Y" }}<br>
+                  <strong class="text-dark">{{ log.timestamp|time:"H:i:s" }}</strong>
+                </td>
+                <td>
+                  {% if log.case %}
+                  <a href="{% url 'case_audit_log' log.case.id %}"
+                     class="fw-semibold text-decoration-none"
+                     style="color:#0055A5;"> <i class="bi bi-folder2-open me-1"></i>{{ log.case_radicado }}
+                  </a>
+                  {% else %}
+                  <span class="text-muted small">{{ log.case_radicado|default:"—" }}</span>
+                  {% endif %}
+                </td>
+                <td class="small">
+                  {{ log.user.get_full_name|default:log.user.username|default:"Sistema" }}
+                </td>
+                <td>
+                  {% if log.action == 'CREATED' %}
+                    <span class="badge badge-icesi-created">
+                      <i class="bi bi-plus-circle me-1"></i>{{ log.get_action_display }}
+                    </span>
+                  {% elif log.action == 'STATUS_CHANGED' %}
+                    <span class="badge badge-icesi-status">
+                      <i class="bi bi-arrow-left-right me-1"></i>{{ log.get_action_display }}
+                    </span>
+                  {% elif log.action == 'UPDATED' %}
+                    <span class="badge badge-icesi-updated">
+                      <i class="bi bi-pencil me-1"></i>{{ log.get_action_display }}
+                    </span>
+                  {% elif log.action == 'ASSIGNED' or log.action == 'REASSIGNED' %}
+                    <span class="badge badge-icesi-viewed">
+                      <i class="bi bi-person-check me-1"></i>{{ log.get_action_display }}
+                    </span>
+                  {% elif log.action == 'FILE_UPLOADED' or log.action == 'FILE_DELETED' %}
+                    <span class="badge badge-icesi-file">
+                      <i class="bi bi-paperclip me-1"></i>{{ log.get_action_display }}
+                    </span>
+                  {% elif log.action == 'REJECTED' %}
+                    <span class="badge badge-icesi-deleted">
+                      <i class="bi bi-x-circle me-1"></i>{{ log.get_action_display }}
+                    </span>
+                  {% else %}
+                    <span class="badge badge-icesi-default">
+                      {{ log.get_action_display }}
+                    </span>
+                  {% endif %}
+                </td>
+                <td class="small text-muted">{{ log.description|truncatechars:80 }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+          <i class="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>
+          <p class="mb-0">Sin registros aún.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
