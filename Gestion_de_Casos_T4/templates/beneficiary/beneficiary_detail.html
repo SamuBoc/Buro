@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'buro_app/base.html' %}
 
 {% block title %}{{ beneficiary.name }} - Buró Jurídico{% endblock %}
 
@@ -67,27 +67,35 @@
                         </div>
                         <p class="fw-semibold mb-0 ms-4">{{ beneficiary.date_register|date:"d/m/Y" }}</p>
                     </div>
+
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center me-1">
+                            {% if documento %}
+                                <a href="{{ documento.file.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-download me-1"></i>Ver / Descargar documento
+                                </a>
+                            {% else %}
+                                <span class="text-muted small">Sin documento cargado</span>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
 
                 <hr class="mt-4">
 
-                <div class="d-flex justify-content-between">
+                <div class="d-flex justify-content-between flex-wrap gap-2">
                     <a href="{% url 'beneficiary_register' %}" class="btn btn-primary">
                         <i class="bi bi-person-plus-fill me-1"></i> Registrar otro
                     </a>
-
-                    <a href="{% url 'create_cite' beneficiary.pk %}" class="btn btn-tertiary">
+                    <a href="{% url 'create_cite' beneficiary.pk %}" class="btn btn-outline-primary">
                         <i class="bi bi-calendar-plus me-1"></i> Agendar cita
                     </a>
-
-                    <a href="{% url 'beneficiary_cites' beneficiary.pk %}" class="btn btn-tertiary">
+                    <a href="{% url 'beneficiary_cites' beneficiary.pk %}" class="btn btn-outline-primary">
                         <i class="bi bi-calendar-week me-1"></i> Ver citas
                     </a>
-
                     <a href="{% url 'beneficiary_audit_log' beneficiary.pk %}" class="btn btn-outline-secondary">
                         <i class="bi bi-shield-lock me-1"></i> Bitácora
                     </a>
-
                     <a href="{% url 'beneficiary_update' beneficiary.pk %}" class="btn btn-primary">
                         <i class="bi bi-pencil-fill"></i> Editar
                     </a>
