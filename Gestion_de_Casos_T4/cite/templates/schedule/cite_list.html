@@ -48,9 +48,18 @@
                                 <td class="text-center">{{ cite.description }}</td>
                                 <td class="text-center">{{ cite.date_assigned }}</td>
                                 <td class="text-center">
+                                    {% if cite.state_cite != 'Cancelada' %}
                                     <a href="{% url 'reschedule_cite' cite.pk %}" class="btn btn-sm btn-primary">
-                                        <i class="bi bi-calendar3 me-1"></i>Reprogramar
+                                        <i class="bi bi-calendar3"></i>
                                     </a>
+                                    
+                                    <form class="mt-2" method="POST" action="{% url 'cancel_cite' pk=cite.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-secondary btn-sm">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}     
                                 </td>
                             </tr>
                             {% endfor %}

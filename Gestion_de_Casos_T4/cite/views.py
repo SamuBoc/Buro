@@ -59,4 +59,11 @@ def reschedule_cite(request, pk):
 		'form': form,
 		'cite': cite
 	})
-	
+
+@login_required
+def cancel_cite(request, pk):
+	if request.method == 'POST':
+		cite = get_object_or_404(Cite, pk=pk)
+		cite.state_cite = Cite.STATE_CANCELED
+		cite.save()
+		return redirect('beneficiary_cites', beneficiary_id = cite.beneficiary_id)
