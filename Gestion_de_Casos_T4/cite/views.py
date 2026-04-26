@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from beneficiary.models import Beneficiary
 
-from .forms import CiteForm
+from .forms import CiteForm, Reschedule_Cite
 from .models import Cite
 
 
@@ -24,7 +24,7 @@ def create_cite(request, beneficiary_id):
 	else:
 		form = CiteForm()
 
-	return render(request, 'cite/cite_form.html', {
+	return render(request, 'schedule/cite_form.html', {
 		'form': form,
 		'beneficiary': beneficiary,
 	})
@@ -35,7 +35,28 @@ def beneficiary_cites(request, beneficiary_id):
 	beneficiary = get_object_or_404(Beneficiary, pk=beneficiary_id)
 	cites = Cite.objects.filter(beneficiary=beneficiary).order_by('-id')
 
-	return render(request, 'cite/cite_list.html', {
+	return render(request, 'schedule/cite_list.html', {
 		'beneficiary': beneficiary,
 		'cites': cites,
 	})
+
+@login_required
+def reschedule_cite(request, pk):
+	cite = get_object_or_404(Cite, pk=pk)
+
+	if request.method == 'POST':
+		form = Reschedule_Cite(request.POST, instance=cite)
+
+		if form.is_valid():
+			form.save()
+			return redirect('beneficiary_cites', beneficiary_id = cite.beneficiary_id)
+		else:
+			print(form.errors)
+			messages.error(request, 'Corrige los errores del formulario')
+	
+	else: form = Reschedule_Cite(instance=cite)
+	return render(request, 'reschedule/reschedule_cite.html', {
+		'form': form,
+		'cite': cite
+	})
+	

@@ -34,3 +34,18 @@ class CiteForm(forms.ModelForm):
         if not modality:
             raise forms.ValidationError('Selecciona una modalidad de atencion.')
         return modality
+
+class Reschedule_Cite(forms.ModelForm):
+    class Meta:
+        model = Cite
+        fields = ['date_assigned']
+        widgets = {
+            'date_assigned': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            })
+        }
+
+        labels = {
+            'date_assigned': 'Fecha Asignada'
+        }
