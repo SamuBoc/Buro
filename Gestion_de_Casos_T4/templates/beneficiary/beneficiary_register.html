@@ -1,0 +1,108 @@
+{% extends 'buro_app/base.html' %}
+
+{% block title %}Registrar Beneficiario - Buró Jurídico{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="page-header">
+            <h4 class="mb-0"><i class="bi bi-person-plus-fill me-2"></i>Registrar Nuevo Beneficiario</h4>
+            <small class="opacity-75">Complete todos los campos del formulario</small>
+        </div>
+
+        <div class="card">
+            <div class="card-body p-4">
+                <form method="POST" novalidate enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label fw-semibold">
+                            <i class="bi bi-person me-1"></i>{{ form.name.label }}
+                        </label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                            <div class="text-danger small mt-1">{{ form.name.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.colombian_identification.id_for_label }}" class="form-label fw-semibold">
+                            <i class="bi bi-person-vcard me-1"></i>{{ form.colombian_identification.label }}
+                        </label>
+                        {{ form.colombian_identification }}
+                        {% if form.colombian_identification.errors %}
+                            <div class="text-danger small mt-1">{{ form.colombian_identification.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.location.id_for_label }}" class="form-label fw-semibold">
+                            <i class="bi bi-geo-alt me-1"></i>{{ form.location.label }}
+                        </label>
+                        {{ form.location }}
+                        {% if form.location.errors %}
+                            <div class="text-danger small mt-1">{{ form.location.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.phone.id_for_label }}" class="form-label fw-semibold">
+                                <i class="bi bi-telephone me-1"></i>{{ form.phone.label }}
+                            </label>
+                            {{ form.phone }}
+                            {% if form.phone.errors %}
+                                <div class="text-danger small mt-1">{{ form.phone.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label fw-semibold">
+                                <i class="bi bi-envelope me-1"></i>{{ form.email.label }}
+                            </label>
+                            {{ form.email }}
+                            {% if form.email.errors %}
+                                <div class="text-danger small mt-1">{{ form.email.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.allow_conditions.id_for_label }}" class="form-label fw-semibold">
+                                <i class="bi bi-shield-fill-check me-1"></i>Aceptar Tratamiento de datos
+                            </label>
+                            {{ form.allow_conditions }}
+                            {% if form.allow_conditions.errors %}
+                                <div class="text-danger small mt-1">{{ form.allow_conditions.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if doc_form %}
+                    <div class="mb-3">
+                        <label for="{{ doc_form.file.id_for_label }}" class="form-label fw-semibold">
+                            <i class="bi bi-file-earmark-person me-1"></i>{{ doc_form.file.label }}
+                        </label>
+                        {{ doc_form.file }}
+                        <div class="form-text">Formatos permitidos: PDF, JPG, PNG.</div>
+                        {% if doc_form.file.errors %}
+                            <div class="text-danger small mt-1">{{ doc_form.file.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <hr class="my-4">
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'beneficiary_list' %}" class="btn btn-secondary px-4">
+                            <i class="bi bi-arrow-left me-1"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="bi bi-save me-1"></i>Guardar Beneficiario
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

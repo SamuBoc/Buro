@@ -59,7 +59,7 @@ ROOT_URLCONF = 'Gestion_Casos_Django_T4.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / "templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -91,40 +91,26 @@ DATABASES = {
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-
-# Internationalization
-# https://docs.djangoproject.com/en/6.0/topics/i18n/
-
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
+# ── Internacionalización ─────────────────────────────────
+LANGUAGE_CODE = 'es-co'
+TIME_ZONE = 'America/Bogota'
 USE_I18N = True
 
 USE_TZ = True
 
+# ── Archivos estáticos y media ───────────────────────────
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / "static"]   # Carpeta global de estáticos
+STATIC_ROOT = BASE_DIR / "staticfiles"     # Para collectstatic en producción
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.0/howto/static-files/
-
-STATIC_URL = 'static/'
-
-MEDIA_URL = 'media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / "media"
 
 # Auth redirects
 LOGIN_URL = 'login'
@@ -143,3 +129,6 @@ DEFAULT_FROM_EMAIL = 'Consultorio Jurídico ICESI <consultorio@icesi.edu.co>'
 # EMAIL_USE_TLS       = True
 # EMAIL_HOST_USER     = 'tu_correo@icesi.edu.co'
 # EMAIL_HOST_PASSWORD = 'tu_contraseña_de_aplicacion'
+
+# ── Configuración por defecto ────────────────────────────
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
