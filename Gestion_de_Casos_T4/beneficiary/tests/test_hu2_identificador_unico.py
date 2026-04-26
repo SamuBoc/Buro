@@ -57,9 +57,11 @@ class HU2_GeneracionIdTest(TestCase):
         self.assertEqual(seq2, seq1 + 1)
 
     def test_id_generado_via_formulario(self):
+        """POSITIVO: Al registrar desde el formulario el id también se genera automáticamente."""
         self.client.login(username='sec_hu2', password='pass1234')
         self.client.post(reverse('beneficiary_register'), {
             'name': 'Laura Gómez',
+            'colombian_identification': '9876543210',
             'location': 'Cali',
             'phone': '3001112233',
             'email': 'laura@test.com',

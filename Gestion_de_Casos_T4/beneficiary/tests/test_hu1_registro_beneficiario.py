@@ -1,12 +1,3 @@
-"""
-Tests - HU-1: Registrar nuevo beneficiario en el sistema
-Requerimiento Funcional: RF1, RF2 (CAS1.1)
-
-Criterios de aceptación cubiertos:
-  - Scenario: Registro exitoso de beneficiario
-  - Scenario: Campos obligatorios incompletos
-"""
-
 from django.contrib.auth.models import User, Group
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -27,9 +18,9 @@ def make_user(username, password='pass1234', group_name=None):
 
 
 def datos_validos(**overrides):
-    """Retorna un diccionario con datos completos y válidos para el formulario."""
     base = {
         'name': 'Maria Lopez',
+        'colombian_identification': '1001234567',
         'location': 'Cali, Valle',
         'phone': '3001234567',
         'email': 'maria@test.com',
@@ -37,6 +28,7 @@ def datos_validos(**overrides):
     }
     base.update(overrides)
     return base
+
 
 class HU1_AccesoFormularioTest(TestCase):
 
