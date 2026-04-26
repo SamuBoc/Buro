@@ -28,20 +28,30 @@
                         <thead class="table-light">
                             <tr>
                                 <th class="ps-4">#</th>
-                                <th>Modalidad</th>
-                                <th>Canal</th>
-                                <th>Estado</th>
-                                <th>Descripcion</th>
+                                <th class="text-center">Modalidad</th>
+                                <th class="text-center">Beneficiario</th>
+                                <th class="text-center">Canal</th>
+                                <th class="text-center">Estado</th>
+                                <th class="text-center">Descripcion</th>
+                                <th class="text-center">Fecha Asignación</th>
+                                <th class="text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for cite in cites %}
                             <tr>
                                 <td class="ps-4">{{ cite.id }}</td>
-                                <td>{{ cite.get_modality_cite_display }}</td>
-                                <td>{{ cite.request_cite }}</td>
-                                <td>{{ cite.get_state_cite_display }}</td>
-                                <td>{{ cite.description }}</td>
+                                <td class="text-center">{{ cite.get_modality_cite_display }}</td>
+                                <td class="text-center">{{ cite.beneficiary.name }}</td>
+                                <td class="text-center">{{ cite.request_cite }}</td>
+                                <td class="text-center">{{ cite.get_state_cite_display }}</td>
+                                <td class="text-center">{{ cite.description }}</td>
+                                <td class="text-center">{{ cite.date_assigned }}</td>
+                                <td class="text-center">
+                                    <a href="{% url 'reschedule_cite' cite.pk %}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-calendar3 me-1"></i>Reprogramar
+                                    </a>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
