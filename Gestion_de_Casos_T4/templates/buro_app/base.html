@@ -4,25 +4,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Buró — Consultorio Jurídico{% endblock %}</title>
+    <title>{% block title %}Buro - Consultorio Juridico{% endblock %}</title>
 
-    <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
-
+    <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
 </head>
 <body class="d-flex flex-column min-vh-100">
-
     <nav class="navbar navbar-expand-lg">
         <div class="container">
-            <a class="navbar-brand" href="{% url 'beneficiary_list' %}">
-                <img src="{% static 'img/icesi-logo-white.png' %}" alt="ICESI">
+            <a class="navbar-brand" href="{% url 'home' %}">
+                <img src="{% static 'img/logo.png' %}" alt="Buro Juridico">
                 <span class="brand-sep"></span>
                 <div>
-                    <div style="font-weight:800; font-size:1.05rem; line-height:1.1;">Buró</div>
-                    <div class="brand-sub">Consultorio Jurídico</div>
+                    <div style="font-weight:800; font-size:1.05rem; line-height:1.1;">Buro</div>
+                    <div class="brand-sub">Consultorio Juridico</div>
                 </div>
             </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Navegacion">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="mainNavbar">
+                <div class="navbar-nav ms-auto align-items-lg-center">
+                    {% if user.is_authenticated %}
+                        <a class="nav-link" href="{% url 'home' %}">
+                            <i class="bi bi-house-door-fill me-1"></i>Inicio
+                        </a>
+                        <a class="nav-link" href="{% url 'beneficiary_list' %}">
+                            <i class="bi bi-people-fill me-1"></i>Beneficiarios
+                        </a>
+                        <a class="nav-link" href="{% url 'case_list' %}">
+                            <i class="bi bi-folder-fill me-1"></i>Casos
+                        </a>
+
+                        {% if 'secretaria' in user_roles or 'administrador' in user_roles %}
+                            <a class="nav-link" href="{% url 'beneficiary_register' %}">
+                                <i class="bi bi-person-plus-fill me-1"></i>Registrar Beneficiario
+                            </a>
+                            <a class="nav-link" href="{% url 'case_create' %}">
+                                <i class="bi bi-folder-plus me-1"></i>Nuevo Caso
+                            </a>
+                        {% endif %}
+
+                        <a class="nav-link position-relative" href="{% url 'notification_list' %}">
+                            <i class="bi bi-bell-fill me-1"></i>Notificaciones
+                            {% if unread_notifications_count > 0 %}
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:10px;">
+                                    {{ unread_notifications_count }}
+                                </span>
+                            {% endif %}
+                        </a>
+
+                        <div class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="userMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-person-circle me-1"></i>{{ user.username }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                                {% if 'administrador' in user_roles %}
+                                    <li><a class="dropdown-item" href="{% url 'global_audit_log' %}">Bitacora Casos</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'global_beneficiary_audit_log' %}">Bitacora Habeas Data</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                {% endif %}
+                                <li>
+                                    <form method="post" action="{% url 'logout' %}" class="m-0">
+                                        {% csrf_token %}
+                                        <button type="submit" class="dropdown-item">
+                                            <i class="bi bi-box-arrow-right me-1"></i>Salir
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
+        </div>
     </nav>
-    </body>
+
+    <main class="flex-grow-1 py-4">
+        <div class="container">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="icesi-footer">
+        Consultorio Juridico Universitario - Sistema de Gestion
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
 </html>
