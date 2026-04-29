@@ -116,6 +116,65 @@ body {
 }
 .navbar-toggler-icon { filter: invert(1); }
 
+/* --- Sidebar --- */
+.layout {
+    width: 100%;
+    min-height: calc(100vh - 64px);
+}
+.sidebar {
+    width: 260px;
+    background-color: #00244E;
+    color: #ffffff;
+    border-right: 1px solid rgba(255,255,255,0.08);
+    padding-top: 12px;
+    height: 100%;
+}
+.sidebar.offcanvas {
+    background-color: #00244E !important;
+    --bs-offcanvas-bg: #00244E;
+    opacity: 1;
+    border: 0;
+    box-shadow: none;
+}
+.sidebar .offcanvas-body {
+    background-color: #00244E !important;
+    padding: 20px 16px 18px;
+    height: 100%;
+}
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+    margin-bottom: 12px;
+}
+.sidebar-brand img {
+    height: 34px;
+    width: auto;
+    filter: brightness(0) invert(1);
+}
+.sidebar .nav-link {
+    color: rgba(255,255,255,0.85) !important;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 10px 12px !important;
+    border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
+}
+.sidebar .nav-link:hover,
+.sidebar .nav-link:focus {
+    color: #ffffff !important;
+    background-color: rgba(255,255,255,0.12);
+}
+.sidebar .dropdown-menu {
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 36, 78, 0.15);
+    min-width: 220px;
+    padding: 6px 0;
+}
+
 /* --- Contenedores y Tarjetas --- */
 .page-header {
     background-color: #ffffff;

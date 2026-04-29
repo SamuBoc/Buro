@@ -14,6 +14,11 @@
 <body class="d-flex flex-column min-vh-100">
     <nav class="navbar navbar-expand-lg">
         <div class="container">
+            {% if user.is_authenticated %}
+                <button class="btn btn-outline-light me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-label="Abrir menu">
+                    <i class="bi bi-list"></i>
+                </button>
+            {% endif %}
             <a class="navbar-brand" href="{% url 'home' %}">
                 <img src="{% static 'img/logo.png' %}" alt="Buro Juridico">
                 <span class="brand-sep"></span>
@@ -23,44 +28,54 @@
                 </div>
             </a>
 
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Navegacion">
-                <span class="navbar-toggler-icon"></span>
-            </button>
+            <div class="ms-auto d-flex align-items-center gap-2">
+                {% if user.is_authenticated %}
+                    <a class="nav-link position-relative" href="{% url 'notification_list' %}">
+                        <i class="bi bi-bell-fill me-1"></i>Notificaciones
+                        {% if unread_notifications_count > 0 %}
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:10px;">
+                                {{ unread_notifications_count }}
+                            </span>
+                        {% endif %}
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
 
-            <div class="collapse navbar-collapse" id="mainNavbar">
-                <div class="navbar-nav ms-auto align-items-lg-center">
-                    {% if user.is_authenticated %}
+    <div class="layout d-flex flex-grow-1">
+        {% if user.is_authenticated %}
+            <div class="offcanvas offcanvas-start sidebar" tabindex="-1" id="sidebarMenu" aria-labelledby="sidebarMenuLabel">
+                <div class="offcanvas-body d-flex flex-column">
+                    <div class="sidebar-brand">
+                        <img src="{% static 'img/logo.png' %}" alt="Buro Juridico">
+                        <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
+                    </div>
+                    <nav class="nav flex-column gap-1">
                         <a class="nav-link" href="{% url 'home' %}">
-                            <i class="bi bi-house-door-fill me-1"></i>Inicio
+                            <i class="bi bi-house-door-fill me-2"></i>Inicio
                         </a>
                         <a class="nav-link" href="{% url 'beneficiary_list' %}">
-                            <i class="bi bi-people-fill me-1"></i>Beneficiarios
+                            <i class="bi bi-people-fill me-2"></i>Beneficiarios
                         </a>
                         <a class="nav-link" href="{% url 'case_list' %}">
-                            <i class="bi bi-folder-fill me-1"></i>Casos
+                            <i class="bi bi-folder-fill me-2"></i>Casos
                         </a>
 
                         {% if 'secretaria' in user_roles or 'administrador' in user_roles %}
                             <a class="nav-link" href="{% url 'beneficiary_register' %}">
-                                <i class="bi bi-person-plus-fill me-1"></i>Registrar Beneficiario
+                                <i class="bi bi-person-plus-fill me-2"></i>Registrar Beneficiario
                             </a>
                             <a class="nav-link" href="{% url 'case_create' %}">
-                                <i class="bi bi-folder-plus me-1"></i>Nuevo Caso
+                                <i class="bi bi-folder-plus me-2"></i>Nuevo Caso
                             </a>
                         {% endif %}
+                    </nav>
 
-                        <a class="nav-link position-relative" href="{% url 'notification_list' %}">
-                            <i class="bi bi-bell-fill me-1"></i>Notificaciones
-                            {% if unread_notifications_count > 0 %}
-                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:10px;">
-                                    {{ unread_notifications_count }}
-                                </span>
-                            {% endif %}
-                        </a>
-
+                    <div class="mt-auto pt-3">
                         <div class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="userMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-person-circle me-1"></i>{{ user.username }}
+                                <i class="bi bi-person-circle me-2"></i>{{ user.username }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
                                 {% if 'administrador' in user_roles %}
@@ -78,26 +93,28 @@
                                 </li>
                             </ul>
                         </div>
-                    {% endif %}
+                    </div>
                 </div>
             </div>
-        </div>
-    </nav>
+        {% endif %}
 
-    <main class="flex-grow-1 py-4">
-        <div class="container">
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
+        <div class="content flex-grow-1">
+            <main class="flex-grow-1 py-4">
+                <div class="container">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
 
-            {% block content %}{% endblock %}
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
         </div>
-    </main>
+    </div>
 
     <footer class="icesi-footer">
         Consultorio Juridico Universitario - Sistema de Gestion
