@@ -49,14 +49,29 @@
                                 <td class="text-center">{{ cite.date_assigned }}</td>
                                 <td class="text-center">
                                     {% if cite.state_cite != 'Cancelada' %}
-                                    <a href="{% url 'reschedule_cite' cite.pk %}" class="btn btn-sm btn-primary">
-                                        <i class="bi bi-calendar3"></i>
+                                    <a href="{% url 'reschedule_cite' cite.pk %}" class="btn btn-sm btn-primary w-100">
+                                        <i class="bi bi-calendar3 me-1"></i>Reprogramar
                                     </a>
-                                    
-                                    <form class="mt-2" method="POST" action="{% url 'cancel_cite' pk=cite.id %}">
+
+                                    {% if cite.state_cite != 'Asistió' and cite.state_cite != 'No asistió' %}
+                                    <form class="mt-2 d-grid" method="POST" action="{% url 'register_cite_attendance' pk=cite.id status='asistio' %}">
                                         {% csrf_token %}
-                                        <button type="submit" class="btn btn-secondary btn-sm">
-                                            <i class="bi bi-x-lg"></i>
+                                        <button type="submit" class="btn btn-success btn-sm w-100">
+                                            <i class="bi bi-check-lg me-1"></i>Asistio
+                                        </button>
+                                    </form>
+                                    <form class="mt-2 d-grid" method="POST" action="{% url 'register_cite_attendance' pk=cite.id status='no-asistio' %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-warning btn-sm w-100">
+                                            <i class="bi bi-person-x me-1"></i>No asistio
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    
+                                    <form class="mt-2 d-grid" method="POST" action="{% url 'cancel_cite' pk=cite.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-secondary btn-sm w-100">
+                                            <i class="bi bi-x-lg me-1"></i>Cancelar
                                         </button>
                                     </form>
                                     {% endif %}     

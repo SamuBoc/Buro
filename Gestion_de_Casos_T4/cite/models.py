@@ -36,12 +36,16 @@ class Cite(models.Model):
     STATE_CONFIRMED = 'Confirmada'
     STATE_CANCELED = 'Cancelada'
     STATE_SOLVE = "Atendida"
+    STATE_ATTENDED = 'Asistió'
+    STATE_NO_SHOW = 'No asistió'
 
     STATE_CHOICES = [
         (STATE_PENDING, 'Pendiente'),
         (STATE_CONFIRMED, 'Confirmada'),
         (STATE_CANCELED, 'Cancelada'),
         (STATE_SOLVE, 'Atendida'),
+        (STATE_ATTENDED, 'Asistió'),
+        (STATE_NO_SHOW, 'No asistió'),
     ]
 
     state_cite = models.CharField(

@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
 from beneficiary.models import Beneficiary
+from beneficiary.signals import log_beneficiary_cite_attendance
 
 from .forms import CiteForm, Reschedule_Cite
 from .models import Cite
@@ -67,3 +68,49 @@ def cancel_cite(request, pk):
 		cite.state_cite = Cite.STATE_CANCELED
 		cite.save()
 		return redirect('beneficiary_cites', beneficiary_id = cite.beneficiary_id)
+
+
+@login_required
+def register_cite_attendance(request, pk, status):
+	cite = get_object_or_404(Cite, pk=pk)
+
+	if request.method != 'POST':
+		return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
+
+	if cite.state_cite == Cite.STATE_CANCELED:
+		messages.error(request, 'No puedes registrar asistencia en una cita cancelada.')
+		return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
+
+	status_map = {
+		'asistio': (Cite.STATE_ATTENDED, True),
+		'no-asistio': (Cite.STATE_NO_SHOW, False),
+	}
+
+	if status not in status_map:
+		messages.error(request, 'Estado de asistencia no válido.')
+		return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
+
+	new_state, attended = status_map[status]
+
+	if cite.state_cite != new_state:
+		cite.state_cite = new_state
+		cite.save()
+		log_beneficiary_cite_attendance(
+			cite.beneficiary,
+			cite,
+			request.user,
+			attended,
+			ip=_get_client_ip(request),
+		)
+		messages.success(request, 'Asistencia registrada correctamente.')
+	else:
+		messages.info(request, 'La cita ya tiene este estado registrado.')
+
+	return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
+
+
+def _get_client_ip(request):
+	x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+	if x_forwarded_for:
+		return x_forwarded_for.split(',')[0].strip()
+	return request.META.get('REMOTE_ADDR')
