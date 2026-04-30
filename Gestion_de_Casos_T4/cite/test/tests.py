@@ -115,3 +115,54 @@ class HU18RegistroAsistenciaTest(TestCase):
 		).first()
 		self.assertIsNotNone(log)
 		self.assertIn('no asistió', log.description)
+
+	def test_no_permite_asistencia_en_cita_cancelada(self):
+		self.cite.state_cite = Cite.STATE_CANCELED
+		self.cite.save()
+		response = self.client.post(
+			reverse('register_cite_attendance', args=[self.cite.id, 'asistio'])
+		)
+
+		self.assertEqual(response.status_code, 302)
+		self.cite.refresh_from_db()
+		self.assertEqual(self.cite.state_cite, Cite.STATE_CANCELED)
+		self.assertEqual(
+			BeneficiaryAuditLog.objects.filter(
+				beneficiary=self.beneficiary,
+				action='CITE_ATTENDED'
+			).count(),
+			0
+		)
+
+	def test_no_registra_asistencia_duplicada(self):
+		self.client.post(
+			reverse('register_cite_attendance', args=[self.cite.id, 'asistio'])
+		)
+		response = self.client.post(
+			reverse('register_cite_attendance', args=[self.cite.id, 'asistio'])
+		)
+
+		self.assertEqual(response.status_code, 302)
+		self.cite.refresh_from_db()
+		self.assertEqual(self.cite.state_cite, Cite.STATE_ATTENDED)
+		self.assertEqual(
+			BeneficiaryAuditLog.objects.filter(
+				beneficiary=self.beneficiary,
+				action='CITE_ATTENDED'
+			).count(),
+			1
+		)
+
+	def test_estado_invalido_no_cambia_cita(self):
+		initial_logs = BeneficiaryAuditLog.objects.filter(beneficiary=self.beneficiary).count()
+		response = self.client.post(
+			reverse('register_cite_attendance', args=[self.cite.id, 'otro-estado'])
+		)
+
+		self.assertEqual(response.status_code, 302)
+		self.cite.refresh_from_db()
+		self.assertEqual(self.cite.state_cite, Cite.STATE_PENDING)
+		self.assertEqual(
+			BeneficiaryAuditLog.objects.filter(beneficiary=self.beneficiary).count(),
+			initial_logs
+		)
