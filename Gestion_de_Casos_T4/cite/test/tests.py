@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
@@ -157,6 +157,22 @@ class HU18RegistroAsistenciaTest(TestCase):
 		initial_logs = BeneficiaryAuditLog.objects.filter(beneficiary=self.beneficiary).count()
 		response = self.client.post(
 			reverse('register_cite_attendance', args=[self.cite.id, 'otro-estado'])
+		)
+
+		self.assertEqual(response.status_code, 302)
+		self.cite.refresh_from_db()
+		self.assertEqual(self.cite.state_cite, Cite.STATE_PENDING)
+		self.assertEqual(
+			BeneficiaryAuditLog.objects.filter(beneficiary=self.beneficiary).count(),
+			initial_logs
+		)
+
+	def test_no_permite_asistencia_en_cita_futura(self):
+		self.cite.date_assigned = date.today() + timedelta(days=1)
+		self.cite.save()
+		initial_logs = BeneficiaryAuditLog.objects.filter(beneficiary=self.beneficiary).count()
+		response = self.client.post(
+			reverse('register_cite_attendance', args=[self.cite.id, 'asistio'])
 		)
 
 		self.assertEqual(response.status_code, 302)

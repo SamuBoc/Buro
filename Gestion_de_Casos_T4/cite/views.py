@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
@@ -79,6 +81,10 @@ def register_cite_attendance(request, pk, status):
 
 	if cite.state_cite == Cite.STATE_CANCELED:
 		messages.error(request, 'No puedes registrar asistencia en una cita cancelada.')
+		return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
+
+	if cite.date_assigned and cite.date_assigned > date.today():
+		messages.warning(request, 'Solo puedes registrar asistencia en citas de hoy o anteriores.')
 		return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
 
 	status_map = {
