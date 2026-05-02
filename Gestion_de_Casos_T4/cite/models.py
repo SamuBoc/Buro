@@ -76,6 +76,11 @@ class Cite(models.Model):
 
     description = models.CharField(max_length=2000, verbose_name='Descripcion')
 
+    reminder_sent = models.BooleanField(
+        default=False,
+        verbose_name='Recordatorio enviado'
+    )
+
     class Meta:
         verbose_name = 'Cita'
         verbose_name_plural = 'Citas'
