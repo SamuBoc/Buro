@@ -266,6 +266,20 @@ thead.audit-thead th {
 .badge-icesi-file    { background-color: #00244E; color: #fff; }
 .badge-icesi-default { background-color: #E5E7EB; color: #333333; }
 
+.badge-cite {
+    display: inline-block;
+    font-weight: 600;
+    padding: 0.35rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+}
+.badge-cite-pending { background-color: #6c757d; color: #fff; }
+.badge-cite-confirmed { background-color: #0055A5; color: #fff; }
+.badge-cite-canceled { background-color: #EF4444; color: #fff; }
+.badge-cite-solved { background-color: #0d6efd; color: #fff; }
+.badge-cite-attended { background-color: #198754; color: #fff; }
+.badge-cite-no-show { background-color: #F59E0B; color: #111827; }
+
 .ley-badge {
     background-color: #0055A5;
     color: #fff;

@@ -87,6 +87,8 @@ class BeneficiaryAuditLog(models.Model):
         ('REACTIVATED',    'Beneficiario reactivado'),
         ('DATA_EXPORT',    'Datos exportados'),
         ('DELETE_REQUEST', 'Solicitud de eliminación registrada'),
+        ('CITE_ATTENDED',  'Asistencia registrada'),
+        ('CITE_MISSED',    'Inasistencia registrada'),
     ]
 
     beneficiary = models.ForeignKey(

@@ -93,6 +93,23 @@ def log_beneficiary_doc_action(beneficiary, user, action, filename, ip=None):
     )
 
 
+def log_beneficiary_cite_attendance(beneficiary, cite, user, attended, ip=None):
+    action = 'CITE_ATTENDED' if attended else 'CITE_MISSED'
+    status = 'asistió' if attended else 'no asistió'
+    BeneficiaryAuditLog.objects.create(
+        beneficiary=beneficiary,
+        user=user,
+        action=action,
+        description=(
+            f'El beneficiario {beneficiary.name} {status} a la cita '
+            f'#{cite.id} programada para {cite.date_assigned}.'
+        ),
+        beneficiary_document='',
+        beneficiary_name=beneficiary.name,
+        ip_address=ip,
+    )
+
+
 def _get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
