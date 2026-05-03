@@ -569,6 +569,8 @@ def export_cases_excel(request):
     """HU-40: Exporta todos los casos a un archivo Excel."""
     cases = Case.objects.select_related(
         'beneficiary', 'assigned_student'
+    ).filter(
+        status=Case.STATUS_COMPLETE
     ).order_by('-created_at')
 
     wb = Workbook()
@@ -590,8 +592,10 @@ def export_cases_excel(request):
 
     for row_idx, case in enumerate(cases, start=2):
         ws.cell(row=row_idx, column=1).value = case.code
-        ws.cell(row=row_idx, column=2).value = case.get_sala_display()
-        ws.cell(row=row_idx, column=3).value = case.beneficiary.name
+        ws.cell(row=row_idx, column=2).value = case.get_sala_display() if case.sala else 'Sin sala'
+        ws.cell(row=row_idx, column=3).value = (
+            case.beneficiary.name if case.beneficiary else 'Sin beneficiario'
+        )
         ws.cell(row=row_idx, column=4).value = (
             case.assigned_student.get_full_name() or case.assigned_student.username
             if case.assigned_student else 'Sin asignar'
@@ -623,6 +627,8 @@ def export_cases_pdf(request):
     """HU-40: Exporta todos los casos a un archivo PDF."""
     cases = Case.objects.select_related(
         'beneficiary', 'assigned_student'
+    ).filter(
+        status=Case.STATUS_COMPLETE
     ).order_by('-created_at')
 
     buffer = io.BytesIO()
@@ -650,8 +656,8 @@ def export_cases_pdf(request):
     for case in cases:
         data.append([
             case.code,
-            case.get_sala_display(),
-            case.beneficiary.name,
+            case.get_sala_display() if case.sala else 'Sin sala',
+            case.beneficiary.name if case.beneficiary else 'Sin beneficiario',
             (
                 case.assigned_student.get_full_name() or case.assigned_student.username
                 if case.assigned_student else 'Sin asignar'
