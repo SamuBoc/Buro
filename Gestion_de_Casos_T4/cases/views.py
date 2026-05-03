@@ -553,6 +553,55 @@ def case_report_by_state(request):
         'chart_values': chart_values,
     })
 
+@role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
+def case_report_by_sala(request):
+    desde_raw = (request.GET.get('desde') or '').strip()
+    hasta_raw = (request.GET.get('hasta') or '').strip()
+    state_raw = (request.GET.get('estado') or '').strip()
+
+    desde_date = _parse_report_date(desde_raw)
+    hasta_date = _parse_report_date(hasta_raw)
+
+    valid_states = set(REPORT_KNOWN_STATES)
+    state_filter = state_raw if state_raw in valid_states else ''
+
+    cases = Case.objects.all()
+    if desde_date:
+        cases = cases.filter(created_at__date__gte=desde_date)
+    if hasta_date:
+        cases = cases.filter(created_at__date__lte=hasta_date)
+    if state_filter:
+        cases = cases.filter(state=state_filter)
+
+    total = cases.count()
+
+    sala_counts = {
+        row['sala']: row['count']
+        for row in cases.values('sala').annotate(count=Count('id'))
+    }
+
+    rows = []
+    for value, label in Case.ROOM_CHOICES:
+        cantidad = sala_counts.get(value, 0)
+        porcentaje = round((cantidad / total * 100), 1) if total else 0.0
+        rows.append({'sala': label, 'cantidad': cantidad, 'porcentaje': porcentaje})
+
+    chart_labels = [row['sala'] for row in rows]
+    chart_values = [row['cantidad'] for row in rows]
+
+    return render(request, 'cases/report_by_sala.html', {
+        'page_title': 'Reporte de casos por sala jurídica',
+        'rows': rows,
+        'total': total,
+        'filtro_desde': desde_raw,
+        'filtro_hasta': hasta_raw,
+        'filtro_estado': state_filter,
+        'estados': REPORT_KNOWN_STATES,
+        'chart_labels': chart_labels,
+        'chart_values': chart_values,
+    })
+
+
 import io
 from django.http import HttpResponse
 from openpyxl import Workbook

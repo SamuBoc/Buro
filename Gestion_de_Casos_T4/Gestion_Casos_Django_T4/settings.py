@@ -133,8 +133,9 @@ DEFAULT_FROM_EMAIL = 'Consultorio Jurídico ICESI <consultorio@icesi.edu.co>'
 # ── Configuración por defecto ────────────────────────────
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-STORAGES = {
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
+if not DEBUG:
+    STORAGES = {
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
