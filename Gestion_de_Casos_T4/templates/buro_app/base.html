@@ -78,9 +78,10 @@
                                 <i class="bi bi-person-circle me-2"></i>{{ user.username }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
-                                {% if 'administrador' in user_roles %}
+                                {% if user.is_superuser or 'administrador' in user_roles %}
                                     <li><a class="dropdown-item" href="{% url 'global_audit_log' %}">Bitacora Casos</a></li>
                                     <li><a class="dropdown-item" href="{% url 'global_beneficiary_audit_log' %}">Bitacora Habeas Data</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'data_deletion_request_list' %}">Solicitudes de eliminacion</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                 {% endif %}
                                 <li>
