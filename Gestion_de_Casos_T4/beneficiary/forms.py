@@ -1,9 +1,9 @@
 from django import forms
-from .models import Beneficiary, DocumentBeneficiary
+
+from .models import Beneficiary, DataDeletionRequest, DocumentBeneficiary
 
 
 class BeneficiaryForm(forms.ModelForm):
-
     allow_conditions = forms.BooleanField(required=True)
 
     class Meta:
@@ -16,7 +16,7 @@ class BeneficiaryForm(forms.ModelForm):
             }),
             'colombian_identification': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Identificación',
+                'placeholder': 'Identificacion',
             }),
             'location': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -32,11 +32,11 @@ class BeneficiaryForm(forms.ModelForm):
             }),
         }
         labels = {
-            'name':                    'Nombre',
-            'colombian_identification': 'Identificación',
-            'location':                'Ubicación',
-            'phone':                   'Teléfono',
-            'email':                   'Correo electrónico',
+            'name': 'Nombre',
+            'colombian_identification': 'Identificacion',
+            'location': 'Ubicacion',
+            'phone': 'Telefono',
+            'email': 'Correo electronico',
         }
 
 
@@ -66,7 +66,7 @@ class Update_Beneficiary_Form(forms.ModelForm):
             }),
             'colombian_identification': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Identificación',
+                'placeholder': 'Identificacion',
             }),
             'location': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -82,9 +82,30 @@ class Update_Beneficiary_Form(forms.ModelForm):
             }),
         }
         labels = {
-            'name':                    'Nombre',
-            'colombian_identification': 'Identificación',
-            'location':                'Ubicación',
-            'phone':                   'Teléfono',
-            'email':                   'Correo electrónico',
+            'name': 'Nombre',
+            'colombian_identification': 'Identificacion',
+            'location': 'Ubicacion',
+            'phone': 'Telefono',
+            'email': 'Correo electronico',
+        }
+
+
+class DataDeletionRequestForm(forms.ModelForm):
+    confirm_request = forms.BooleanField(
+        required=True,
+        label='Confirmo que deseo solicitar la eliminacion de mis datos personales.',
+    )
+
+    class Meta:
+        model = DataDeletionRequest
+        fields = ['reason']
+        widgets = {
+            'reason': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Motivo de la solicitud (opcional).',
+            }),
+        }
+        labels = {
+            'reason': 'Motivo de la solicitud',
         }
