@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('beneficiary', '0003_documentbeneficiary'),
+        ('beneficiary', '0004_alter_beneficiaryauditlog_action'),
     ]
 
     operations = [
