@@ -74,6 +74,47 @@ class DocumentBeneficiary(models.Model):
         return f"Documento de {self.beneficiary.name}"
 
 
+class DataDeletionRequest(models.Model):
+    STATUS_PENDING = 'pendiente'
+    STATUS_APPROVED = 'aprobado'
+    STATUS_REJECTED = 'rechazado'
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pendiente'),
+        (STATUS_APPROVED, 'Aprobado'),
+        (STATUS_REJECTED, 'Rechazado'),
+    ]
+
+    beneficiary = models.ForeignKey(
+        Beneficiary,
+        on_delete=models.CASCADE,
+        related_name='data_deletion_requests',
+        verbose_name='Beneficiario',
+    )
+    request_date = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Fecha de solicitud',
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        verbose_name='Estado de la solicitud',
+    )
+    reason = models.TextField(
+        blank=True,
+        verbose_name='Motivo de la solicitud',
+    )
+
+    class Meta:
+        verbose_name = 'Solicitud de eliminacion de datos'
+        verbose_name_plural = 'Solicitudes de eliminacion de datos'
+        ordering = ['-request_date']
+
+    def __str__(self):
+        return f'Solicitud {self.beneficiary.name} - {self.get_status_display()}'
+
+
 class BeneficiaryAuditLog(models.Model):
 
     ACTION_CHOICES = [
