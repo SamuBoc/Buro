@@ -331,6 +331,93 @@ class HU32CaseDraftTests(TestCase):
         self.assertEqual(draft_case.description, 'Version actualizada del borrador')
         self.assertEqual(draft_case.beneficiary, self.beneficiary)
 
+    def test_draft_form_allows_partial_submission_without_documents(self):
+        form = CaseForm(
+            data={
+                'description': 'Formulario parcial',
+            },
+            allow_partial=True,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['documents'], [])
+
+    def test_complete_submission_requires_documents(self):
+        form = CaseForm(
+            data={
+                'sala': Case.ROOM_CIVIL,
+                'description': 'Caso completo sin archivos',
+                'beneficiary': self.beneficiary.pk,
+            },
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn('documents', form.errors)
+
+    def test_user_can_complete_draft_and_is_redirected_to_detail(self):
+        draft_case = Case.objects.create(
+            description='Borrador listo para completar',
+            created_by=self.secretaria,
+            status=Case.STATUS_DRAFT,
+        )
+        student_group, _ = Group.objects.get_or_create(name=ROLE_ESTUDIANTE)
+        student = User.objects.create_user(
+            username='estudiante_hu32',
+            first_name='Juan',
+            last_name='Rios',
+            password='clave_segura_123',
+        )
+        student.groups.add(student_group)
+
+        self.client.force_login(self.secretaria)
+        uploaded_file = SimpleUploadedFile(
+            'borrador.pdf',
+            b'%PDF-1.4 borrador completado',
+            content_type='application/pdf',
+        )
+
+        response = self.client.post(
+            reverse('case_edit_draft', args=[draft_case.pk]),
+            {
+                'sala': Case.ROOM_PENAL,
+                'description': 'Caso completado desde borrador',
+                'beneficiary': self.beneficiary.pk,
+                'assigned_student': student.pk,
+                'submit_action': 'complete',
+                'documents': uploaded_file,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        draft_case.refresh_from_db()
+        self.assertEqual(draft_case.status, Case.STATUS_COMPLETE)
+        self.assertEqual(draft_case.beneficiary, self.beneficiary)
+        self.assertTrue(
+            response.url.endswith(reverse('case_detail', kwargs={'pk': draft_case.pk}))
+        )
+
+    def test_other_user_cannot_edit_foreign_draft(self):
+        draft_case = Case.objects.create(
+            description='Borrador privado',
+            created_by=self.secretaria,
+            status=Case.STATUS_DRAFT,
+        )
+        other_secretaria = User.objects.create_user(
+            username='secretaria_hu32_2',
+            password='clave_segura_123',
+        )
+        other_secretaria.groups.add(self.secretaria_group)
+
+        self.client.force_login(other_secretaria)
+        response = self.client.get(
+            reverse('case_edit_draft', args=[draft_case.pk]),
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse('case_draft_list'))
+        messages = [message.message for message in get_messages(response.wsgi_request)]
+        self.assertIn('No tienes permisos para editar este borrador.', messages)
+
 
 class CaseReassignmentTests(TestCase):
     def setUp(self):
