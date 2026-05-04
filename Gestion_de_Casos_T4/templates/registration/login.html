@@ -4,39 +4,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
     <title>Iniciar Sesión - Consultorio Jurídico Icesi</title>
-    
+
+    <!-- Favicon institucional Icesi -->
+    <link rel="icon" type="image/svg+xml" href="https://identity.icesi.edu.co/authenticationendpoint/images/favicon.ico">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
-    
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-
     <link rel="stylesheet" href="{% static 'css/login.css' %}">
 
+    <!-- ESTILOS CRÍTICOS INLINE: controlan visibilidad desktop vs móvil -->
     <style>
-        .left-panel {
-            /* Actualizado a la carpeta img/ */
-            background-image: url('{% static "img/icesi.jpg" %}');
+        .left-panel    { display: flex; }
+        .mobile-navbar { display: none; }
+
+        @media (max-width: 767px) {
+            body { flex-direction: column !important; }
+            .left-panel    { display: none !important; }
+            .mobile-navbar {
+                display: flex !important;
+                width: 100%;
+                padding: 14px 20px;
+                align-items: center;
+                background-color: #5454e9;
+                flex-shrink: 0;
+            }
+            .mobile-navbar img {
+                height: 44px;
+                width: auto;
+                filter: brightness(0) invert(1);
+            }
+            .right-panel {
+                justify-content: flex-start !important;
+                align-items: stretch !important;
+                padding: 32px 24px 24px !important;
+            }
+            .login-box { max-width: 100% !important; }
+            .footer    { max-width: 100% !important; }
         }
     </style>
 </head>
 <body>
 
-    <div class="left-panel">
+    <!-- Panel izquierdo: solo desktop -->
+    <div class="left-panel" style="background-image: url('{% static 'img/icesi.jpg' %}');">
         <div class="icesi-overlay-logo">
             <img src="{% static 'img/logo.png' %}" alt="Logo Universidad Icesi">
-            <div class="logo-text">
-            </div>
+            <div class="logo-text"></div>
         </div>
-        
         <div class="banner-bottom">
             <div class="banner-purple">Consultorio Jurídico</div>
             <div class="banner-dark">Facultad de Derecho y Ciencias Sociales</div>
         </div>
     </div>
 
+    <!-- Navbar morada: solo móvil -->
+    <nav class="mobile-navbar">
+        <img src="{% static 'img/logo.png' %}" alt="Logo Universidad Icesi">
+    </nav>
+
+    <!-- Panel derecho: formulario -->
     <div class="right-panel">
         <div class="login-box">
             <div class="login-header">
@@ -47,31 +79,60 @@
                 </div>
             </div>
 
-            <form method="POST">
+            <form method="POST" action="{% url 'login' %}" autocomplete="on">
                 {% csrf_token %}
-                
-                {% if form.errors %}
-                    <div class="alert alert-danger d-flex align-items-center" style="border-radius:6px; border:none; font-size:0.88rem; background-color: #FEE2E2; color: #991B1B;">
-                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+
+                {% if form.non_field_errors %}
+                    <div class="alert-error" role="alert" aria-live="assertive">
+                        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
                         <div>Usuario o contraseña incorrectos.</div>
                     </div>
+                {% elif form.errors %}
+                    <div class="alert-error" role="alert" aria-live="assertive">
+                        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                        <div>Por favor completa todos los campos requeridos.</div>
+                    </div>
                 {% endif %}
-                
+
                 <div class="form-group">
                     <label for="id_username">Usuario</label>
-                    <input type="text" name="username" id="id_username" placeholder="usuario@u.icesi.edu.co" required autofocus>
+                    <input
+                        type="text"
+                        name="username"
+                        id="id_username"
+                        placeholder="usuario@u.icesi.edu.co"
+                        autocomplete="username"
+                        required
+                        autofocus
+                        aria-required="true"
+                    >
                 </div>
 
                 <div class="form-group">
                     <label for="id_password">Contraseña</label>
-                    <input type="password" name="password" id="id_password" placeholder="••••••••" required>
+                    <input
+                        type="password"
+                        name="password"
+                        id="id_password"
+                        placeholder="••••••••"
+                        autocomplete="current-password"
+                        required
+                        aria-required="true"
+                    >
                 </div>
 
-                <button type="submit" class="btn-submit">Ingresar a Buró</button>
+                <button type="submit" class="btn-submit" aria-label="Ingresar a Buró">
+                    Ingresar a Buró
+                </button>
             </form>
 
-            <a href="https://www.icesi.edu.co/centros-academicos/consultorio-juridico/" target="_blank" class="help-link">
-               Conoce más sobre el Consultorio
+            <a
+                href="https://www.icesi.edu.co/centros-academicos/consultorio-juridico/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="help-link"
+            >
+                Conoce más sobre el Consultorio
             </a>
         </div>
 
@@ -79,8 +140,8 @@
             Universidad Icesi, Calle 18 No. 122-135<br>
             Edificio D - Consultorio Jurídico<br>
             Cali, Colombia | Teléfono: +57 (602) 555 2334 ext. 8014<br>
-            Copyright © 2026 
-            <a href="https://www.icesi.edu.co" target="_blank">www.icesi.edu.co</a>
+            Copyright &copy; 2026
+            <a href="https://www.icesi.edu.co" target="_blank" rel="noopener noreferrer">www.icesi.edu.co</a>
         </div>
     </div>
 
