@@ -5,28 +5,40 @@
     box-sizing: border-box;
     font-family: 'Open Sans', sans-serif;
 }
+
 body {
     display: flex;
-    height: 100vh;
+    flex-direction: row;
+    min-height: 100vh;
+    align-items: stretch;
     background-color: #ffffff;
     color: #3F4159;
 }
 
-/* --- Panel Izquierdo: Imagen y Banners --- */
+/* ── Panel izquierdo ── */
 .left-panel {
     flex: 1;
     position: relative;
     background-size: cover;
     background-position: center;
-}
-.left-panel::after {
-    content: '';
-    position: absolute;    inset: 0;
-    background: linear-gradient(to bottom, rgba(13,41,87,0.45) 0%, rgba(13,41,87,0.10) 60%, rgba(13,41,87,0.55) 100%);
-    z-index: 1;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
-/* Logo Universidad Icesi - AJUSTADO A 189x70px */
+.left-panel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to bottom,
+        rgba(13,41,87,0.45) 0%,
+        rgba(13,41,87,0.10) 60%,
+        rgba(13,41,87,0.55) 100%
+    );
+    z-index: 1;
+    pointer-events: none;
+}
+
 .icesi-overlay-logo {
     position: absolute;
     top: 40px;
@@ -34,47 +46,38 @@ body {
     z-index: 2;
     display: flex;
     align-items: center;
-    gap: 18px; /* Un poco más de espacio por el tamaño del logo */
+    gap: 18px;
     color: white;
 }
+
 .icesi-overlay-logo img {
-    height: 70px; /* Dimensión original proporcionada */
+    height: 70px;
     width: auto;
     object-fit: contain;
 }
+
 .icesi-overlay-logo .logo-text {
     display: flex;
     flex-direction: column;
     line-height: 1.1;
 }
-.icesi-overlay-logo .logo-text span:first-child {
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: rgba(255,255,255,0.9);
-}
-.icesi-overlay-logo .logo-text span:last-child {
-    font-size: 2.1rem; /* Aumentado para equilibrar con los 70px del logo */
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    color: #ffffff;
-}
 
-/* Banners inferiores */
 .banner-bottom {
     position: absolute;
     bottom: 0;
     width: 100%;
     z-index: 2;
 }
+
+/* Color oficial Icesi #5454e9 */
 .banner-purple {
-    background-color: #5B54FA;
+    background-color: #5454e9;
     color: white;
     padding: 15px 40px;
     font-size: 1.2rem;
     font-weight: 800;
 }
+
 .banner-dark {
     background-color: #0A1128;
     color: white;
@@ -83,51 +86,66 @@ body {
     font-weight: 400;
 }
 
-/* --- Panel Derecho: Formulario --- */
+/* ── Panel derecho ── */
 .right-panel {
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    position: relative;
-    padding: 40px;
+    padding: 60px 40px 32px;
 }
+
 .login-box {
     width: 100%;
     max-width: 400px;
 }
+
 .login-header {
     margin-bottom: 30px;
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
+
 .login-header h1 {
     font-size: 2.3rem;
     color: #0A1128;
-    font-weight: 600; /* Negrita elegante */
+    font-weight: 600;
     letter-spacing: -0.5px;
 }
 
-/* Branding de Buró con LOGO */
 .buro-branding {
     display: flex;
     align-items: center;
     gap: 12px;
     color: #6B7280;
     font-size: 1rem;
-    font-weight: 400;
 }
+
 .buro-branding img {
     height: 28px;
     width: auto;
+    min-width: 28px;
 }
 
-/* Inputs y botones */
+/* Alerta de error */
+.alert-error {
+    border-radius: 6px;
+    font-size: 0.88rem;
+    background-color: #FEE2E2;
+    color: #991B1B;
+    padding: 12px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .form-group {
     margin-bottom: 20px;
 }
+
 .form-group label {
     display: block;
     margin-bottom: 8px;
@@ -135,6 +153,7 @@ body {
     font-size: 0.9rem;
     font-weight: 600;
 }
+
 .form-group input {
     width: 100%;
     padding: 12px;
@@ -144,57 +163,61 @@ body {
     outline: none;
     transition: border-color 0.15s, box-shadow 0.15s;
 }
+
 .form-group input:focus {
-    border-color: #5B54FA;
-    box-shadow: 0 0 0 3px rgba(91, 84, 250, 0.15);
+    border-color: #5454e9;
+    box-shadow: 0 0 0 3px rgba(84, 84, 233, 0.15);
 }
+
 .btn-submit {
     width: 100%;
-    background-color: #5B54FA;
+    background-color: #5454e9;
     color: white;
     padding: 14px;
     border: none;
     border-radius: 6px;
     font-size: 1rem;
-    font-weight: bold;
+    font-weight: 700;
     cursor: pointer;
     margin-top: 10px;
     transition: background 0.15s;
 }
+
 .btn-submit:hover {
-    background-color: #4338CA;
+    background-color: #3f3fba;
 }
 
-/* Links y footer */
 .help-link {
     display: block;
     text-align: center;
     margin-top: 20px;
-    color: #5B54FA;
+    color: #5454e9;
     text-decoration: none;
     font-size: 0.9rem;
     font-weight: 600;
 }
+
 .help-link:hover {
     text-decoration: underline;
 }
+
 .footer {
-    position: absolute;
-    bottom: 20px;
+    width: 100%;
+    max-width: 400px;
     text-align: center;
     color: #9CA3AF;
     font-size: 0.8rem;
     line-height: 1.5;
+    padding-top: 24px;
 }
+
 .footer a {
-    color: #5B54FA;
+    color: #5454e9;
     text-decoration: none;
 }
 
-@media (max-width: 768px) {
-    body { flex-direction: column; }
-    .left-panel { flex: none; height: 180px; }
-    .banner-bottom { display: none; }
-    .icesi-overlay-logo { top: 20px; left: 20px; }
-    .icesi-overlay-logo img { height: 50px; }
+/* ── Tablet (768px – 1024px) ── */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .left-panel  { flex: 0.7; }
+    .right-panel { flex: 1.3; padding: 40px 32px 28px; }
 }

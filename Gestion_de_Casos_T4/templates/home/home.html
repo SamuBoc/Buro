@@ -1,63 +1,61 @@
 {% extends 'buro_app/base.html' %}
 
-{% block title %}Inicio - Gestion de Casos{% endblock %}
+{% block title %}Inicio — Buró{% endblock %}
 
 {% block content %}
-<div class="page-header text-center">
-    <h2 class="mb-2"><i class="bi bi-columns-gap me-2"></i>Modulo principal</h2>
-    <p class="mb-0 opacity-75">Seleccione el area del sistema a la que desea ingresar.</p>
-</div>
+<div class="home-wrapper">
 
-<div class="row g-4 justify-content-center">
-    <div class="col-md-6 col-lg-5">
-        <div class="card h-100">
-            <div class="card-body p-4 text-center">
-                <div class="mb-3">
-                    <i class="bi bi-people-fill display-4"></i>
-                </div>
-                <h4 class="mb-3">Beneficiarios</h4>
-                <p class="mb-4">
-                    Consulte la informacion registrada y gestione el modulo de beneficiarios.
-                </p>
-                <a href="{% url 'beneficiary_list' %}" class="btn btn-primary px-4">
-                    <i class="bi bi-arrow-right-circle me-1"></i>Ir a beneficiarios
-                </a>
-            </div>
-        </div>
+    <!-- Encabezado -->
+    <div class="home-header">
+        <h2 class="home-title">
+            <i class="bi bi-columns-gap me-2" aria-hidden="true"></i>Módulo principal
+        </h2>
+        <p class="home-subtitle">Seleccione el área del sistema a la que desea ingresar.</p>
     </div>
 
-    <div class="col-md-6 col-lg-5">
-        <div class="card h-100">
-            <div class="card-body p-4 text-center">
-                <div class="mb-3">
-                    <i class="bi bi-folder-fill display-4"></i>
-                </div>
-                <h4 class="mb-3">Casos juridicos</h4>
-                <p class="mb-4">
-                    Acceda al registro y consulta de casos juridicos del consultorio.
-                </p>
-                <a href="{% url 'case_list' %}" class="btn btn-primary px-4">
-                    <i class="bi bi-arrow-right-circle me-1"></i>Ir a casos
-                </a>
-            </div>
-        </div>
-    </div>
+    <!-- Tarjetas -->
+    <div class="home-grid">
 
-    <div class="col-md-6 col-lg-5">
-        <div class="card h-100">
-            <div class="card-body p-4 text-center">
-                <div class="mb-3">
-                    <i class="bi bi-shield-lock-fill display-4"></i>
-                </div>
-                <h4 class="mb-3">Panel administrativo</h4>
-                <p class="mb-4">
-                    Acceda al panel de administracion para gestionar usuarios, grupos y configuracion interna.
-                </p>
-                <a href="/admin/" class="btn btn-primary px-4">
-                    <i class="bi bi-arrow-right-circle me-1"></i>Ir al panel
-                </a>
+        <a href="{% url 'beneficiary_list' %}" class="home-card">
+            <div class="home-card-icon">
+                <i class="bi bi-people-fill" aria-hidden="true"></i>
             </div>
-        </div>
+            <h5 class="home-card-title">Beneficiarios</h5>
+            <p class="home-card-desc">Consulte y gestione el módulo de beneficiarios registrados.</p>
+            <span class="home-card-btn">
+                <i class="bi bi-arrow-right-circle me-1"></i>Ir a beneficiarios
+            </span>
+        </a>
+
+        <a href="{% url 'case_list' %}" class="home-card">
+            <div class="home-card-icon">
+                <i class="bi bi-folder-fill" aria-hidden="true"></i>
+            </div>
+            <h5 class="home-card-title">Casos Jurídicos</h5>
+            <p class="home-card-desc">Acceda al registro y consulta de casos del consultorio.</p>
+            <span class="home-card-btn">
+                <i class="bi bi-arrow-right-circle me-1"></i>Ir a casos
+            </span>
+        </a>
+
+        {% if user.is_superuser or 'administrador' in user_roles %}
+        <a href="/admin/" class="home-card">
+            <div class="home-card-icon">
+                <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
+            </div>
+            <h5 class="home-card-title">Panel Administrativo</h5>
+            <p class="home-card-desc">Gestione usuarios, grupos y configuración interna del sistema.</p>
+            <span class="home-card-btn">
+                <i class="bi bi-arrow-right-circle me-1"></i>Ir al panel
+            </span>
+        </a>
+        {% endif %}
+
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/home.css' %}">
 {% endblock %}
