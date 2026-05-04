@@ -70,6 +70,15 @@
                                 <i class="bi bi-folder-plus me-2"></i>Nuevo Caso
                             </a>
                         {% endif %}
+
+                        {% if 'administrador' in user_roles or 'profesor' in user_roles %}
+                            <a class="nav-link" href="{% url 'case_report_by_state' %}">
+                                <i class="bi bi-bar-chart-line-fill me-2"></i>Reporte por estado
+                            </a>
+                            <a class="nav-link" href="{% url 'case_report_by_sala' %}">
+                                <i class="bi bi-building me-2"></i>Reporte por sala
+                            </a>
+                        {% endif %}
                     </nav>
 
                     <div class="mt-auto pt-3">
