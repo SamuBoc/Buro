@@ -2,9 +2,15 @@ from .models import Notification
 
 def notifications_count(request):
     if request.user.is_authenticated:
-        count = Notification.objects.filter(
+        qs = Notification.objects.filter(
             recipient_user=request.user,
             is_read=False,
-        ).count()
-        return {'unread_notifications_count': count}
-    return {'unread_notifications_count': 0}
+        ).order_by('-created_at')
+        return {
+            'unread_notifications_count': qs.count(),
+            'recent_notifications': qs[:10],
+        }
+    return {
+        'unread_notifications_count': 0,
+        'recent_notifications': [],
+    }
