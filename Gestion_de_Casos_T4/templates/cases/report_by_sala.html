@@ -8,7 +8,7 @@
 
   <div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
     <h2 class="fw-bold mb-0">
-      <i class="bi bi-bar-chart-line-fill me-2"></i>Reporte de casos por estado
+      <i class="bi bi-building me-2"></i>Reporte de casos por sala jur&iacute;dica
     </h2>
     <span class="badge bg-light text-dark fs-6">Total: {{ total }}</span>
   </div>
@@ -25,11 +25,11 @@
           <input type="date" class="form-control" id="hasta" name="hasta" value="{{ filtro_hasta }}">
         </div>
         <div class="col-md-3">
-          <label for="sala" class="form-label fw-semibold">Sala jur&iacute;dica</label>
-          <select class="form-select" id="sala" name="sala">
-            <option value="">Todas</option>
-            {% for value, label in salas %}
-              <option value="{{ value }}" {% if filtro_sala == value %}selected{% endif %}>{{ label }}</option>
+          <label for="estado" class="form-label fw-semibold">Estado</label>
+          <select class="form-select" id="estado" name="estado">
+            <option value="">Todos</option>
+            {% for estado in estados %}
+              <option value="{{ estado }}" {% if filtro_estado == estado %}selected{% endif %}>{{ estado }}</option>
             {% endfor %}
           </select>
         </div>
@@ -37,7 +37,7 @@
           <button type="submit" class="btn btn-primary flex-grow-1">
             <i class="bi bi-funnel-fill me-1"></i>Filtrar
           </button>
-          <a href="{% url 'case_report_by_state' %}" class="btn btn-outline-secondary">
+          <a href="{% url 'case_report_by_sala' %}" class="btn btn-outline-secondary">
             <i class="bi bi-x-circle me-1"></i>Limpiar
           </a>
         </div>
@@ -54,7 +54,7 @@
               <table class="table table-hover align-middle mb-0">
                 <thead class="table-dark">
                   <tr>
-                    <th>Estado</th>
+                    <th>Sala jur&iacute;dica</th>
                     <th class="text-end">Cantidad</th>
                     <th class="text-end">Porcentaje</th>
                   </tr>
@@ -62,7 +62,7 @@
                 <tbody>
                   {% for row in rows %}
                     <tr>
-                      <td>{{ row.estado }}</td>
+                      <td>{{ row.sala }}</td>
                       <td class="text-end fw-semibold">{{ row.cantidad }}</td>
                       <td class="text-end text-muted">{{ row.porcentaje }}%</td>
                     </tr>
@@ -90,7 +90,7 @@
     <div class="col-lg-5">
       <div class="card h-100">
         <div class="card-body">
-          <h5 class="fw-bold mb-3">Distribuci&oacute;n</h5>
+          <h5 class="fw-bold mb-3">Distribuci&oacute;n por sala</h5>
           {% if total > 0 %}
             <canvas id="reportChart" height="240"></canvas>
           {% else %}
@@ -118,7 +118,7 @@
         labels: labels,
         datasets: [{
           data: values,
-          backgroundColor: ['#1a3a5c', '#4a90a4', '#f4a261', '#e76f51', '#6c757d', '#2a9d8f'],
+          backgroundColor: ['#1a3a5c', '#4a90a4', '#f4a261', '#e76f51', '#6c757d'],
           borderWidth: 1
         }]
       },

@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'buro_app/base.html' %}
 
 {% block title %}Citas del beneficiario - Buró Jurídico{% endblock %}
 
@@ -44,19 +44,50 @@
                                 <td class="text-center">{{ cite.get_modality_cite_display }}</td>
                                 <td class="text-center">{{ cite.beneficiary.name }}</td>
                                 <td class="text-center">{{ cite.request_cite }}</td>
-                                <td class="text-center">{{ cite.get_state_cite_display }}</td>
+                                <td class="text-center">
+                                    {% if cite.state_cite == 'Pendiente' %}
+                                        <span class="badge rounded-pill badge-icesi-default">{{ cite.get_state_cite_display }}</span>
+                                    {% elif cite.state_cite == 'Confirmada' %}
+                                        <span class="badge rounded-pill badge-icesi-updated">{{ cite.get_state_cite_display }}</span>
+                                    {% elif cite.state_cite == 'Cancelada' %}
+                                        <span class="badge rounded-pill badge-icesi-deleted">{{ cite.get_state_cite_display }}</span>
+                                    {% elif cite.state_cite == 'Atendida' %}
+                                        <span class="badge rounded-pill badge-icesi-status">{{ cite.get_state_cite_display }}</span>
+                                    {% elif cite.state_cite == 'Asistió' %}
+                                        <span class="badge rounded-pill badge-icesi-created">{{ cite.get_state_cite_display }}</span>
+                                    {% elif cite.state_cite == 'No asistió' %}
+                                        <span class="badge rounded-pill badge-icesi-status">{{ cite.get_state_cite_display }}</span>
+                                    {% else %}
+                                        <span class="badge rounded-pill badge-icesi-default">{{ cite.get_state_cite_display }}</span>
+                                    {% endif %}
+                                </td>
                                 <td class="text-center">{{ cite.description }}</td>
                                 <td class="text-center">{{ cite.date_assigned }}</td>
                                 <td class="text-center">
                                     {% if cite.state_cite != 'Cancelada' %}
-                                    <a href="{% url 'reschedule_cite' cite.pk %}" class="btn btn-sm btn-primary">
-                                        <i class="bi bi-calendar3"></i>
+                                    <a href="{% url 'reschedule_cite' cite.pk %}" class="btn btn-sm btn-primary w-100">
+                                        <i class="bi bi-calendar3 me-1"></i>Reprogramar
                                     </a>
-                                    
-                                    <form class="mt-2" method="POST" action="{% url 'cancel_cite' pk=cite.id %}">
+
+                                    {% if cite.state_cite != 'Asistió' and cite.state_cite != 'No asistió' %}
+                                    <form class="mt-2 d-grid confirm-action" method="POST" action="{% url 'register_cite_attendance' pk=cite.id status='asistio' %}" data-title="Confirmar asistencia" data-message="Vas a marcar la cita como asistida." data-cite-id="{{ cite.id }}" data-cite-date="{{ cite.date_assigned }}" data-beneficiary="{{ cite.beneficiary.name }}">
                                         {% csrf_token %}
-                                        <button type="submit" class="btn btn-secondary btn-sm">
-                                            <i class="bi bi-x-lg"></i>
+                                        <button type="submit" class="btn btn-success btn-sm w-100">
+                                            <i class="bi bi-check-lg me-1"></i>Asistio
+                                        </button>
+                                    </form>
+                                    <form class="mt-2 d-grid confirm-action" method="POST" action="{% url 'register_cite_attendance' pk=cite.id status='no-asistio' %}" data-title="Confirmar inasistencia" data-message="Vas a marcar la cita como no asistida." data-cite-id="{{ cite.id }}" data-cite-date="{{ cite.date_assigned }}" data-beneficiary="{{ cite.beneficiary.name }}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-warning btn-sm w-100">
+                                            <i class="bi bi-person-x me-1"></i>No asistio
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    
+                                    <form class="mt-2 d-grid confirm-action" method="POST" action="{% url 'cancel_cite' pk=cite.id %}" data-title="Confirmar cancelacion" data-message="Vas a cancelar la cita." data-cite-id="{{ cite.id }}" data-cite-date="{{ cite.date_assigned }}" data-beneficiary="{{ cite.beneficiary.name }}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-secondary btn-sm w-100">
+                                            <i class="bi bi-x-lg me-1"></i>Cancelar
                                         </button>
                                     </form>
                                     {% endif %}     
@@ -76,4 +107,62 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="actionConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="actionConfirmTitle">Confirmar accion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2" id="actionConfirmMessage"></p>
+                <div class="small text-muted">
+                    <div><strong>Cita:</strong> #<span id="actionConfirmCite"></span></div>
+                    <div><strong>Fecha:</strong> <span id="actionConfirmDate"></span></div>
+                    <div><strong>Beneficiario:</strong> <span id="actionConfirmBeneficiary"></span></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Volver</button>
+                <button type="button" class="btn btn-primary" id="actionConfirmSubmit">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (function () {
+        var modalElement = document.getElementById('actionConfirmModal');
+        if (!modalElement) {
+            return;
+        }
+
+        var modal = new bootstrap.Modal(modalElement);
+        var activeForm = null;
+
+        document.querySelectorAll('.confirm-action').forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+                activeForm = form;
+
+                document.getElementById('actionConfirmTitle').textContent = form.dataset.title || 'Confirmar accion';
+                document.getElementById('actionConfirmMessage').textContent = form.dataset.message || '';
+                document.getElementById('actionConfirmCite').textContent = form.dataset.citeId || '';
+                document.getElementById('actionConfirmDate').textContent = form.dataset.citeDate || '';
+                document.getElementById('actionConfirmBeneficiary').textContent = form.dataset.beneficiary || '';
+
+                modal.show();
+            });
+        });
+
+        document.getElementById('actionConfirmSubmit').addEventListener('click', function () {
+            if (activeForm) {
+                activeForm.submit();
+            }
+        });
+    })();
+</script>
 {% endblock %}

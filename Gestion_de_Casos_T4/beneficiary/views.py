@@ -5,8 +5,18 @@ from django.shortcuts import get_object_or_404, redirect, render
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
 
-from .forms import BeneficiaryForm, DocumentBeneficiaryForm, Update_Beneficiary_Form
-from .models import Beneficiary, BeneficiaryAuditLog, DocumentBeneficiary
+from .forms import (
+    BeneficiaryForm,
+    DataDeletionRequestForm,
+    DocumentBeneficiaryForm,
+    Update_Beneficiary_Form,
+)
+from .models import (
+    Beneficiary,
+    BeneficiaryAuditLog,
+    DataDeletionRequest,
+    DocumentBeneficiary,
+)
 
 
 @login_required
@@ -17,15 +27,6 @@ def beneficiary_list(request):
     })
 
 
-"""
-Allow register a new benefeciary with all the data neccessary to save it in DataBase.
-This function have a restriction role that only allow 'Secretaria' and 'Administrador'
-add a new beneficiary.
-
-If one of the allow roles will send the register beneficiary form, function make validation
-of the form (No empty files, avaible char...). If ones fields are wrong, system will make a 
-request to user about fix this mistake.
-"""
 @role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
 def beneficiary_register(request):
     if request.method == 'POST':
@@ -42,10 +43,8 @@ def beneficiary_register(request):
             documento.save()
 
             return redirect('beneficiary_list')
-        else:
-            print(form.errors)
-            print(doc_form.errors)
-            messages.error(request, 'Por favor corrige los errores del formulario.')
+
+        messages.error(request, 'Por favor corrige los errores del formulario.')
     else:
         form = BeneficiaryForm()
         doc_form = DocumentBeneficiaryForm()
@@ -56,14 +55,9 @@ def beneficiary_register(request):
     })
 
 
-"""
-Roles 'Secretaria' or 'Administrador' could update/modify a register beneficiary.
-"""
 @role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
 def beneficiary_update(request, pk):
-
     beneficiary = get_object_or_404(Beneficiary, pk=pk)
-
     saved_document = DocumentBeneficiary.objects.filter(beneficiary=beneficiary).first()
 
     if request.method == 'POST':
@@ -80,10 +74,8 @@ def beneficiary_update(request, pk):
 
             messages.success(request, 'Beneficiario actualizado exitosamente.')
             return redirect('beneficiary_list')
-        else:
-            print(form.errors)
-            messages.error(request, "Corrige los errores del formulario")
 
+        messages.error(request, 'Corrige los errores del formulario')
     else:
         form = Update_Beneficiary_Form(instance=beneficiary)
         doc_form = DocumentBeneficiaryForm(instance=saved_document)
@@ -113,7 +105,7 @@ def beneficiary_audit_log(request, beneficiary_id):
         or user.groups.filter(name__in=[ROLE_SECRETARIA, ROLE_ADMINISTRADOR]).exists()
     )
     if not has_access:
-        messages.error(request, 'No tienes permiso para ver esta bitácora.')
+        messages.error(request, 'No tienes permiso para ver esta bitacora.')
         return redirect('beneficiary_list')
 
     beneficiary = get_object_or_404(Beneficiary, pk=beneficiary_id)
@@ -123,8 +115,8 @@ def beneficiary_audit_log(request, beneficiary_id):
 
     return render(request, 'beneficiary/beneficiary_audit_log.html', {
         'beneficiary': beneficiary,
-        'logs':        logs,
-        'page_title':  f'Bitácora — {beneficiary.name}',
+        'logs': logs,
+        'page_title': f'Bitacora - {beneficiary.name}',
     })
 
 
@@ -139,6 +131,65 @@ def global_beneficiary_audit_log(request):
     ).order_by('-timestamp')[:500]
 
     return render(request, 'beneficiary/global_beneficiary_audit_log.html', {
-        'logs':       logs,
-        'page_title': 'Bitácora Global de Datos Personales',
+        'logs': logs,
+        'page_title': 'Bitacora Global de Datos Personales',
+    })
+
+
+@login_required
+def data_deletion_request_create(request, pk):
+    beneficiary = get_object_or_404(Beneficiary, pk=pk)
+
+    if request.method == 'POST':
+        form = DataDeletionRequestForm(request.POST)
+        if form.is_valid():
+            deletion_request = form.save(commit=False)
+            deletion_request.beneficiary = beneficiary
+            deletion_request.save()
+
+            BeneficiaryAuditLog.objects.create(
+                beneficiary=beneficiary,
+                user=request.user,
+                action='DELETE_REQUEST',
+                description=(
+                    f'Se registro una solicitud de eliminacion de datos para '
+                    f'{beneficiary.name}.'
+                ),
+                beneficiary_document='',
+                beneficiary_name=beneficiary.name,
+            )
+
+            messages.success(
+                request,
+                'La solicitud de eliminacion de datos fue registrada correctamente.'
+            )
+            return redirect('beneficiary_detail', pk=beneficiary.pk)
+
+        messages.error(request, 'Por favor confirma la solicitud antes de continuar.')
+    else:
+        form = DataDeletionRequestForm()
+
+    return render(request, 'beneficiary/data_deletion_request_form.html', {
+        'beneficiary': beneficiary,
+        'form': form,
+    })
+
+
+@role_required(ROLE_ADMINISTRADOR)
+def data_deletion_request_list(request):
+    status_filter = (request.GET.get('status') or '').strip()
+    valid_statuses = {value for value, _ in DataDeletionRequest.STATUS_CHOICES}
+
+    requests = DataDeletionRequest.objects.select_related('beneficiary')
+    if status_filter in valid_statuses:
+        requests = requests.filter(status=status_filter)
+    else:
+        status_filter = ''
+
+    requests = requests.order_by('-request_date')
+
+    return render(request, 'beneficiary/data_deletion_request_list.html', {
+        'requests': requests,
+        'status_choices': DataDeletionRequest.STATUS_CHOICES,
+        'current_status': status_filter,
     })

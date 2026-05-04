@@ -1,0 +1,107 @@
+{% extends 'buro_app/base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <h2 class="fw-bold mb-0">
+      <i class="bi bi-calendar-x-fill me-2"></i>{{ page_title }}
+    </h2>
+    <span class="badge bg-light text-dark fs-6">Total: {{ total }}</span>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label for="desde" class="form-label fw-semibold">Desde</label>
+          <input type="date" class="form-control" id="desde" name="desde" value="{{ filtro_desde }}">
+        </div>
+        <div class="col-md-3">
+          <label for="hasta" class="form-label fw-semibold">Hasta</label>
+          <input type="date" class="form-control" id="hasta" name="hasta" value="{{ filtro_hasta }}">
+        </div>
+        <div class="col-md-3">
+          <label for="estado" class="form-label fw-semibold">Estado</label>
+          <select class="form-select" id="estado" name="estado">
+            <option value="">Todos</option>
+            {% for estado in estados %}
+              <option value="{{ estado }}" {% if filtro_estado == estado %}selected{% endif %}>
+                {{ estado }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button type="submit" class="btn btn-primary flex-grow-1">
+            <i class="bi bi-funnel-fill me-1"></i>Filtrar
+          </button>
+          <a href="{% url 'cite_report' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle me-1"></i>Limpiar
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2 mb-3 justify-content-end">
+    <a href="{% url 'cite_report_excel' %}" class="btn btn-success btn-sm">
+      <i class="bi bi-file-earmark-excel-fill me-1"></i>Exportar Excel
+    </a>
+    <a href="{% url 'cite_report_pdf' %}" class="btn btn-danger btn-sm">
+      <i class="bi bi-file-earmark-pdf-fill me-1"></i>Exportar PDF
+    </a>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      {% if cites %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+              <tr>
+                <th>ID</th>
+                <th>Beneficiario</th>
+                <th>Correo</th>
+                <th>Fecha</th>
+                <th>Modalidad</th>
+                <th>Estado</th>
+                <th>Canal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for cite in cites %}
+              <tr>
+                <td class="fw-semibold">#{{ cite.id }}</td>
+                <td>{{ cite.beneficiary.name }}</td>
+                <td class="text-muted small">{{ cite.beneficiary.email }}</td>
+                <td>{{ cite.date_assigned|date:"d/m/Y" }}</td>
+                <td>{{ cite.get_modality_cite_display }}</td>
+                <td>
+                  {% if cite.state_cite == 'Pendiente' %}
+                    <span class="badge bg-warning text-dark">{{ cite.state_cite }}</span>
+                  {% elif cite.state_cite == 'Cancelada' %}
+                    <span class="badge bg-danger">{{ cite.state_cite }}</span>
+                  {% else %}
+                    <span class="badge bg-secondary">{{ cite.state_cite }}</span>
+                  {% endif %}
+                </td>
+                <td class="small text-muted">{{ cite.request_cite }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center py-5 text-muted">
+          <i class="bi bi-calendar-x fs-1 d-block mb-2"></i>
+          No hay citas con los filtros aplicados.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,1 @@
+-r Gestion_de_Casos_T4/requirements.txt

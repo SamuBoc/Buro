@@ -36,12 +36,16 @@ class Cite(models.Model):
     STATE_CONFIRMED = 'Confirmada'
     STATE_CANCELED = 'Cancelada'
     STATE_SOLVE = "Atendida"
+    STATE_ATTENDED = 'Asistió'
+    STATE_NO_SHOW = 'No asistió'
 
     STATE_CHOICES = [
         (STATE_PENDING, 'Pendiente'),
         (STATE_CONFIRMED, 'Confirmada'),
         (STATE_CANCELED, 'Cancelada'),
         (STATE_SOLVE, 'Atendida'),
+        (STATE_ATTENDED, 'Asistió'),
+        (STATE_NO_SHOW, 'No asistió'),
     ]
 
     state_cite = models.CharField(
@@ -71,6 +75,11 @@ class Cite(models.Model):
     )
 
     description = models.CharField(max_length=2000, verbose_name='Descripcion')
+
+    reminder_sent = models.BooleanField(
+        default=False,
+        verbose_name='Recordatorio enviado'
+    )
 
     class Meta:
         verbose_name = 'Cita'
