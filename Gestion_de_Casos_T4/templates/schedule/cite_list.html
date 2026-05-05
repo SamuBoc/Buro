@@ -11,9 +11,11 @@
                 <small class="opacity-75">{{ beneficiary.name }} ({{ beneficiary.id }})</small>
             </div>
             <div class="d-flex gap-2">
+                {% if 'secretaria' in user_roles or 'administrador' in user_roles %}
                 <a href="{% url 'create_cite' beneficiary.id %}" class="btn btn-primary btn-sm">
                     <i class="bi bi-calendar-plus me-1"></i>Nueva cita
                 </a>
+                {% endif %}
                 <a href="{% url 'beneficiary_detail' beneficiary.id %}" class="btn btn-secondary btn-sm">
                     <i class="bi bi-arrow-left me-1"></i>Volver
                 </a>
@@ -64,33 +66,37 @@
                                 <td class="text-center">{{ cite.description }}</td>
                                 <td class="text-center">{{ cite.date_assigned }}</td>
                                 <td class="text-center">
-                                    {% if cite.state_cite != 'Cancelada' %}
-                                    <a href="{% url 'reschedule_cite' cite.pk %}" class="btn btn-sm btn-primary w-100">
-                                        <i class="bi bi-calendar3 me-1"></i>Reprogramar
-                                    </a>
+                                    {% if 'secretaria' in user_roles or 'administrador' in user_roles %}
+                                        {% if cite.state_cite != 'Cancelada' %}
+                                        <a href="{% url 'reschedule_cite' cite.pk %}" class="btn btn-sm btn-primary w-100">
+                                            <i class="bi bi-calendar3 me-1"></i>Reprogramar
+                                        </a>
 
-                                    {% if cite.state_cite != 'Asistió' and cite.state_cite != 'No asistió' %}
-                                    <form class="mt-2 d-grid confirm-action" method="POST" action="{% url 'register_cite_attendance' pk=cite.id status='asistio' %}" data-title="Confirmar asistencia" data-message="Vas a marcar la cita como asistida." data-cite-id="{{ cite.id }}" data-cite-date="{{ cite.date_assigned }}" data-beneficiary="{{ cite.beneficiary.name }}">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn btn-success btn-sm w-100">
-                                            <i class="bi bi-check-lg me-1"></i>Asistio
-                                        </button>
-                                    </form>
-                                    <form class="mt-2 d-grid confirm-action" method="POST" action="{% url 'register_cite_attendance' pk=cite.id status='no-asistio' %}" data-title="Confirmar inasistencia" data-message="Vas a marcar la cita como no asistida." data-cite-id="{{ cite.id }}" data-cite-date="{{ cite.date_assigned }}" data-beneficiary="{{ cite.beneficiary.name }}">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn btn-warning btn-sm w-100">
-                                            <i class="bi bi-person-x me-1"></i>No asistio
-                                        </button>
-                                    </form>
+                                        {% if cite.state_cite != 'Asistió' and cite.state_cite != 'No asistió' %}
+                                        <form class="mt-2 d-grid confirm-action" method="POST" action="{% url 'register_cite_attendance' pk=cite.id status='asistio' %}" data-title="Confirmar asistencia" data-message="Vas a marcar la cita como asistida." data-cite-id="{{ cite.id }}" data-cite-date="{{ cite.date_assigned }}" data-beneficiary="{{ cite.beneficiary.name }}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-success btn-sm w-100">
+                                                <i class="bi bi-check-lg me-1"></i>Asistio
+                                            </button>
+                                        </form>
+                                        <form class="mt-2 d-grid confirm-action" method="POST" action="{% url 'register_cite_attendance' pk=cite.id status='no-asistio' %}" data-title="Confirmar inasistencia" data-message="Vas a marcar la cita como no asistida." data-cite-id="{{ cite.id }}" data-cite-date="{{ cite.date_assigned }}" data-beneficiary="{{ cite.beneficiary.name %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-warning btn-sm w-100">
+                                                <i class="bi bi-person-x me-1"></i>No asistio
+                                            </button>
+                                        </form>
+                                        {% endif %}
+
+                                        <form class="mt-2 d-grid confirm-action" method="POST" action="{% url 'cancel_cite' pk=cite.id %}" data-title="Confirmar cancelacion" data-message="Vas a cancelar la cita." data-cite-id="{{ cite.id }}" data-cite-date="{{ cite.date_assigned }}" data-beneficiary="{{ cite.beneficiary.name }}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-secondary btn-sm w-100">
+                                                <i class="bi bi-x-lg me-1"></i>Cancelar
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted small">—</span>
                                     {% endif %}
-                                    
-                                    <form class="mt-2 d-grid confirm-action" method="POST" action="{% url 'cancel_cite' pk=cite.id %}" data-title="Confirmar cancelacion" data-message="Vas a cancelar la cita." data-cite-id="{{ cite.id }}" data-cite-date="{{ cite.date_assigned }}" data-beneficiary="{{ cite.beneficiary.name }}">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn btn-secondary btn-sm w-100">
-                                            <i class="bi bi-x-lg me-1"></i>Cancelar
-                                        </button>
-                                    </form>
-                                    {% endif %}     
                                 </td>
                             </tr>
                             {% endfor %}

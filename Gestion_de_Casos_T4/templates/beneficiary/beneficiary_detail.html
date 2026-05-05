@@ -88,6 +88,7 @@
                 </div>
 
                 <div class="d-flex justify-content-between flex-wrap gap-2">
+                    {% if 'secretaria' in user_roles or 'administrador' in user_roles %}
                     <a href="{% url 'beneficiary_register' %}" class="btn btn-primary">
                         <i class="bi bi-person-plus-fill me-1"></i> Registrar otro
                     </a>
@@ -97,12 +98,20 @@
                     <a href="{% url 'beneficiary_cites' beneficiary.pk %}" class="btn btn-outline-primary">
                         <i class="bi bi-calendar-week me-1"></i> Ver citas
                     </a>
+                    {% endif %}
+
+                    {% if user.is_superuser or 'administrador' in user_roles %}
                     <a href="{% url 'beneficiary_audit_log' beneficiary.pk %}" class="btn btn-outline-secondary">
                         <i class="bi bi-shield-lock me-1"></i> Bitácora
                     </a>
+                    {% endif %}
+
+                    {% if 'secretaria' in user_roles or 'administrador' in user_roles %}
                     <a href="{% url 'beneficiary_update' beneficiary.pk %}" class="btn btn-primary">
                         <i class="bi bi-pencil-fill"></i> Editar
                     </a>
+                    {% endif %}
+
                     <a href="{% url 'data_deletion_request_create' beneficiary.pk %}" class="btn btn-outline-danger">
                         <i class="bi bi-trash3 me-1"></i> Solicitar eliminacion
                     </a>
