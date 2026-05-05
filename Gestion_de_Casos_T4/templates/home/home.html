@@ -38,6 +38,32 @@
             </span>
         </a>
 
+        {% if 'secretaria' in user_roles or 'administrador' in user_roles %}
+        <a href="{% url 'cite_report' %}" class="home-card">
+            <div class="home-card-icon">
+                <i class="bi bi-calendar-check-fill" aria-hidden="true"></i>
+            </div>
+            <h5 class="home-card-title">Reporte de Citas</h5>
+            <p class="home-card-desc">Consulte y filtre el historial de citas agendadas por beneficiario.</p>
+            <span class="home-card-btn">
+                <i class="bi bi-arrow-right-circle me-1"></i>Ir a citas
+            </span>
+        </a>
+        {% endif %}
+
+        {% if 'administrador' in user_roles or 'profesor' in user_roles %}
+        <a href="{% url 'case_report_by_state' %}" class="home-card">
+            <div class="home-card-icon">
+                <i class="bi bi-bar-chart-line-fill" aria-hidden="true"></i>
+            </div>
+            <h5 class="home-card-title">Reportes</h5>
+            <p class="home-card-desc">Analice casos por estado, sala y métricas del consultorio.</p>
+            <span class="home-card-btn">
+                <i class="bi bi-arrow-right-circle me-1"></i>Ir a reportes
+            </span>
+        </a>
+        {% endif %}
+
         {% if user.is_superuser or 'administrador' in user_roles %}
         <a href="/admin/" class="home-card">
             <div class="home-card-icon">
