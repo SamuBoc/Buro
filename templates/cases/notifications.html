@@ -1,80 +1,101 @@
 {% extends "base.html" %}
+{% load static %}
+
 {% block title %}Mis Notificaciones{% endblock %}
 
 {% block content %}
-<div class="container py-4" style="max-width:800px;">
+<link rel="stylesheet" href="{% static 'css/notifications.css' %}">
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold mb-0"><i class="bi bi-bell-fill me-2" style="color: #0055A5;"></i>Notificaciones</h2>
-            {% if unread_count > 0 %}
-                <span class="badge rounded-pill bg-danger" style="font-size: 0.85rem;">{{ unread_count }} sin leer</span>
-            {% else %}
-                <span class="text-muted small"><i class="bi bi-check2-all me-1"></i>Todo al día</span>
-            {% endif %}
-        </div>
-        
-        {% if unread_count > 0 %}
-        <form method="post" action="{% url 'mark_all_notifications_read' %}">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill">
-                <i class="bi bi-check-lg me-1"></i>Marcar todas como leídas
-            </button>
-        </form>
-        {% endif %}
+<div class="notif-page-wrapper">
+
+  {{# ── Encabezado ── #}}
+  <div class="notif-page-header">
+    <div class="notif-page-header-left">
+      <h2 class="notif-page-title">
+        <i class="bi bi-bell-fill"></i> Notificaciones
+      </h2>
+      {% if unread_count > 0 %}
+        <span class="notif-page-badge-unread">{{ unread_count }} sin leer</span>
+      {% else %}
+        <span class="notif-page-all-read">
+          <i class="bi bi-check2-all me-1"></i>Todo al día
+        </span>
+      {% endif %}
     </div>
 
-    {% if notifications %}
-        {% for notif in notifications %}
-        <div class="card mb-3 {% if not notif.is_read %}notif-unread shadow-sm{% else %}border-0 bg-light{% endif %}">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                        {% if not notif.is_read %}
-                            <span class="notif-page-new-pill">Nueva</span>
-                        {% endif %}
-                        <h6 class="notif-page-card-title">{{ notif.title }}</h6>
-                    </div>
-
-                    {% if notif.previous_status and notif.new_status %}
-                    <div class="notif-page-status-change">
-                        <span class="badge badge-icesi-default">{{ notif.previous_status }}</span>
-                        <i class="bi bi-arrow-right mx-1 text-muted" aria-hidden="true"></i>
-                        <span class="badge badge-icesi-created">{{ notif.new_status }}</span>
-                    </div>
-                    {% endif %}
-
-                    <p class="notif-page-card-msg">{{ notif.message }}</p>
-
-                        <div class="d-flex gap-3 align-items-center mt-3">
-                            <small class="text-muted">
-                                <i class="bi bi-clock me-1"></i>{{ notif.created_at|date:"d/m/Y H:i" }}
-                            </small>
-                            {% if notif.is_read %}
-                                <small class="text-success">
-                                    <i class="bi bi-check-circle-fill me-1"></i>Leída el {{ notif.read_at|date:"d/m/Y H:i" }}
-                                </small>
-                            {% endif %}
-                        </div>
-                    </div>
-                    
-                    <div class="ms-3">
-                        <a href="{% url 'mark_notification_read' notif.id %}"
-                           class="btn btn-sm {% if not notif.is_read %}btn-icesi-unread{% else %}btn-outline-secondary{% endif %}"
-                           style="min-width: 90px;">
-                            Ver caso
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    {% else %}
-        <div class="text-center text-muted py-5 card border-0 bg-light">
-            <div class="display-1 opacity-25"><i class="bi bi-bell-slash"></i></div>
-            <p class="mt-3 fs-5">No tienes notificaciones aún.</p>
-        </div>
+    {% if unread_count > 0 %}
+    <form method="post" action="{% url 'mark_all_notifications_read' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill">
+        <i class="bi bi-check-lg me-1"></i>Marcar todas como leídas
+      </button>
+    </form>
     {% endif %}
+  </div>
+
+  {{# ── Lista ── #}}
+  {% if notifications %}
+  <div class="notif-page-list">
+    {% for notif in notifications %}
+    <div class="notif-page-card {% if not notif.is_read %}notif-page-card--unread{% endif %}">
+
+      {{# Ícono #}}
+      <div class="notif-page-card-icon {% if not notif.is_read %}notif-page-card-icon--unread{% endif %}">
+        <i class="bi bi-bell"></i>
+      </div>
+
+      {{# Cuerpo #}}
+      <div class="notif-page-card-body">
+        <div class="notif-page-card-top">
+          {% if not notif.is_read %}
+            <span class="notif-page-new-pill">Nueva</span>
+          {% endif %}
+          <h6 class="notif-page-card-title">{{ notif.title }}</h6>
+        </div>
+
+        {% if notif.previous_status and notif.new_status %}
+        <div class="notif-page-status-change">
+          <span class="badge badge-icesi-default">{{ notif.previous_status }}</span>
+          <i class="bi bi-arrow-right mx-1 text-muted"></i>
+          <span class="badge badge-icesi-created">{{ notif.new_status }}</span>
+        </div>
+        {% endif %}
+
+        <p class="notif-page-card-msg">{{ notif.message }}</p>
+
+        <div class="notif-page-card-meta">
+          <span>
+            <i class="bi bi-clock me-1"></i>{{ notif.created_at|date:"d/m/Y H:i" }}
+          </span>
+          {% if notif.is_read %}
+            <span class="notif-page-read-stamp">
+              <i class="bi bi-check-circle-fill me-1"></i>Leída el {{ notif.read_at|date:"d/m/Y H:i" }}
+            </span>
+          {% endif %}
+        </div>
+      </div>
+
+      {{# Acción #}}
+      <div class="notif-page-card-action">
+        <a href="{% url 'mark_notification_read' notif.id %}"
+           class="btn btn-sm {% if not notif.is_read %}btn-icesi-unread{% else %}btn-outline-secondary{% endif %}"
+           style="min-width:90px;">
+          Ver caso
+        </a>
+      </div>
+
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="notif-page-empty">
+    <div class="notif-page-empty-icon">
+      <i class="bi bi-bell-slash"></i>
+    </div>
+    <p class="notif-page-empty-text">No tienes notificaciones aún.</p>
+  </div>
+  {% endif %}
 
 </div>
 {% endblock %}
