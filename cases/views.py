@@ -1,20 +1,23 @@
 from datetime import datetime
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from accounts.constants import ROLE_ADMINISTRADOR, ROLE_PROFESOR, ROLE_SECRETARIA
+from accounts.constants import ROLE_ADMINISTRADOR, ROLE_ESTUDIANTE, ROLE_PROFESOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
 from accounts.permissions import can_manage_case_deadline, can_reassign_case, can_view_case
 
 from .forms import CaseDeadlineForm, CaseForm, CaseReassignmentForm, CaseRejectionForm
 from .models import Case, CaseAuditLog, CaseDocument, Notification
 from .services import auto_assign_case, reassign_case
+
+User = get_user_model()
 
 
 def _get_user_draft(user):
@@ -95,6 +98,208 @@ def case_list(request):
 
     return render(request, 'cases/case_list.html', {
         'cases': cases,
+    })
+
+
+def _build_academic_dashboard_filters(request):
+    today = timezone.localdate()
+    filtro_desde = request.GET.get('desde')
+    filtro_hasta = request.GET.get('hasta')
+    filtro_estado = request.GET.get('estado')
+    filtro_sala = request.GET.get('sala')
+    desde_date = None
+    hasta_date = None
+
+    case_filters = Q(assigned_student__isnull=False)
+    assigned_cases_filters = Q(assigned_cases__isnull=False)
+    if filtro_estado:
+        case_filters &= Q(state=filtro_estado)
+        assigned_cases_filters &= Q(assigned_cases__state=filtro_estado)
+    if filtro_sala:
+        case_filters &= Q(sala=filtro_sala)
+        assigned_cases_filters &= Q(assigned_cases__sala=filtro_sala)
+    if filtro_desde:
+        try:
+            desde_date = datetime.strptime(filtro_desde, '%Y-%m-%d').date()
+            case_filters &= Q(created_at__date__gte=desde_date)
+            assigned_cases_filters &= Q(assigned_cases__created_at__date__gte=desde_date)
+        except ValueError:
+            filtro_desde = ''
+            desde_date = None
+    if filtro_hasta:
+        try:
+            hasta_date = datetime.strptime(filtro_hasta, '%Y-%m-%d').date()
+            case_filters &= Q(created_at__date__lte=hasta_date)
+            assigned_cases_filters &= Q(assigned_cases__created_at__date__lte=hasta_date)
+        except ValueError:
+            filtro_hasta = ''
+            hasta_date = None
+
+    sala_label = ''
+    if filtro_sala:
+        for value, label in Case.ROOM_CHOICES:
+            if value == filtro_sala:
+                sala_label = label
+                break
+
+    date_range_label = ''
+    if desde_date and hasta_date:
+        date_range_label = f'Desde {desde_date:%d/%m/%Y} hasta {hasta_date:%d/%m/%Y}'
+    elif desde_date:
+        date_range_label = f'Desde {desde_date:%d/%m/%Y}'
+    elif hasta_date:
+        date_range_label = f'Hasta {hasta_date:%d/%m/%Y}'
+
+    return {
+        'today': today,
+        'filtro_desde': filtro_desde,
+        'filtro_hasta': filtro_hasta,
+        'filtro_estado': filtro_estado,
+        'filtro_sala': filtro_sala,
+        'sala_label': sala_label,
+        'date_range_label': date_range_label,
+        'case_filters': case_filters,
+        'assigned_cases_filters': assigned_cases_filters,
+        'filter_query': request.GET.urlencode(),
+    }
+
+
+@role_required(ROLE_PROFESOR, ROLE_ADMINISTRADOR)
+def academic_dashboard(request):
+    filters = _build_academic_dashboard_filters(request)
+    today = filters['today']
+    case_filters = filters['case_filters']
+    assigned_cases_filters = filters['assigned_cases_filters']
+
+    students = (
+        User.objects
+        .filter(is_active=True, groups__name=ROLE_ESTUDIANTE)
+        .annotate(
+            total_cases=Count(
+                'assigned_cases',
+                filter=assigned_cases_filters,
+                distinct=True,
+            ),
+            overdue_cases=Count(
+                'assigned_cases',
+                filter=assigned_cases_filters & Q(assigned_cases__deadline_date__lt=today),
+                distinct=True,
+            ),
+            without_deadline_cases=Count(
+                'assigned_cases',
+                filter=assigned_cases_filters & Q(assigned_cases__deadline_date__isnull=True),
+                distinct=True,
+            ),
+        )
+        .order_by('first_name', 'last_name', 'username')
+    )
+
+    cases_with_student = Case.objects.filter(case_filters)
+    total_assigned = cases_with_student.count()
+    total_overdue = cases_with_student.filter(deadline_date__lt=today).count()
+    total_without_deadline = cases_with_student.filter(deadline_date__isnull=True).count()
+    return render(request, 'cases/academic_dashboard.html', {
+        'students': students,
+        'total_students': students.count(),
+        'total_assigned_cases': total_assigned,
+        'total_overdue_cases': total_overdue,
+        'total_without_deadline_cases': total_without_deadline,
+        'filtro_desde': filters['filtro_desde'],
+        'filtro_hasta': filters['filtro_hasta'],
+        'filtro_estado': filters['filtro_estado'],
+        'filtro_sala': filters['filtro_sala'],
+        'estado_choices': [
+            Case.STATE_PENDING,
+            Case.STATE_ASSIGNED,
+            Case.STATE_NO_STUDENTS,
+            Case.STATE_REJECTED,
+        ],
+        'sala_choices': Case.ROOM_CHOICES,
+        'filter_query': filters['filter_query'],
+    })
+
+
+@role_required(ROLE_PROFESOR, ROLE_ADMINISTRADOR)
+def academic_student_detail(request, student_id):
+    today = timezone.localdate()
+    filtro_desde = request.GET.get('desde')
+    filtro_hasta = request.GET.get('hasta')
+    filtro_estado = request.GET.get('estado')
+    filtro_sala = request.GET.get('sala')
+    desde_date = None
+    hasta_date = None
+    student = get_object_or_404(
+        User.objects.filter(is_active=True, groups__name=ROLE_ESTUDIANTE),
+        pk=student_id,
+    )
+
+    case_filters = Q(assigned_student=student)
+    if filtro_estado:
+        case_filters &= Q(state=filtro_estado)
+    if filtro_sala:
+        case_filters &= Q(sala=filtro_sala)
+    if filtro_desde:
+        try:
+            desde_date = datetime.strptime(filtro_desde, '%Y-%m-%d').date()
+            case_filters &= Q(created_at__date__gte=desde_date)
+        except ValueError:
+            filtro_desde = ''
+            desde_date = None
+    if filtro_hasta:
+        try:
+            hasta_date = datetime.strptime(filtro_hasta, '%Y-%m-%d').date()
+            case_filters &= Q(created_at__date__lte=hasta_date)
+        except ValueError:
+            filtro_hasta = ''
+            hasta_date = None
+
+    sala_label = ''
+    if filtro_sala:
+        for value, label in Case.ROOM_CHOICES:
+            if value == filtro_sala:
+                sala_label = label
+                break
+
+    date_range_label = ''
+    if desde_date and hasta_date:
+        date_range_label = f'Desde {desde_date:%d/%m/%Y} hasta {hasta_date:%d/%m/%Y}'
+    elif desde_date:
+        date_range_label = f'Desde {desde_date:%d/%m/%Y}'
+    elif hasta_date:
+        date_range_label = f'Hasta {hasta_date:%d/%m/%Y}'
+
+    student_cases = (
+        Case.objects
+        .select_related('beneficiary')
+        .filter(case_filters)
+        .order_by('-created_at')
+    )
+
+    metrics = {
+        'total_cases': student_cases.count(),
+        'overdue_cases': student_cases.filter(deadline_date__lt=today).count(),
+        'without_deadline_cases': student_cases.filter(deadline_date__isnull=True).count(),
+        'rejected_cases': student_cases.filter(state=Case.STATE_REJECTED).count(),
+    }
+
+    return render(request, 'cases/academic_student_detail.html', {
+        'student': student,
+        'student_cases': student_cases,
+        'metrics': metrics,
+        'filtro_desde': filtro_desde,
+        'filtro_hasta': filtro_hasta,
+        'filtro_estado': filtro_estado,
+        'filtro_sala': filtro_sala,
+        'sala_label': sala_label,
+        'date_range_label': date_range_label,
+        'estado_choices': [
+            Case.STATE_PENDING,
+            Case.STATE_ASSIGNED,
+            Case.STATE_NO_STUDENTS,
+            Case.STATE_REJECTED,
+        ],
+        'sala_choices': Case.ROOM_CHOICES,
+        'filter_query': request.GET.urlencode(),
     })
 
 
@@ -736,4 +941,164 @@ def export_cases_pdf(request):
 
     response = HttpResponse(buffer, content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="reporte_casos.pdf"'
+    return response
+
+
+@role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
+def export_academic_dashboard_excel(request):
+    filters = _build_academic_dashboard_filters(request)
+    assigned_cases_filters = filters['assigned_cases_filters']
+
+    students = (
+        User.objects
+        .filter(is_active=True, groups__name=ROLE_ESTUDIANTE)
+        .annotate(
+            total_cases=Count(
+                'assigned_cases',
+                filter=assigned_cases_filters,
+                distinct=True,
+            ),
+            overdue_cases=Count(
+                'assigned_cases',
+                filter=assigned_cases_filters & Q(assigned_cases__deadline_date__lt=filters['today']),
+                distinct=True,
+            ),
+            without_deadline_cases=Count(
+                'assigned_cases',
+                filter=assigned_cases_filters & Q(assigned_cases__deadline_date__isnull=True),
+                distinct=True,
+            ),
+        )
+        .order_by('first_name', 'last_name', 'username')
+    )
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Panel Academico'
+
+    headers = [
+        'Estudiante',
+        'Usuario',
+        'Casos asignados',
+        'Casos vencidos',
+        'Sin fecha limite',
+    ]
+    header_fill = PatternFill(start_color='1A3A5C', end_color='1A3A5C', fill_type='solid')
+    header_font = Font(color='FFFFFF', bold=True)
+
+    for col, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center')
+
+    for row_idx, student in enumerate(students, start=2):
+        ws.cell(row=row_idx, column=1).value = student.get_full_name() or student.username
+        ws.cell(row=row_idx, column=2).value = student.username
+        ws.cell(row=row_idx, column=3).value = student.total_cases
+        ws.cell(row=row_idx, column=4).value = student.overdue_cases
+        ws.cell(row=row_idx, column=5).value = student.without_deadline_cases
+
+    column_widths = [28, 18, 18, 16, 18]
+    for col, width in enumerate(column_widths, start=1):
+        ws.column_dimensions[ws.cell(row=1, column=col).column_letter].width = width
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    response = HttpResponse(
+        buffer,
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="reporte_panel_academico.xlsx"'
+    return response
+
+
+@role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
+def export_academic_dashboard_pdf(request):
+    filters = _build_academic_dashboard_filters(request)
+    assigned_cases_filters = filters['assigned_cases_filters']
+
+    students = (
+        User.objects
+        .filter(is_active=True, groups__name=ROLE_ESTUDIANTE)
+        .annotate(
+            total_cases=Count(
+                'assigned_cases',
+                filter=assigned_cases_filters,
+                distinct=True,
+            ),
+            overdue_cases=Count(
+                'assigned_cases',
+                filter=assigned_cases_filters & Q(assigned_cases__deadline_date__lt=filters['today']),
+                distinct=True,
+            ),
+            without_deadline_cases=Count(
+                'assigned_cases',
+                filter=assigned_cases_filters & Q(assigned_cases__deadline_date__isnull=True),
+                distinct=True,
+            ),
+        )
+        .order_by('first_name', 'last_name', 'username')
+    )
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(letter),
+        rightMargin=0.5 * inch,
+        leftMargin=0.5 * inch,
+        topMargin=0.5 * inch,
+        bottomMargin=0.5 * inch,
+    )
+
+    styles = getSampleStyleSheet()
+    elements = []
+
+    title = Paragraph(
+        '<b>Panel Academico — Consultorio Juridico ICESI</b>',
+        styles['Title']
+    )
+    elements.append(title)
+    elements.append(Spacer(1, 0.2 * inch))
+
+    data = [[
+        'Estudiante',
+        'Usuario',
+        'Casos asignados',
+        'Casos vencidos',
+        'Sin fecha limite',
+    ]]
+
+    for student in students:
+        data.append([
+            student.get_full_name() or student.username,
+            student.username,
+            str(student.total_cases),
+            str(student.overdue_cases),
+            str(student.without_deadline_cases),
+        ])
+
+    table = Table(data, colWidths=[2.2*inch, 1.4*inch, 1.2*inch, 1.2*inch, 1.4*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND',  (0, 0), (-1, 0),  colors.HexColor('#1A3A5C')),
+        ('TEXTCOLOR',   (0, 0), (-1, 0),  colors.white),
+        ('FONTNAME',    (0, 0), (-1, 0),  'Helvetica-Bold'),
+        ('FONTSIZE',    (0, 0), (-1, 0),  9),
+        ('ALIGN',       (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN',      (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTSIZE',    (0, 1), (-1, -1), 8),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F4F6F9')]),
+        ('GRID',        (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
+        ('TOPPADDING',  (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+
+    elements.append(table)
+    doc.build(elements)
+    buffer.seek(0)
+
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="reporte_panel_academico.pdf"'
     return response

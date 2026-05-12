@@ -62,6 +62,17 @@
                 <i class="bi bi-arrow-right-circle me-1"></i>Ir a reportes
             </span>
         </a>
+
+        <a href="{% url 'academic_dashboard' %}" class="home-card">
+            <div class="home-card-icon">
+                <i class="bi bi-mortarboard-fill" aria-hidden="true"></i>
+            </div>
+            <h5 class="home-card-title">Panel academico</h5>
+            <p class="home-card-desc">Supervise el desempeno y avance de estudiantes asignados.</p>
+            <span class="home-card-btn">
+                <i class="bi bi-arrow-right-circle me-1"></i>Ir al panel
+            </span>
+        </a>
         {% endif %}
 
         {% if user.is_superuser or 'administrador' in user_roles %}
