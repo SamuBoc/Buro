@@ -2,8 +2,7 @@ from django import forms
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
-from .models import Case
-
+from .models import Case, CommunicationInteraction
 
 class MultipleFileInput(forms.ClearableFileInput):
     allow_multiple_selected = True
@@ -160,3 +159,29 @@ class CaseRejectionForm(forms.ModelForm):
         if not rejection_reason or not rejection_reason.strip():
             raise ValidationError('Debe ingresar una causal de rechazo válida.')
         return rejection_reason
+
+
+class CommunicationInteractionForm(forms.ModelForm):
+    class Meta:
+        model = CommunicationInteraction
+        fields = ['interaction_type', 'direction', 'description']
+        widgets = {
+            'interaction_type': forms.Select(attrs={'class': 'form-select'}),
+            'direction': forms.Select(attrs={'class': 'form-select'}),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Describa la interacción de comunicación...',
+            }),
+        }
+        labels = {
+            'interaction_type': 'Tipo de interacción',
+            'direction':        'Dirección',
+            'description':      'Descripción',
+        }
+
+    def clean_description(self):
+        description = self.cleaned_data.get('description', '')
+        if not description.strip():
+            raise ValidationError('La descripción no puede estar vacía.')
+        return description.strip()
