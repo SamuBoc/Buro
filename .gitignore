@@ -1,4 +1,5 @@
-Gestion_de_Casos_T4/venv/
+# Venv
+venv/
 
 # Python
 __pycache__/
@@ -26,3 +27,6 @@ media/
 test_media/
 staticfiles/
 .env
+
+#Selenium
+chromedriver.exe
