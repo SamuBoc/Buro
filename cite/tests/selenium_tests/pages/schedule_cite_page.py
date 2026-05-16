@@ -30,9 +30,9 @@ class ScheduleCite(BasePage) :
     def go_to_cite_form(self):
         self.click(self.NEW_CITE)
 
-    def define_date_cite(self):
-        self.enter_text(self.DATE_FIELD, "31/05/2026")
-        self.enter_text(self.DESCRIPTION_DATE, "2:00 PM")
+    def define_date_cite(self, date, hour):
+        self.enter_text(self.DATE_FIELD, date)
+        self.enter_text(self.DESCRIPTION_DATE, hour)
 
     def send_form(self):
         self.click(self.SUBMIT_BUTTON)

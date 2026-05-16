@@ -24,7 +24,7 @@ class LoginPage(BasePage):
     def go_to_homepage(self, url = "http://127.0.0.1:8000/login/"):
         self.driver.get(url)
 
-    def make_log_in(self, user, password):
+    def make_log_in(self, user="stevan", password="useruser"):
         self.enter_text(self.USER_INPUT, user)
         self.enter_text(self.PASSWORD_INPUT, password)
 
