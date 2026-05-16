@@ -9,3 +9,5 @@ gunicorn==21.2.0
 psycopg2-binary==2.9.9
 dj-database-url==2.3.0
 whitenoise==6.9.0
+selenium==4.44.0
+behave==1.3.3

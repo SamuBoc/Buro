@@ -64,7 +64,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-center">{{ cite.description }}</td>
-                                <td class="text-center">{{ cite.date_assigned }}</td>
+                                <td class="text-center" id="assigment-date">{{ cite.date_assigned }}</td>
                                 <td class="text-center">
                                     {% if 'secretaria' in user_roles or 'administrador' in user_roles %}
                                         {% if cite.state_cite != 'Cancelada' %}
