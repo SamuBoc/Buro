@@ -230,6 +230,18 @@ class Notification(models.Model):
 class CaseAuditLog(models.Model):
 
     ACTION_CHOICES = [
+    ('CREATED',         'Caso creado'),
+    ('UPDATED',         'Caso actualizado'),
+    ('STATUS_CHANGED',  'Estado cambiado'),
+    ('ASSIGNED',        'Estudiante asignado'),
+    ('REASSIGNED',      'Caso reasignado'),
+    ('FILE_UPLOADED',   'Archivo adjuntado'),
+    ('FILE_DELETED',    'Archivo eliminado'),
+    ('REJECTED',        'Caso rechazado'),
+    ('CLOSED',          'Caso cerrado'),
+    ('VIEWED',          'Caso consultado'),
+    ('SECURITY_DENIED', 'Acceso denegado'),
+]
         ('CREATED',        'Caso creado'),
         ('UPDATED',        'Caso actualizado'),
         ('STATUS_CHANGED', 'Estado cambiado'),

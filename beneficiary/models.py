@@ -2,6 +2,21 @@ import os
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from core.encryption import encrypt, decrypt
+
+
+class EncryptedCharField(models.CharField):
+    """Campo que cifra automáticamente al guardar y descifra al leer."""
+
+    def from_db_value(self, value, expression, connection):
+        if not value:
+            return value
+        return decrypt(value)
+
+    def get_prep_value(self, value):
+        if not value:
+            return value
+        return encrypt(value)
 
 
 class Beneficiary(models.Model):
@@ -12,9 +27,16 @@ class Beneficiary(models.Model):
         primary_key=True,
         editable=False,
     )
-    colombian_identification = models.CharField(max_length=20, verbose_name="Cédula de Ciudadanía", default='')
+    colombian_identification = EncryptedCharField(
+        max_length=512, 
+        verbose_name="Cédula de Ciudadanía", 
+        default=''
+    )
     location = models.CharField(max_length=300, verbose_name="Ubicación")
-    phone = models.CharField(max_length=20, verbose_name="Teléfono")
+    phone = EncryptedCharField(
+        max_length=512, 
+        verbose_name="Teléfono"
+    )
     email = models.EmailField(verbose_name="Correo electrónico")
     date_register = models.DateField(auto_now_add=True, verbose_name="Fecha de registro")
 

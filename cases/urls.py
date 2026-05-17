@@ -21,5 +21,6 @@ urlpatterns = [
     path('reportes/por-sala/', views.case_report_by_sala, name='case_report_by_sala'),
     path('exportar/excel/', views.export_cases_excel, name='export_cases_excel'),
     path('exportar/pdf/', views.export_cases_pdf, name='export_cases_pdf'),
+    path('documentos/<int:document_id>/ver/', views.serve_case_document, name='serve_case_document'),
     path('<int:case_id>/interacciones/', views.case_add_interaction, name='case_add_interaction'),
 ]
