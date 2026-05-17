@@ -158,7 +158,7 @@
                 </nav>
 
                 <div class="sidebar-footer">
-                    {% if user.is_superuser or 'administrador' in user_roles %}
+                    {% if user.is_superuser or 'administrador' in user_roles or 'secretaria' in user_roles %}
                     <a class="sidebar-link" href="{% url 'global_audit_log' %}">
                         <i class="bi bi-journal-text sidebar-icon" aria-hidden="true"></i>
                         <span class="sidebar-label">Bitácora Casos</span>
@@ -231,7 +231,7 @@
                 </nav>
 
                 <div class="px-3 pb-3">
-                    {% if user.is_superuser or 'administrador' in user_roles %}
+                    {% if user.is_superuser or 'administrador' in user_roles or 'secretaria' in user_roles %}
                     <div class="sidebar-divider mx-0 my-2"></div>
                     <a class="mobile-link" href="{% url 'global_audit_log' %}">
                         <i class="bi bi-journal-text me-2" aria-hidden="true"></i>Bitácora Casos
