@@ -10,10 +10,23 @@ from django.utils import timezone
 
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_PROFESOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
-from accounts.permissions import can_manage_case_deadline, can_reassign_case, can_view_case
+from accounts.permissions import (
+    can_add_interaction,   
+    can_manage_case_deadline,
+    can_reassign_case,
+    can_view_case,
+)
+from core.utils import get_client_ip 
 
-from .forms import CaseDeadlineForm, CaseForm, CaseReassignmentForm, CaseRejectionForm
+from .forms import (
+    CaseDeadlineForm,
+    CaseForm,
+    CaseReassignmentForm,
+    CaseRejectionForm,
+    CommunicationInteractionForm, 
+)
 from .models import Case, CaseAuditLog, CaseDocument, Notification
+
 from .services import auto_assign_case, reassign_case
 
 
@@ -263,7 +276,13 @@ def case_detail(request, pk):
     case = get_object_or_404(
         Case.objects
         .select_related('beneficiary', 'assigned_student')
-        .prefetch_related('documents', 'reassignment_logs__changed_by', 'reassignment_logs__old_student', 'reassignment_logs__new_student'),
+        .prefetch_related(
+            'documents',
+            'reassignment_logs__changed_by',
+            'reassignment_logs__old_student',
+            'reassignment_logs__new_student',
+            'interactions__registered_by',    
+        ),
         pk=pk
     )
 
@@ -275,9 +294,12 @@ def case_detail(request, pk):
         'case': case,
         'can_reassign': can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
+        'can_add_interaction': can_add_interaction(request.user, case),               
         'deadline_form': CaseDeadlineForm(instance=case),
         'reassignment_form': CaseReassignmentForm(case=case),
         'rejection_form': CaseRejectionForm(instance=case),
+        'interaction_form': CommunicationInteractionForm(),                             
+        'interactions': case.interactions.select_related('registered_by').order_by('-timestamp'),
     })
 
 
@@ -305,9 +327,12 @@ def case_update_deadline(request, pk):
         'case': case,
         'can_reassign': can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
+        'can_add_interaction': can_add_interaction(request.user, case),
         'deadline_form': form,
         'reassignment_form': CaseReassignmentForm(case=case),
         'rejection_form': CaseRejectionForm(instance=case),
+        'interaction_form': CommunicationInteractionForm(),
+        'interactions': case.interactions.select_related('registered_by').order_by('-timestamp'),
     })
 
 
@@ -339,9 +364,12 @@ def case_reassign(request, pk):
         'case': case,
         'can_reassign': can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
+        'can_add_interaction': can_add_interaction(request.user, case),
         'deadline_form': CaseDeadlineForm(instance=case),
         'reassignment_form': form,
         'rejection_form': CaseRejectionForm(instance=case),
+        'interaction_form': CommunicationInteractionForm(),
+        'interactions': case.interactions.select_related('registered_by').order_by('-timestamp'),
     })
 
 
@@ -381,11 +409,61 @@ def case_reject(request, pk):
         'case': case,
         'can_reassign': can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
+        'can_add_interaction': can_add_interaction(request.user, case),
         'deadline_form': CaseDeadlineForm(instance=case),
         'reassignment_form': CaseReassignmentForm(case=case),
         'rejection_form': form,
+        'interaction_form': CommunicationInteractionForm(),
+        'interactions': case.interactions.select_related('registered_by').order_by('-timestamp'),
     })
 
+
+
+@login_required
+def case_add_interaction(request, case_id):
+    case = get_object_or_404(
+        Case.objects.select_related('beneficiary', 'assigned_student'),
+        pk=case_id,
+    )
+
+    if not can_add_interaction(request.user, case):
+        messages.error(request, 'No tienes permiso para registrar interacciones en este caso.')
+        return redirect('case_detail', pk=case_id)
+
+    if request.method != 'POST':
+        return redirect('case_detail', pk=case_id)
+
+    form = CommunicationInteractionForm(request.POST)
+    if form.is_valid():
+        interaction = form.save(commit=False)
+        interaction.case = case
+        interaction.registered_by = request.user
+        interaction.save()
+
+        snippet = interaction.description[:100]
+        if len(interaction.description) > 100:
+            snippet += '...'
+
+        CaseAuditLog.objects.create(
+            case=case,
+            user=request.user,
+            action='COMMUNICATION',
+            description=(
+                f'{interaction.get_interaction_type_display()} '
+                f'({interaction.get_direction_display()}) registrada en el caso '
+                f'{case.code}: {snippet}'
+            ),
+            case_radicado=case.code,
+            ip_address=get_client_ip(request),
+        )
+        messages.success(request, 'Interacción de comunicación registrada exitosamente.')
+    else:
+        messages.error(request, 'Por favor corrija los errores del formulario.')
+
+    return redirect('case_detail', pk=case_id)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 @login_required
 def case_audit_log(request, case_id):

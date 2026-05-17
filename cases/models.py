@@ -172,6 +172,7 @@ class CaseDocument(models.Model):
     def __str__(self):
         return os.path.basename(self.file.name)
 
+
 class Notification(models.Model):
 
     NOTIFICATION_TYPES = [
@@ -224,7 +225,8 @@ class Notification(models.Model):
             self.is_read = True
             self.read_at = timezone.now()
             self.save(update_fields=['is_read', 'read_at'])
-    
+
+
 class CaseAuditLog(models.Model):
 
     ACTION_CHOICES = [
@@ -238,6 +240,7 @@ class CaseAuditLog(models.Model):
         ('REJECTED',       'Caso rechazado'),
         ('CLOSED',         'Caso cerrado'),
         ('VIEWED',         'Caso consultado'),
+        ('COMMUNICATION',  'Interacción de comunicación'),
     ]
 
     case = models.ForeignKey(
@@ -318,3 +321,71 @@ class CaseReassignmentLog(models.Model):
 
     def __str__(self):
         return f'{self.case.code} - reasignado'
+
+
+
+class CommunicationInteraction(models.Model):
+    TYPE_MESSAGE    = 'mensaje'
+    TYPE_CALL       = 'llamada'
+    TYPE_EMAIL      = 'correo'
+    TYPE_PRESENCIAL = 'presencial'
+
+    TYPE_CHOICES = [
+        (TYPE_MESSAGE,    'Mensaje'),
+        (TYPE_CALL,       'Llamada'),
+        (TYPE_EMAIL,      'Correo electrónico'),
+        (TYPE_PRESENCIAL, 'Presencial'),
+    ]
+
+    DIRECTION_IN  = 'entrante'
+    DIRECTION_OUT = 'saliente'
+
+    DIRECTION_CHOICES = [
+        (DIRECTION_IN,  'Entrante'),
+        (DIRECTION_OUT, 'Saliente'),
+    ]
+
+    case = models.ForeignKey(
+        Case,
+        on_delete=models.CASCADE,
+        related_name='interactions',
+        verbose_name='Caso',
+    )
+    registered_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='registered_interactions',
+        verbose_name='Registrado por',
+    )
+    interaction_type = models.CharField(
+        max_length=20,
+        choices=TYPE_CHOICES,
+        verbose_name='Tipo de interacción',
+    )
+    direction = models.CharField(
+        max_length=10,
+        choices=DIRECTION_CHOICES,
+        verbose_name='Dirección',
+    )
+    description = models.TextField(verbose_name='Descripción')
+    timestamp = models.DateTimeField(
+        default=timezone.now,
+        verbose_name='Fecha y hora',
+    )
+
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = 'Interacción de comunicación'
+        verbose_name_plural = 'Interacciones de comunicación'
+        indexes = [
+            models.Index(fields=['case', '-timestamp']),
+        ]
+
+    def __str__(self):
+        return (
+            f'{self.get_interaction_type_display()} — '
+            f'{self.case.code} — '
+            f'{self.timestamp:%d/%m/%Y %H:%M}'
+        )
