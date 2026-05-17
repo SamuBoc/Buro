@@ -1,12 +1,23 @@
 from datetime import datetime
+import io
+import mimetypes
+import os
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Count
-from django.http import JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import landscape, letter
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_PROFESOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
@@ -15,6 +26,7 @@ from accounts.permissions import can_manage_case_deadline, can_reassign_case, ca
 from .forms import CaseDeadlineForm, CaseForm, CaseReassignmentForm, CaseRejectionForm
 from .models import Case, CaseAuditLog, CaseDocument, Notification
 from .services import auto_assign_case, reassign_case
+from core.utils import get_client_ip
 
 
 def _get_user_draft(user):
@@ -553,6 +565,7 @@ def case_report_by_state(request):
         'chart_values': chart_values,
     })
 
+
 @role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
 def case_report_by_sala(request):
     desde_raw = (request.GET.get('desde') or '').strip()
@@ -600,17 +613,6 @@ def case_report_by_sala(request):
         'chart_labels': chart_labels,
         'chart_values': chart_values,
     })
-
-
-import io
-from django.http import HttpResponse
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment
-from reportlab.lib.pagesizes import letter, landscape
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import inch
 
 
 @role_required(ROLE_ADMINISTRADOR)
@@ -736,4 +738,41 @@ def export_cases_pdf(request):
 
     response = HttpResponse(buffer, content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="reporte_casos.pdf"'
+    return response
+
+
+@login_required
+def serve_case_document(request, document_id):
+    """Sirve de forma segura archivos/documentos adjuntos a un caso, validando permisos."""
+
+    document = get_object_or_404(CaseDocument, pk=document_id)
+    case = document.case
+
+    if not can_view_case(request.user, case):
+        CaseAuditLog.objects.create(
+            case=case,
+            user=request.user,
+            action='SECURITY_DENIED',
+            description=(
+                f'Acceso denegado al archivo "{document.file.name}" '
+                f'del caso {case.code} por el usuario {request.user.username}.'
+            ),
+            case_radicado=case.code,
+            ip_address=get_client_ip(request) if 'get_client_ip' in locals() or 'get_client_ip' in globals() else None,
+        )
+        messages.error(request, 'No tienes permiso para acceder a este archivo.')
+        return redirect('case_list')
+
+    file_path = document.file.path
+    if not os.path.exists(file_path):
+        raise Http404('El archivo no existe.')
+
+    mime_type, _ = mimetypes.guess_type(file_path)
+    response = FileResponse(
+        open(file_path, 'rb'),
+        content_type=mime_type or 'application/octet-stream',
+    )
+    response['Content-Disposition'] = (
+        f'inline; filename="{os.path.basename(file_path)}"'
+    )
     return response
