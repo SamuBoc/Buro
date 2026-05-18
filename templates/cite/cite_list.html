@@ -48,19 +48,19 @@
                                 <td class="text-center">{{ cite.request_cite }}</td>
                                 <td class="text-center">
                                     {% if cite.state_cite == 'Pendiente' %}
-                                        <span class="badge rounded-pill badge-icesi-default">{{ cite.get_state_cite_display }}</span>
+                                        <span class="badge rounded-pill badge-icesi-default" id="actual-state-{{ forloop.counter }}">{{ cite.get_state_cite_display }}</span>
                                     {% elif cite.state_cite == 'Confirmada' %}
-                                        <span class="badge rounded-pill badge-icesi-updated">{{ cite.get_state_cite_display }}</span>
+                                        <span class="badge rounded-pill badge-icesi-updated" id="actual-state-{{ forloop.counter }}">{{ cite.get_state_cite_display }}</span>
                                     {% elif cite.state_cite == 'Cancelada' %}
-                                        <span class="badge rounded-pill badge-icesi-deleted">{{ cite.get_state_cite_display }}</span>
+                                        <span class="badge rounded-pill badge-icesi-deleted" id="actual-state-{{ forloop.counter }}">{{ cite.get_state_cite_display }}</span>
                                     {% elif cite.state_cite == 'Atendida' %}
-                                        <span class="badge rounded-pill badge-icesi-status">{{ cite.get_state_cite_display }}</span>
+                                        <span class="badge rounded-pill badge-icesi-status" id="actual-state-{{ forloop.counter }}">{{ cite.get_state_cite_display }}</span>
                                     {% elif cite.state_cite == 'Asistió' %}
-                                        <span class="badge rounded-pill badge-icesi-created">{{ cite.get_state_cite_display }}</span>
+                                        <span class="badge rounded-pill badge-icesi-created" id="actual-state-{{ forloop.counter }}">{{ cite.get_state_cite_display }}</span>
                                     {% elif cite.state_cite == 'No asistió' %}
-                                        <span class="badge rounded-pill badge-icesi-status">{{ cite.get_state_cite_display }}</span>
+                                        <span class="badge rounded-pill badge-icesi-status" id="actual-state-{{ forloop.counter }}">{{ cite.get_state_cite_display }}</span>
                                     {% else %}
-                                        <span class="badge rounded-pill badge-icesi-default">{{ cite.get_state_cite_display }}</span>
+                                        <span class="badge rounded-pill badge-icesi-default" id="actual-state-{{ forloop.counter }}">{{ cite.get_state_cite_display }}</span>
                                     {% endif %}
                                 </td>
                                 <td class="text-center">{{ cite.description }}</td>
@@ -91,7 +91,7 @@
 
                                         <form class="mt-2 d-grid confirm-action" method="POST" action="{% url 'cancel_cite' pk=cite.id %}" data-title="Confirmar cancelacion" data-message="Vas a cancelar la cita." data-cite-id="{{ cite.id }}" data-cite-date="{{ cite.date_assigned }}" data-beneficiary="{{ cite.beneficiary.name }}">
                                             {% csrf_token %}
-                                            <button type="submit" class="btn btn-secondary btn-sm w-100">
+                                            <button type="submit" class="btn btn-secondary btn-sm w-100" id="cancel-cite">
                                                 <i class="bi bi-x-lg me-1"></i>Cancelar
                                             </button>
                                         </form>

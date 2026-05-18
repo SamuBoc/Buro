@@ -1,4 +1,4 @@
-Feature: Cite Managments
+Feature: Cite Managment
   
   Scenario: Reschedule Cite
     Given There is a cite assigned
