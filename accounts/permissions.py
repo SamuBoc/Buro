@@ -56,3 +56,15 @@ def can_manage_case_deadline(user):
 
     roles = _user_roles(user)
     return bool(roles.intersection({ROLE_ADMINISTRADOR, ROLE_SECRETARIA, ROLE_PROFESOR}))
+
+def can_add_interaction(user, case):
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    roles = _user_roles(user)
+    if roles.intersection({ROLE_ADMINISTRADOR, ROLE_SECRETARIA, ROLE_PROFESOR}):
+        return True
+    if ROLE_ESTUDIANTE in roles and case.assigned_student_id == user.id:
+        return True
+    return False

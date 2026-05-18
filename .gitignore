@@ -1,25 +1,33 @@
 # Venv
 venv/
 
-# Python
+# --- Python ---
 __pycache__/
 *.py[cod]
 *$py.class
 *.pyc
 
-# Django
+# --- Django (Archivos locales de desarrollo) ---
 *.log
 *.sqlite3
 db.sqlite3
+.env
+
+# --- Archivos Multimedia y Estáticos locales ---
 media/
+test_media/
 staticfiles/
 
-# IDEs
+# --- IDEs y Editores ---
 .idea/
 .vscode/
 *.swp
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
 
-# OS
+# --- Sistema Operativo ---
 .DS_Store
 Thumbs.db
 db.sqlite3

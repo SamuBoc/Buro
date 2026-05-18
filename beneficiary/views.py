@@ -136,7 +136,7 @@ def global_beneficiary_audit_log(request):
     })
 
 
-@login_required
+@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
 def data_deletion_request_create(request, pk):
     beneficiary = get_object_or_404(Beneficiary, pk=pk)
 
@@ -175,7 +175,7 @@ def data_deletion_request_create(request, pk):
     })
 
 
-@role_required(ROLE_ADMINISTRADOR)
+@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
 def data_deletion_request_list(request):
     status_filter  = (request.GET.get('status') or '').strip()
     valid_statuses = {value for value, _ in DataDeletionRequest.STATUS_CHOICES}
