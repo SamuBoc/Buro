@@ -39,7 +39,7 @@
                         <td>{{ student.email|default:'Sin correo' }}</td>
                         <td>{{ student.profile.student_code|default:'Sin codigo' }}</td>
                         <td>{{ student.profile.max_cases }}</td>
-                        <td>{{ student.profile.active_cases }}</td>
+                        <td>{{ student.active_cases_count }}</td>
                         <td>
                             {% if student.profile.availability %}
                             <span class="badge bg-success">Disponible</span>

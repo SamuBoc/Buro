@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group, User
 from django.db import transaction
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, render, redirect
 
 from .constants import ROLE_ADMINISTRADOR, ROLE_ESTUDIANTE, ROLE_SECRETARIA
@@ -55,7 +56,13 @@ def academic_student_register(request):
 def academic_student_list(request):
     students = User.objects.filter(
         groups__name=ROLE_ESTUDIANTE
-    ).select_related('profile').distinct().order_by('first_name', 'last_name', 'username')
+    ).select_related('profile').annotate(
+        active_cases_count=Count(
+            'assigned_cases',
+            filter=~Q(assigned_cases__status='borrador'),
+            distinct=True,
+        )
+    ).distinct().order_by('first_name', 'last_name', 'username')
 
     return render(request, 'accounts/academic_student_list.html', {
         'students': students,
@@ -74,4 +81,5 @@ def academic_student_detail(request, pk):
     return render(request, 'accounts/academic_student_detail.html', {
         'student': student,
         'assigned_cases': assigned_cases,
+        'active_cases_count': assigned_cases.count(),
     })

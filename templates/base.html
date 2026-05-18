@@ -135,6 +135,14 @@
                         <i class="bi bi-person-plus-fill sidebar-icon" aria-hidden="true"></i>
                         <span class="sidebar-label">Registrar Beneficiario</span>
                     </a>
+                    <a class="sidebar-link" href="{% url 'academic_student_list' %}">
+                        <i class="bi bi-mortarboard-fill sidebar-icon" aria-hidden="true"></i>
+                        <span class="sidebar-label">Estudiantes</span>
+                    </a>
+                    <a class="sidebar-link" href="{% url 'academic_student_register' %}">
+                        <i class="bi bi-person-badge-fill sidebar-icon" aria-hidden="true"></i>
+                        <span class="sidebar-label">Registrar Estudiante</span>
+                    </a>
                     <a class="sidebar-link" href="{% url 'case_create' %}">
                         <i class="bi bi-folder-plus sidebar-icon" aria-hidden="true"></i>
                         <span class="sidebar-label">Nuevo Caso</span>
@@ -211,6 +219,12 @@
                     {% if 'secretaria' in user_roles or 'administrador' in user_roles %}
                     <a class="mobile-link" href="{% url 'beneficiary_register' %}">
                         <i class="bi bi-person-plus-fill me-2" aria-hidden="true"></i>Registrar Beneficiario
+                    </a>
+                    <a class="mobile-link" href="{% url 'academic_student_list' %}">
+                        <i class="bi bi-mortarboard-fill me-2" aria-hidden="true"></i>Estudiantes
+                    </a>
+                    <a class="mobile-link" href="{% url 'academic_student_register' %}">
+                        <i class="bi bi-person-badge-fill me-2" aria-hidden="true"></i>Registrar Estudiante
                     </a>
                     <a class="mobile-link" href="{% url 'case_create' %}">
                         <i class="bi bi-folder-plus me-2" aria-hidden="true"></i>Nuevo Caso
