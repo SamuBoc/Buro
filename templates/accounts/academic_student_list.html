@@ -27,6 +27,7 @@
                         <th>Casos activos</th>
                         <th>Disponibilidad</th>
                         <th>Sala preferente</th>
+                        <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -47,6 +48,11 @@
                             {% endif %}
                         </td>
                         <td>{{ student.profile.get_preferred_room_display|default:'Sin preferencia' }}</td>
+                        <td class="text-center">
+                            <a href="{% url 'academic_student_detail' student.pk %}" class="btn btn-sm btn-secondary">
+                                <i class="bi bi-eye"></i> Ver
+                            </a>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
