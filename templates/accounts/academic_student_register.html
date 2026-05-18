@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block title %}Registrar estudiante - Buro Juridico{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="page-header d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="mb-0"><i class="bi bi-mortarboard-fill me-2"></i>Registrar estudiante</h4>
+                <small class="opacity-75">Gestion academica de estudiantes del consultorio.</small>
+            </div>
+            <a href="{% url 'academic_student_list' %}" class="btn btn-light btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Volver al listado
+            </a>
+        </div>
+
+        <div class="card">
+            <div class="card-body p-4">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.first_name.label }}</label>
+                            {{ form.first_name }}
+                            {% for error in form.first_name.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.last_name.label }}</label>
+                            {{ form.last_name }}
+                            {% for error in form.last_name.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.email.label }}</label>
+                            {{ form.email }}
+                            {% for error in form.email.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.username.label }}</label>
+                            {{ form.username }}
+                            <div class="form-text">{{ form.username.help_text }}</div>
+                            {% for error in form.username.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.student_code.label }}</label>
+                            {{ form.student_code }}
+                            {% for error in form.student_code.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.max_cases.label }}</label>
+                            {{ form.max_cases }}
+                            {% for error in form.max_cases.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.preferred_room.label }}</label>
+                            {{ form.preferred_room }}
+                            {% for error in form.preferred_room.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.password.label }}</label>
+                            {{ form.password }}
+                            {% for error in form.password.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                {{ form.availability }}
+                                <label class="form-check-label" for="{{ form.availability.id_for_label }}">
+                                    {{ form.availability.label }}
+                                </label>
+                            </div>
+                            {% for error in form.availability.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                        </div>
+                    </div>
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger mt-3 mb-0">
+                            {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <a href="{% url 'academic_student_list' %}" class="btn btn-outline-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-1"></i>Registrar estudiante
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

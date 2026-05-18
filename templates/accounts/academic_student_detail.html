@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}Detalle del estudiante - Buro Juridico{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-10">
+        <div class="page-header d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="mb-0"><i class="bi bi-mortarboard-fill me-2"></i>Detalle del estudiante</h4>
+                <small class="opacity-75">Consulta la carga academica y los casos actualmente asignados.</small>
+            </div>
+            <a href="{% url 'academic_student_list' %}" class="btn btn-light btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Volver al listado
+            </a>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body p-4">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="small text-muted">Nombre</div>
+                        <div class="fw-semibold fs-5">{{ student.get_full_name|default:student.username }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="small text-muted">Correo</div>
+                        <div class="fw-semibold">{{ student.email|default:'Sin correo' }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="small text-muted">Nombre de usuario</div>
+                        <div class="fw-semibold">{{ student.username }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="small text-muted">Codigo estudiantil</div>
+                        <div class="fw-semibold">{{ student.profile.student_code|default:'Sin codigo' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="small text-muted">Carga academica maxima</div>
+                        <div class="fw-semibold">{{ student.profile.max_cases }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="small text-muted">Casos activos</div>
+                        <div class="fw-semibold">{{ active_cases_count }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="small text-muted">Disponibilidad</div>
+                        <div>
+                            {% if student.profile.availability %}
+                            <span class="badge bg-success">Disponible</span>
+                            {% else %}
+                            <span class="badge bg-secondary">No disponible</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="small text-muted">Sala preferente</div>
+                        <div class="fw-semibold">{{ student.profile.get_preferred_room_display|default:'Sin preferencia' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-folder2-open me-2"></i>Casos asignados</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if assigned_cases %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">Codigo</th>
+                                <th>Beneficiario</th>
+                                <th>Sala</th>
+                                <th>Estado</th>
+                                <th>Fecha de creacion</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for case in assigned_cases %}
+                            <tr>
+                                <td class="ps-4 fw-semibold">{{ case.code }}</td>
+                                <td>{{ case.beneficiary.name|default:'Sin beneficiario' }}</td>
+                                <td>{{ case.get_sala_display|default:'Sin sala' }}</td>
+                                <td>{{ case.state }}</td>
+                                <td>{{ case.created_at|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-folder-x display-5"></i>
+                    <p class="mt-3 mb-0">Este estudiante no tiene casos asignados actualmente.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
