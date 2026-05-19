@@ -1,8 +1,5 @@
-# --- Entornos Virtuales ---
-# Ignora tanto la carpeta por defecto del proyecto como la que acabamos de crear ('env')
-Gestion_de_Casos_T4/venv/
-env/
-.venv/
+# Venv
+venv/
 
 # --- Python ---
 __pycache__/
@@ -33,3 +30,11 @@ staticfiles/
 # --- Sistema Operativo ---
 .DS_Store
 Thumbs.db
+db.sqlite3
+media/
+test_media/
+staticfiles/
+.env
+
+#Selenium
+chromedriver.exe

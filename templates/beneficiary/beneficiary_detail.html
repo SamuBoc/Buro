@@ -92,10 +92,10 @@
                     <a href="{% url 'beneficiary_register' %}" class="btn btn-primary">
                         <i class="bi bi-person-plus-fill me-1"></i> Registrar otro
                     </a>
-                    <a href="{% url 'create_cite' beneficiary.pk %}" class="btn btn-outline-primary">
+                    <a href="{% url 'create_cite' beneficiary.pk %}" class="btn btn-outline-primary" id="new-cite">
                         <i class="bi bi-calendar-plus me-1"></i> Agendar cita
                     </a>
-                    <a href="{% url 'beneficiary_cites' beneficiary.pk %}" class="btn btn-outline-primary">
+                    <a href="{% url 'beneficiary_cites' beneficiary.pk %}" class="btn btn-outline-primary" id="see-cites">
                         <i class="bi bi-calendar-week me-1"></i> Ver citas
                     </a>
                     {% endif %}
