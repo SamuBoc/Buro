@@ -1,4 +1,7 @@
 from datetime import datetime
+import io
+import mimetypes
+import os
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -11,11 +14,25 @@ from django.utils import timezone
 
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_ESTUDIANTE, ROLE_PROFESOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
-from accounts.permissions import can_manage_case_deadline, can_reassign_case, can_view_case
+from accounts.permissions import (
+    can_add_interaction,   
+    can_manage_case_deadline,
+    can_reassign_case,
+    can_view_case,
+)
+from core.utils import get_client_ip 
 
-from .forms import CaseDeadlineForm, CaseForm, CaseReassignmentForm, CaseRejectionForm
+from .forms import (
+    CaseDeadlineForm,
+    CaseForm,
+    CaseReassignmentForm,
+    CaseRejectionForm,
+    CommunicationInteractionForm, 
+)
 from .models import Case, CaseAuditLog, CaseDocument, Notification
+
 from .services import auto_assign_case, reassign_case
+from core.utils import get_client_ip
 
 User = get_user_model()
 
@@ -468,7 +485,13 @@ def case_detail(request, pk):
     case = get_object_or_404(
         Case.objects
         .select_related('beneficiary', 'assigned_student')
-        .prefetch_related('documents', 'reassignment_logs__changed_by', 'reassignment_logs__old_student', 'reassignment_logs__new_student'),
+        .prefetch_related(
+            'documents',
+            'reassignment_logs__changed_by',
+            'reassignment_logs__old_student',
+            'reassignment_logs__new_student',
+            'interactions__registered_by',    
+        ),
         pk=pk
     )
 
@@ -480,9 +503,12 @@ def case_detail(request, pk):
         'case': case,
         'can_reassign': can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
+        'can_add_interaction': can_add_interaction(request.user, case),               
         'deadline_form': CaseDeadlineForm(instance=case),
         'reassignment_form': CaseReassignmentForm(case=case),
         'rejection_form': CaseRejectionForm(instance=case),
+        'interaction_form': CommunicationInteractionForm(),                             
+        'interactions': case.interactions.select_related('registered_by').order_by('-timestamp'),
     })
 
 
@@ -510,9 +536,12 @@ def case_update_deadline(request, pk):
         'case': case,
         'can_reassign': can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
+        'can_add_interaction': can_add_interaction(request.user, case),
         'deadline_form': form,
         'reassignment_form': CaseReassignmentForm(case=case),
         'rejection_form': CaseRejectionForm(instance=case),
+        'interaction_form': CommunicationInteractionForm(),
+        'interactions': case.interactions.select_related('registered_by').order_by('-timestamp'),
     })
 
 
@@ -544,9 +573,12 @@ def case_reassign(request, pk):
         'case': case,
         'can_reassign': can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
+        'can_add_interaction': can_add_interaction(request.user, case),
         'deadline_form': CaseDeadlineForm(instance=case),
         'reassignment_form': form,
         'rejection_form': CaseRejectionForm(instance=case),
+        'interaction_form': CommunicationInteractionForm(),
+        'interactions': case.interactions.select_related('registered_by').order_by('-timestamp'),
     })
 
 
@@ -586,11 +618,61 @@ def case_reject(request, pk):
         'case': case,
         'can_reassign': can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
+        'can_add_interaction': can_add_interaction(request.user, case),
         'deadline_form': CaseDeadlineForm(instance=case),
         'reassignment_form': CaseReassignmentForm(case=case),
         'rejection_form': form,
+        'interaction_form': CommunicationInteractionForm(),
+        'interactions': case.interactions.select_related('registered_by').order_by('-timestamp'),
     })
 
+
+
+@login_required
+def case_add_interaction(request, case_id):
+    case = get_object_or_404(
+        Case.objects.select_related('beneficiary', 'assigned_student'),
+        pk=case_id,
+    )
+
+    if not can_add_interaction(request.user, case):
+        messages.error(request, 'No tienes permiso para registrar interacciones en este caso.')
+        return redirect('case_detail', pk=case_id)
+
+    if request.method != 'POST':
+        return redirect('case_detail', pk=case_id)
+
+    form = CommunicationInteractionForm(request.POST)
+    if form.is_valid():
+        interaction = form.save(commit=False)
+        interaction.case = case
+        interaction.registered_by = request.user
+        interaction.save()
+
+        snippet = interaction.description[:100]
+        if len(interaction.description) > 100:
+            snippet += '...'
+
+        CaseAuditLog.objects.create(
+            case=case,
+            user=request.user,
+            action='COMMUNICATION',
+            description=(
+                f'{interaction.get_interaction_type_display()} '
+                f'({interaction.get_direction_display()}) registrada en el caso '
+                f'{case.code}: {snippet}'
+            ),
+            case_radicado=case.code,
+            ip_address=get_client_ip(request),
+        )
+        messages.success(request, 'Interacción de comunicación registrada exitosamente.')
+    else:
+        messages.error(request, 'Por favor corrija los errores del formulario.')
+
+    return redirect('case_detail', pk=case_id)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 @login_required
 def case_audit_log(request, case_id):
@@ -758,6 +840,7 @@ def case_report_by_state(request):
         'chart_values': chart_values,
     })
 
+
 @role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
 def case_report_by_sala(request):
     desde_raw = (request.GET.get('desde') or '').strip()
@@ -805,17 +888,6 @@ def case_report_by_sala(request):
         'chart_labels': chart_labels,
         'chart_values': chart_values,
     })
-
-
-import io
-from django.http import HttpResponse
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment
-from reportlab.lib.pagesizes import letter, landscape
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import inch
 
 
 @role_required(ROLE_ADMINISTRADOR)
@@ -1101,4 +1173,39 @@ def export_academic_dashboard_pdf(request):
 
     response = HttpResponse(buffer, content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="reporte_panel_academico.pdf"'
+    return response
+@login_required
+def serve_case_document(request, document_id):
+    """Sirve de forma segura archivos/documentos adjuntos a un caso, validando permisos."""
+
+    document = get_object_or_404(CaseDocument, pk=document_id)
+    case = document.case
+
+    if not can_view_case(request.user, case):
+        CaseAuditLog.objects.create(
+            case=case,
+            user=request.user,
+            action='SECURITY_DENIED',
+            description=(
+                f'Acceso denegado al archivo "{document.file.name}" '
+                f'del caso {case.code} por el usuario {request.user.username}.'
+            ),
+            case_radicado=case.code,
+            ip_address=get_client_ip(request) if 'get_client_ip' in locals() or 'get_client_ip' in globals() else None,
+        )
+        messages.error(request, 'No tienes permiso para acceder a este archivo.')
+        return redirect('case_list')
+
+    file_path = document.file.path
+    if not os.path.exists(file_path):
+        raise Http404('El archivo no existe.')
+
+    mime_type, _ = mimetypes.guess_type(file_path)
+    response = FileResponse(
+        open(file_path, 'rb'),
+        content_type=mime_type or 'application/octet-stream',
+    )
+    response['Content-Disposition'] = (
+        f'inline; filename="{os.path.basename(file_path)}"'
+    )
     return response

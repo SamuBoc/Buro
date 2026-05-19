@@ -172,13 +172,13 @@ class CaseDocument(models.Model):
     def __str__(self):
         return os.path.basename(self.file.name)
 
-class Notification(models.Model):
 
+class Notification(models.Model):
     NOTIFICATION_TYPES = [
         ('STATUS_CHANGE', 'Cambio de estado'),
-        ('ASSIGNMENT',    'Asignación de estudiante'),
-        ('DEADLINE',      'Alerta de vencimiento'),
-        ('GENERAL',       'Información general'),
+        ('ASSIGNMENT', 'Asignacion de estudiante'),
+        ('DEADLINE', 'Alerta de vencimiento'),
+        ('GENERAL', 'Informacion general'),
     ]
 
     recipient_user = models.ForeignKey(
@@ -194,21 +194,21 @@ class Notification(models.Model):
         verbose_name='Caso relacionado',
     )
     notification_type = models.CharField(
-        max_length=20, choices=NOTIFICATION_TYPES, default='STATUS_CHANGE'
+        max_length=20,
+        choices=NOTIFICATION_TYPES,
+        default='STATUS_CHANGE'
     )
-    title   = models.CharField(max_length=200, verbose_name='Título')
+    title = models.CharField(max_length=200, verbose_name='Titulo')
     message = models.TextField(verbose_name='Mensaje')
-
     previous_status = models.CharField(max_length=50, blank=True, null=True)
-    new_status      = models.CharField(max_length=50, blank=True, null=True)
-
-    is_read    = models.BooleanField(default=False, verbose_name='Leída')
+    new_status = models.CharField(max_length=50, blank=True, null=True)
+    is_read = models.BooleanField(default=False, verbose_name='Leida')
     created_at = models.DateTimeField(default=timezone.now, verbose_name='Creada el')
-    read_at    = models.DateTimeField(null=True, blank=True, verbose_name='Leída el')
+    read_at = models.DateTimeField(null=True, blank=True, verbose_name='Leida el')
 
     class Meta:
         ordering = ['-created_at']
-        verbose_name = 'Notificación'
+        verbose_name = 'Notificacion'
         verbose_name_plural = 'Notificaciones'
         indexes = [
             models.Index(fields=['recipient_user', 'is_read']),
@@ -216,28 +216,30 @@ class Notification(models.Model):
         ]
 
     def __str__(self):
-        estado = 'Leída' if self.is_read else 'No leída'
-        return f"[{estado}] {self.title} → {self.recipient_user.get_full_name()}"
+        estado = 'Leida' if self.is_read else 'No leida'
+        return f'[{estado}] {self.title} -> {self.recipient_user.get_full_name()}'
 
     def mark_as_read(self):
         if not self.is_read:
             self.is_read = True
             self.read_at = timezone.now()
             self.save(update_fields=['is_read', 'read_at'])
-    
-class CaseAuditLog(models.Model):
 
+
+class CaseAuditLog(models.Model):
     ACTION_CHOICES = [
-        ('CREATED',        'Caso creado'),
-        ('UPDATED',        'Caso actualizado'),
-        ('STATUS_CHANGED', 'Estado cambiado'),
-        ('ASSIGNED',       'Estudiante asignado'),
-        ('REASSIGNED',     'Caso reasignado'),
-        ('FILE_UPLOADED',  'Archivo adjuntado'),
-        ('FILE_DELETED',   'Archivo eliminado'),
-        ('REJECTED',       'Caso rechazado'),
-        ('CLOSED',         'Caso cerrado'),
-        ('VIEWED',         'Caso consultado'),
+        ('CREATED',         'Caso creado'),
+        ('UPDATED',         'Caso actualizado'),
+        ('STATUS_CHANGED',  'Estado cambiado'),
+        ('ASSIGNED',        'Estudiante asignado'),
+        ('REASSIGNED',      'Caso reasignado'),
+        ('FILE_UPLOADED',   'Archivo adjuntado'),
+        ('FILE_DELETED',    'Archivo eliminado'),
+        ('REJECTED',        'Caso rechazado'),
+        ('CLOSED',          'Caso cerrado'),
+        ('VIEWED',          'Caso consultado'),
+        ('SECURITY_DENIED', 'Acceso denegado'),
+        ('COMMUNICATION',   'Interacción de comunicación'),
     ]
 
     case = models.ForeignKey(
@@ -254,18 +256,18 @@ class CaseAuditLog(models.Model):
         blank=True,
         verbose_name='Usuario responsable',
     )
-    action          = models.CharField(max_length=20, choices=ACTION_CHOICES, verbose_name='Acción')
-    description     = models.TextField(verbose_name='Descripción de la acción')
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES, verbose_name='Accion')
+    description = models.TextField(verbose_name='Descripcion de la accion')
     previous_status = models.CharField(max_length=50, blank=True, null=True, verbose_name='Estado anterior')
-    new_status      = models.CharField(max_length=50, blank=True, null=True, verbose_name='Estado nuevo')
-    case_radicado   = models.CharField(max_length=50, blank=True, verbose_name='Radicado del caso')
-    timestamp       = models.DateTimeField(default=timezone.now, verbose_name='Fecha y hora')
-    ip_address      = models.GenericIPAddressField(null=True, blank=True, verbose_name='Dirección IP')
+    new_status = models.CharField(max_length=50, blank=True, null=True, verbose_name='Estado nuevo')
+    case_radicado = models.CharField(max_length=50, blank=True, verbose_name='Radicado del caso')
+    timestamp = models.DateTimeField(default=timezone.now, verbose_name='Fecha y hora')
+    ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name='Direccion IP')
 
     class Meta:
         ordering = ['-timestamp']
-        verbose_name = 'Bitácora de Caso'
-        verbose_name_plural = 'Bitácora de Casos'
+        verbose_name = 'Bitacora de Caso'
+        verbose_name_plural = 'Bitacora de Casos'
         indexes = [
             models.Index(fields=['case', '-timestamp']),
             models.Index(fields=['user', '-timestamp']),
@@ -274,7 +276,7 @@ class CaseAuditLog(models.Model):
 
     def __str__(self):
         user_str = self.user.get_full_name() if self.user else 'Sistema'
-        return f"[{self.timestamp:%d/%m/%Y %H:%M}] {user_str} — {self.get_action_display()} — {self.case_radicado}"
+        return f'[{self.timestamp:%d/%m/%Y %H:%M}] {user_str} - {self.get_action_display()} - {self.case_radicado}'
 
 
 class CaseReassignmentLog(models.Model):
@@ -318,3 +320,70 @@ class CaseReassignmentLog(models.Model):
 
     def __str__(self):
         return f'{self.case.code} - reasignado'
+
+
+class CommunicationInteraction(models.Model):
+    TYPE_MESSAGE = 'mensaje'
+    TYPE_CALL = 'llamada'
+    TYPE_EMAIL = 'correo'
+    TYPE_PRESENCIAL = 'presencial'
+
+    TYPE_CHOICES = [
+        (TYPE_MESSAGE, 'Mensaje'),
+        (TYPE_CALL, 'Llamada'),
+        (TYPE_EMAIL, 'Correo electronico'),
+        (TYPE_PRESENCIAL, 'Presencial'),
+    ]
+
+    DIRECTION_IN = 'entrante'
+    DIRECTION_OUT = 'saliente'
+
+    DIRECTION_CHOICES = [
+        (DIRECTION_IN, 'Entrante'),
+        (DIRECTION_OUT, 'Saliente'),
+    ]
+
+    case = models.ForeignKey(
+        Case,
+        on_delete=models.CASCADE,
+        related_name='interactions',
+        verbose_name='Caso',
+    )
+    registered_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='registered_interactions',
+        verbose_name='Registrado por',
+    )
+    interaction_type = models.CharField(
+        max_length=20,
+        choices=TYPE_CHOICES,
+        verbose_name='Tipo de interaccion',
+    )
+    direction = models.CharField(
+        max_length=10,
+        choices=DIRECTION_CHOICES,
+        verbose_name='Direccion',
+    )
+    description = models.TextField(verbose_name='Descripcion')
+    timestamp = models.DateTimeField(
+        default=timezone.now,
+        verbose_name='Fecha y hora',
+    )
+
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = 'Interaccion de comunicacion'
+        verbose_name_plural = 'Interacciones de comunicacion'
+        indexes = [
+            models.Index(fields=['case', '-timestamp']),
+        ]
+
+    def __str__(self):
+        return (
+            f'{self.get_interaction_type_display()} - '
+            f'{self.case.code} - '
+            f'{self.timestamp:%d/%m/%Y %H:%M}'
+        )

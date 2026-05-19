@@ -231,6 +231,78 @@
                 {% endif %}
             </div>
         </div>
+
+        {% if can_add_interaction %}
+        <div class="card mt-4">
+            <div class="card-body p-4">
+                <h5 class="mb-3"><i class="bi bi-chat-dots me-2"></i>Registrar interacción de comunicación</h5>
+                <form method="post" action="{% url 'case_add_interaction' case.pk %}">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{{ interaction_form.interaction_type.label }}</label>
+                            {{ interaction_form.interaction_type }}
+                            {% if interaction_form.interaction_type.errors %}
+                                <div class="text-danger small mt-1">{{ interaction_form.interaction_type.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ interaction_form.direction.label }}</label>
+                            {{ interaction_form.direction }}
+                            {% if interaction_form.direction.errors %}
+                                <div class="text-danger small mt-1">{{ interaction_form.direction.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">{{ interaction_form.description.label }}</label>
+                            {{ interaction_form.description }}
+                            {% if interaction_form.description.errors %}
+                                <div class="text-danger small mt-1">{{ interaction_form.description.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="d-grid mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-plus-circle me-1"></i>Registrar interacción
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- HU-21: Historial de comunicaciones -->
+        <div class="card mt-4">
+            <div class="card-body p-4">
+                <h5 class="mb-3"><i class="bi bi-chat-square-text me-2"></i>Historial de comunicaciones</h5>
+                {% if interactions %}
+                    <div class="list-group">
+                        {% for interaction in interactions %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <span class="badge bg-secondary me-2">{{ interaction.get_interaction_type_display }}</span>
+                                        <span class="badge bg-light text-dark border me-2">{{ interaction.get_direction_display }}</span>
+                                        <span class="fw-semibold small">
+                                            {% if interaction.registered_by %}
+                                                {{ interaction.registered_by.get_full_name|default:interaction.registered_by.username }}
+                                            {% else %}
+                                                Sistema
+                                            {% endif %}
+                                        </span>
+                                        <p class="mb-0 mt-1 text-muted small">{{ interaction.description }}</p>
+                                    </div>
+                                    <small class="text-muted text-nowrap ms-3">{{ interaction.timestamp|date:"d/m/Y H:i" }}</small>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">Este caso no tiene interacciones de comunicación registradas.</p>
+                {% endif %}
+            </div>
+        </div>
+
     </div>
 </div>
 {% endblock %}
