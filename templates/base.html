@@ -135,10 +135,6 @@
                         <i class="bi bi-person-plus-fill sidebar-icon" aria-hidden="true"></i>
                         <span class="sidebar-label">Registrar Beneficiario</span>
                     </a>
-                    <a class="sidebar-link" href="{% url 'academic_student_list' %}">
-                        <i class="bi bi-mortarboard-fill sidebar-icon" aria-hidden="true"></i>
-                        <span class="sidebar-label">Estudiantes</span>
-                    </a>
                     <a class="sidebar-link" href="{% url 'academic_student_register' %}">
                         <i class="bi bi-person-badge-fill sidebar-icon" aria-hidden="true"></i>
                         <span class="sidebar-label">Registrar Estudiante</span>
@@ -154,6 +150,20 @@
                     <a class="sidebar-link" href="{% url 'cite_attendance_report' %}">
                         <i class="bi bi-clipboard-data-fill sidebar-icon" aria-hidden="true"></i>
                         <span class="sidebar-label">Metricas de Asistencia</span>
+                    </a>
+                    {% endif %}
+
+                    {% if 'administrador' in user_roles or 'secretaria' in user_roles %}
+                    <a class="sidebar-link" href="{% url 'academic_student_list' %}">
+                        <i class="bi bi-mortarboard-fill sidebar-icon" aria-hidden="true"></i>
+                        <span class="sidebar-label">Estudiantes</span>
+                    </a>
+                    {% endif %}
+
+                    {% if 'administrador' in user_roles or 'profesor' in user_roles %}
+                    <a class="sidebar-link" href="{% url 'academic_student_history_list' %}">
+                        <i class="bi bi-journal-text sidebar-icon" aria-hidden="true"></i>
+                        <span class="sidebar-label">Historial academico</span>
                     </a>
                     {% endif %}
 
@@ -224,9 +234,6 @@
                     <a class="mobile-link" href="{% url 'beneficiary_register' %}">
                         <i class="bi bi-person-plus-fill me-2" aria-hidden="true"></i>Registrar Beneficiario
                     </a>
-                    <a class="mobile-link" href="{% url 'academic_student_list' %}">
-                        <i class="bi bi-mortarboard-fill me-2" aria-hidden="true"></i>Estudiantes
-                    </a>
                     <a class="mobile-link" href="{% url 'academic_student_register' %}">
                         <i class="bi bi-person-badge-fill me-2" aria-hidden="true"></i>Registrar Estudiante
                     </a>
@@ -238,6 +245,18 @@
                     </a>
                     <a class="mobile-link" href="{% url 'cite_attendance_report' %}">
                         <i class="bi bi-clipboard-data-fill me-2" aria-hidden="true"></i>Metricas de Asistencia
+                    </a>
+                    {% endif %}
+
+                    {% if 'administrador' in user_roles or 'secretaria' in user_roles %}
+                    <a class="mobile-link" href="{% url 'academic_student_list' %}">
+                        <i class="bi bi-mortarboard-fill me-2" aria-hidden="true"></i>Estudiantes
+                    </a>
+                    {% endif %}
+
+                    {% if 'administrador' in user_roles or 'profesor' in user_roles %}
+                    <a class="mobile-link" href="{% url 'academic_student_history_list' %}">
+                        <i class="bi bi-journal-text me-2" aria-hidden="true"></i>Historial academico
                     </a>
                     {% endif %}
 
