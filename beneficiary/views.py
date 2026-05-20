@@ -193,3 +193,21 @@ def data_deletion_request_list(request):
         'status_choices': DataDeletionRequest.STATUS_CHOICES,
         'current_status': status_filter,
     })
+
+
+from django.core.mail import send_mail
+from django.contrib import messages
+
+@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
+def notify_beneficiary(request, pk, subject, message):
+    beneficiary = get_object_or_404(Beneficiary, pk=pk)
+
+    if subject and message and destEmail:
+        send_mail(
+            subject,
+            message,
+            None,
+            [beneficiary.email]
+        )
+    
+
