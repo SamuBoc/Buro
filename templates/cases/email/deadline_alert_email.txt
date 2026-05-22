@@ -1,0 +1,19 @@
+Consultorio Jurídico ICESI — Alerta de Vencimiento
+
+Estimado/a {{ notification.recipient_user.get_full_name|default:notification.recipient_user.username }},
+
+Le informamos que el caso {{ case_radicado }} está próximo a vencer.
+
+Detalles del caso:
+- Radicado:       {{ case_radicado }}
+- Beneficiario:   {{ beneficiary_name }}
+- Descripción:    {{ case_asunto }}
+- Fecha límite:   {{ deadline_date|date:"d/m/Y" }}
+
+{{ message }}
+
+Por favor tome las acciones necesarias antes de la fecha límite.
+
+Este mensaje es generado automáticamente. No responda a este correo.
+Consultorio Jurídico — Universidad ICESI, Cali, Colombia
+Contacto: {{ support_email }}
