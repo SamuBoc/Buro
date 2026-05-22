@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"></head>
+<body style="font-family:Arial,sans-serif;background:#f4f6f9;margin:0;padding:0;">
+  <div style="max-width:600px;margin:30px auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);">
+
+    <div style="background:#1a3a5c;padding:24px 32px;text-align:center;">
+      <h1 style="color:#fff;font-size:20px;margin:0;">Consultorio Jurídico ICESI</h1>
+      <p style="color:#a0aec0;font-size:13px;margin:4px 0 0;">Asignación de Caso</p>
+    </div>
+
+    <div style="padding:32px;color:#2d3748;font-size:15px;line-height:1.6;">
+      <p>Estimado/a <strong>{{ notification.recipient_user.get_full_name|default:notification.recipient_user.username }}</strong>,</p>
+      <p>Se le informa que el caso <strong>{{ case_radicado }}</strong> ha sido asignado.</p>
+
+      <div style="background:#f7fafc;border-left:4px solid #1a3a5c;border-radius:4px;padding:16px 20px;margin:20px 0;">
+        <p style="margin:0;"><strong>Radicado:</strong> {{ case_radicado }}</p>
+        <p style="margin:8px 0 0;"><strong>Sala:</strong> {{ case_sala }}</p>
+        <p style="margin:8px 0 0;"><strong>Beneficiario:</strong> {{ beneficiary_name }}</p>
+        <p style="margin:8px 0 0;"><strong>Descripción:</strong> {{ case_asunto }}</p>
+      </div>
+
+      <p>{{ message }}</p>
+
+      <p style="font-size:13px;color:#718096;">
+        Para ver el detalle completo del caso ingrese al sistema.
+      </p>
+    </div>
+
+    <div style="background:#f7fafc;padding:20px 32px;text-align:center;font-size:12px;color:#718096;border-top:1px solid #e2e8f0;">
+      <p>© Consultorio Jurídico ICESI — Universidad ICESI, Cali, Colombia</p>
+      <p>Este mensaje es generado automáticamente. No responda a este correo.</p>
+      <p>Contacto: {{ support_email }}</p>
+    </div>
+
+  </div>
+</body>
+</html>

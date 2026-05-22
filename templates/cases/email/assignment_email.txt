@@ -1,0 +1,19 @@
+Consultorio Jurídico ICESI — Asignación de Caso
+
+Estimado/a {{ notification.recipient_user.get_full_name|default:notification.recipient_user.username }},
+
+Se le informa que el caso {{ case_radicado }} ha sido asignado.
+
+Detalles del caso:
+- Radicado:      {{ case_radicado }}
+- Sala:          {{ case_sala }}
+- Beneficiario:  {{ beneficiary_name }}
+- Descripción:   {{ case_asunto }}
+
+{{ message }}
+
+Para ver el detalle completo del caso ingrese al sistema.
+
+Este mensaje es generado automáticamente. No responda a este correo.
+Consultorio Jurídico — Universidad ICESI, Cali, Colombia
+Contacto: {{ support_email }}
