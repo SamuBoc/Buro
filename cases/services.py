@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Count, F
 from django.utils import timezone
 
 from accounts.constants import (
@@ -11,13 +12,13 @@ from accounts.constants import (
     ROLE_SECRETARIA,
 )
 
+from .email_utils import send_deadline_alert_email
 from .models import Case, CaseReassignmentLog, Notification
 
 User = get_user_model()
 
 
 def get_available_student():
-    from django.db.models import Count, F
     return (
         User.objects
         .filter(is_active=True, groups__name=ROLE_ESTUDIANTE)
@@ -26,23 +27,6 @@ def get_available_student():
         .order_by('current_load', 'id')
         .first()
     )
-
-
-def _notify_assignment(case, student):
-    """Crea notificaciones ASSIGNMENT para el estudiante y profesores activos."""
-    recipients = _get_assignment_recipients(case, student)
-    for recipient in recipients:
-        Notification.objects.create(
-            recipient_user=recipient,
-            case=case,
-            notification_type='ASSIGNMENT',
-            title=f'Caso {case.code} asignado',
-            message=(
-                f'El caso {case.code} '
-                f'(Beneficiario: {case.beneficiary.name if case.beneficiary else "Sin beneficiario"}) '
-                f'ha sido asignado a {student.get_full_name() or student.username}.'
-            ),
-        )
 
 
 def _get_assignment_recipients(case, student):
@@ -68,6 +52,23 @@ def _get_assignment_recipients(case, student):
             recipient_ids.add(user.id)
 
     return recipients
+
+
+def _notify_assignment(case, student):
+    """Crea notificaciones ASSIGNMENT para el estudiante y profesores activos."""
+    recipients = _get_assignment_recipients(case, student)
+    for recipient in recipients:
+        Notification.objects.create(
+            recipient_user=recipient,
+            case=case,
+            notification_type='ASSIGNMENT',
+            title=f'Caso {case.code} asignado',
+            message=(
+                f'El caso {case.code} '
+                f'(Beneficiario: {case.beneficiary.name if case.beneficiary else "Sin beneficiario"}) '
+                f'ha sido asignado a {student.get_full_name() or student.username}.'
+            ),
+        )
 
 
 def auto_assign_case(case):
@@ -99,7 +100,7 @@ def reassign_case(case, new_student, changed_by):
             changed_by=changed_by,
         )
 
-    _notify_assignment(case, new_student)   # HU-28
+    _notify_assignment(case, new_student)
 
     return old_student
 
@@ -127,9 +128,7 @@ def get_deadline_recipients(case):
 
 
 def generate_deadline_alerts(days_ahead=3, reference_date=None):
-    from cases.email_utils import send_deadline_alert_email   # HU-28: import local evita circular
-
-    today      = reference_date or timezone.localdate()
+    today       = reference_date or timezone.localdate()
     alert_limit = today + timedelta(days=days_ahead)
 
     cases = (
@@ -162,7 +161,7 @@ def generate_deadline_alerts(days_ahead=3, reference_date=None):
                     f'Restan {days_remaining} dia(s) para su vencimiento.'
                 ),
             )
-            send_deadline_alert_email(notification)   # HU-28
+            send_deadline_alert_email(notification)
             created_notifications += 1
 
         case.deadline_alert_sent_at = timezone.now()
