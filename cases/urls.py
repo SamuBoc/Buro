@@ -4,6 +4,10 @@ from . import views
 
 urlpatterns = [
     path('', views.case_list, name='case_list'),
+    path('panel-academico/', views.academic_dashboard, name='academic_dashboard'),
+    path('panel-academico/estudiante/<int:student_id>/', views.academic_student_detail, name='academic_student_detail'),
+    path('panel-academico/exportar/excel/', views.export_academic_dashboard_excel, name='academic_dashboard_export_excel'),
+    path('panel-academico/exportar/pdf/', views.export_academic_dashboard_pdf, name='academic_dashboard_export_pdf'),
     path('registrar/', views.case_create, name='case_create'),
     path('borradores/', views.case_draft_list, name='case_draft_list'),
     path('borradores/<int:pk>/editar/', views.case_edit_draft, name='case_edit_draft'),
