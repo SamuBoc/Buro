@@ -68,7 +68,6 @@ class AssignmentNotificationTest(TestCase):
 
     def test_auto_assign_no_notification_when_no_student_available(self):
         case = _make_case()
-        # sin estudiantes disponibles (max_cases=0)
         self.student.profile.max_cases = 0
         self.student.profile.save()
         auto_assign_case(case)
@@ -80,7 +79,7 @@ class AssignmentNotificationTest(TestCase):
         )
 
     def test_reassign_creates_notification_for_new_student(self):
-        student2 = _make_user('est_hu28_b', ROLE_ESTUDIANTE)
+        student2   = _make_user('est_hu28_b', ROLE_ESTUDIANTE)
         secretaria = _make_user('sec_hu28', ROLE_SECRETARIA)
         case = _make_case(student=self.student)
         reassign_case(case, student2, secretaria)
@@ -199,16 +198,16 @@ class DeadlineAlertNotificationTest(TestCase):
 class AssignmentEmailTest(TestCase):
 
     def setUp(self):
-        self.student  = _make_user('est_email', ROLE_ESTUDIANTE, email='est@icesi.edu.co')
-        self.profesor = _make_user('prof_email', ROLE_PROFESOR,  email='prof@icesi.edu.co')
+        self.student  = _make_user('est_email',  ROLE_ESTUDIANTE, email='est@icesi.edu.co')
+        self.profesor = _make_user('prof_email', ROLE_PROFESOR,   email='prof@icesi.edu.co')
 
-    @patch('cases.email_utils.send_case_assignment_email')
+    @patch('cases.signals.send_case_assignment_email')
     def test_assignment_email_called_on_notification_create(self, mock_send):
         case = _make_case()
         auto_assign_case(case)
         self.assertTrue(mock_send.called)
 
-    @patch('cases.email_utils.send_case_assignment_email')
+    @patch('cases.signals.send_case_assignment_email')
     def test_assignment_email_not_called_when_no_student(self, mock_send):
         self.student.profile.max_cases = 0
         self.student.profile.save()
@@ -222,7 +221,7 @@ class DeadlineEmailTest(TestCase):
     def setUp(self):
         self.student = _make_user('est_dl_email', ROLE_ESTUDIANTE, email='est_dl@icesi.edu.co')
 
-    @patch('cases.email_utils.send_deadline_alert_email')
+    @patch('cases.services.send_deadline_alert_email')
     def test_deadline_email_called_on_alert_generation(self, mock_send):
         case = _make_case(student=self.student)
         case.deadline_date = timezone.localdate() + datetime.timedelta(days=2)
@@ -231,11 +230,13 @@ class DeadlineEmailTest(TestCase):
         generate_deadline_alerts(days_ahead=3)
         self.assertTrue(mock_send.called)
 
-    @patch('cases.email_utils.send_deadline_alert_email')
+    @patch('cases.services.send_deadline_alert_email')
     def test_deadline_email_not_called_when_already_sent(self, mock_send):
         case = _make_case(student=self.student)
         case.deadline_date = timezone.localdate() + datetime.timedelta(days=2)
-        case.deadline_alert_sent_at = timezone.now()
-        case.save(update_fields=['deadline_date', 'deadline_alert_sent_at'])
+        case.save(update_fields=['deadline_date'])
+        Case.objects.filter(pk=case.pk).update(
+            deadline_alert_sent_at=timezone.now()
+        )
         generate_deadline_alerts(days_ahead=3)
         mock_send.assert_not_called()
