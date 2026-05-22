@@ -9,6 +9,9 @@ urlpatterns = [
     path('beneficiario/<int:pk>/cancelar', views.cancel_cite, name='cancel_cite'),
     path('beneficiario/<int:pk>/asistencia/<str:status>/', views.register_cite_attendance, name='register_cite_attendance'),
     path('reportes/', views.cite_report, name='cite_report'),
+    path('reportes/asistencia/', views.cite_attendance_report, name='cite_attendance_report'),
+    path('reportes/asistencia/excel/', views.cite_attendance_report_excel, name='cite_attendance_report_excel'),
+    path('reportes/asistencia/pdf/', views.cite_attendance_report_pdf, name='cite_attendance_report_pdf'),
     path('reportes/excel/', views.cite_report_excel, name='cite_report_excel'),
     path('reportes/pdf/', views.cite_report_pdf, name='cite_report_pdf')
 ]

@@ -2,6 +2,7 @@ import io
 from datetime import date, datetime
 
 from django.contrib import messages
+from django.db.models import Count
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -280,4 +281,234 @@ def cite_report_pdf(request):
 
     response = HttpResponse(buffer, content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="reporte_citas.pdf"'
+    return response
+
+
+@role_required(ROLE_ADMINISTRADOR, ROLE_SECRETARIA)
+def cite_attendance_report(request):
+    """HU-38: Metricas de asistencia de citas."""
+    desde_raw = (request.GET.get('desde') or '').strip()
+    hasta_raw = (request.GET.get('hasta') or '').strip()
+
+    cites = Cite.objects.filter(state_cite__in=[Cite.STATE_ATTENDED, Cite.STATE_NO_SHOW])
+
+    if desde_raw:
+        try:
+            cites = cites.filter(
+                date_assigned__gte=datetime.strptime(desde_raw, '%Y-%m-%d').date()
+            )
+        except ValueError:
+            pass
+
+    if hasta_raw:
+        try:
+            cites = cites.filter(
+                date_assigned__lte=datetime.strptime(hasta_raw, '%Y-%m-%d').date()
+            )
+        except ValueError:
+            pass
+
+    counts = {
+        row['state_cite']: row['count']
+        for row in cites.values('state_cite').annotate(count=Count('id'))
+    }
+
+    attended_count = counts.get(Cite.STATE_ATTENDED, 0)
+    no_show_count = counts.get(Cite.STATE_NO_SHOW, 0)
+    total = attended_count + no_show_count
+
+    attendance_percentage = round((attended_count / total) * 100, 1) if total else 0.0
+    no_show_percentage = round((no_show_count / total) * 100, 1) if total else 0.0
+
+    rows = [
+        {
+            'estado': Cite.STATE_ATTENDED,
+            'cantidad': attended_count,
+            'porcentaje': attendance_percentage,
+        },
+        {
+            'estado': Cite.STATE_NO_SHOW,
+            'cantidad': no_show_count,
+            'porcentaje': no_show_percentage,
+        },
+    ]
+
+    chart_labels = [row['estado'] for row in rows]
+    chart_values = [row['cantidad'] for row in rows]
+
+    return render(request, 'cite/cite_attendance_report.html', {
+        'page_title': 'Metricas de asistencia a citas',
+        'rows': rows,
+        'total': total,
+        'attended_count': attended_count,
+        'no_show_count': no_show_count,
+        'attendance_percentage': attendance_percentage,
+        'no_show_percentage': no_show_percentage,
+        'filtro_desde': desde_raw,
+        'filtro_hasta': hasta_raw,
+        'chart_labels': chart_labels,
+        'chart_values': chart_values,
+    })
+
+
+@role_required(ROLE_ADMINISTRADOR, ROLE_SECRETARIA)
+def cite_attendance_report_excel(request):
+    """HU-38: Exporta las metricas de asistencia a Excel."""
+    desde_raw = (request.GET.get('desde') or '').strip()
+    hasta_raw = (request.GET.get('hasta') or '').strip()
+
+    cites = Cite.objects.filter(state_cite__in=[Cite.STATE_ATTENDED, Cite.STATE_NO_SHOW])
+
+    if desde_raw:
+        try:
+            cites = cites.filter(
+                date_assigned__gte=datetime.strptime(desde_raw, '%Y-%m-%d').date()
+            )
+        except ValueError:
+            pass
+
+    if hasta_raw:
+        try:
+            cites = cites.filter(
+                date_assigned__lte=datetime.strptime(hasta_raw, '%Y-%m-%d').date()
+            )
+        except ValueError:
+            pass
+
+    counts = {
+        row['state_cite']: row['count']
+        for row in cites.values('state_cite').annotate(count=Count('id'))
+    }
+
+    attended_count = counts.get(Cite.STATE_ATTENDED, 0)
+    no_show_count = counts.get(Cite.STATE_NO_SHOW, 0)
+    total = attended_count + no_show_count
+
+    attendance_percentage = round((attended_count / total) * 100, 1) if total else 0.0
+    no_show_percentage = round((no_show_count / total) * 100, 1) if total else 0.0
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Metricas'
+
+    headers = ['Estado', 'Cantidad', 'Porcentaje']
+    header_fill = PatternFill(start_color='1A3A5C', end_color='1A3A5C', fill_type='solid')
+    header_font = Font(color='FFFFFF', bold=True)
+
+    for col, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center')
+
+    rows = [
+        (Cite.STATE_ATTENDED, attended_count, f'{attendance_percentage}%'),
+        (Cite.STATE_NO_SHOW, no_show_count, f'{no_show_percentage}%'),
+        ('Total', total, '100%' if total else '0%'),
+    ]
+
+    for row_idx, row in enumerate(rows, start=2):
+        ws.cell(row=row_idx, column=1).value = row[0]
+        ws.cell(row=row_idx, column=2).value = row[1]
+        ws.cell(row=row_idx, column=3).value = row[2]
+
+    col_widths = [22, 12, 14]
+    for col, width in enumerate(col_widths, start=1):
+        ws.column_dimensions[ws.cell(row=1, column=col).column_letter].width = width
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    response = HttpResponse(
+        buffer,
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = 'attachment; filename="reporte_asistencia.xlsx"'
+    return response
+
+
+@role_required(ROLE_ADMINISTRADOR, ROLE_SECRETARIA)
+def cite_attendance_report_pdf(request):
+    """HU-38: Exporta las metricas de asistencia a PDF."""
+    desde_raw = (request.GET.get('desde') or '').strip()
+    hasta_raw = (request.GET.get('hasta') or '').strip()
+
+    cites = Cite.objects.filter(state_cite__in=[Cite.STATE_ATTENDED, Cite.STATE_NO_SHOW])
+
+    if desde_raw:
+        try:
+            cites = cites.filter(
+                date_assigned__gte=datetime.strptime(desde_raw, '%Y-%m-%d').date()
+            )
+        except ValueError:
+            pass
+
+    if hasta_raw:
+        try:
+            cites = cites.filter(
+                date_assigned__lte=datetime.strptime(hasta_raw, '%Y-%m-%d').date()
+            )
+        except ValueError:
+            pass
+
+    counts = {
+        row['state_cite']: row['count']
+        for row in cites.values('state_cite').annotate(count=Count('id'))
+    }
+
+    attended_count = counts.get(Cite.STATE_ATTENDED, 0)
+    no_show_count = counts.get(Cite.STATE_NO_SHOW, 0)
+    total = attended_count + no_show_count
+
+    attendance_percentage = round((attended_count / total) * 100, 1) if total else 0.0
+    no_show_percentage = round((no_show_count / total) * 100, 1) if total else 0.0
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(letter),
+        rightMargin=0.5 * inch,
+        leftMargin=0.5 * inch,
+        topMargin=0.5 * inch,
+        bottomMargin=0.5 * inch,
+    )
+
+    styles = getSampleStyleSheet()
+    elements = []
+
+    elements.append(Paragraph(
+        '<b>Reporte de Metricas de Asistencia — Buró Juridico ICESI</b>',
+        styles['Title'],
+    ))
+    elements.append(Spacer(1, 0.2 * inch))
+
+    data = [
+        ['Estado', 'Cantidad', 'Porcentaje'],
+        [Cite.STATE_ATTENDED, str(attended_count), f'{attendance_percentage}%'],
+        [Cite.STATE_NO_SHOW, str(no_show_count), f'{no_show_percentage}%'],
+        ['Total', str(total), '100%' if total else '0%'],
+    ]
+
+    table = Table(data, colWidths=[2.5 * inch, 1.5 * inch, 1.5 * inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND',     (0, 0), (-1, 0), colors.HexColor('#1A3A5C')),
+        ('TEXTCOLOR',      (0, 0), (-1, 0), colors.white),
+        ('FONTNAME',       (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE',       (0, 0), (-1, 0), 9),
+        ('ALIGN',          (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN',         (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTSIZE',       (0, 1), (-1, -1), 8),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F4F6F9')]),
+        ('GRID',           (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
+        ('TOPPADDING',     (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING',  (0, 0), (-1, -1), 4),
+    ]))
+
+    elements.append(table)
+    doc.build(elements)
+    buffer.seek(0)
+
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="reporte_asistencia.pdf"'
     return response

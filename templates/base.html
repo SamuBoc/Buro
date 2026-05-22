@@ -151,6 +151,10 @@
                         <i class="bi bi-calendar-check-fill sidebar-icon" aria-hidden="true"></i>
                         <span class="sidebar-label">Reporte de Citas</span>
                     </a>
+                    <a class="sidebar-link" href="{% url 'cite_attendance_report' %}">
+                        <i class="bi bi-clipboard-data-fill sidebar-icon" aria-hidden="true"></i>
+                        <span class="sidebar-label">Metricas de Asistencia</span>
+                    </a>
                     {% endif %}
 
                     {% if 'administrador' in user_roles or 'profesor' in user_roles %}
@@ -235,6 +239,9 @@
                     </a>
                     <a class="mobile-link" href="{% url 'cite_report' %}">
                         <i class="bi bi-calendar-check-fill me-2" aria-hidden="true"></i>Reporte de Citas
+                    </a>
+                    <a class="mobile-link" href="{% url 'cite_attendance_report' %}">
+                        <i class="bi bi-clipboard-data-fill me-2" aria-hidden="true"></i>Metricas de Asistencia
                     </a>
                     {% endif %}
 
