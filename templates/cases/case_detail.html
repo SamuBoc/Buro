@@ -271,6 +271,165 @@
         </div>
         {% endif %}
 
+        <!-- HU-22: Llamada con grabación -->
+        {% if can_add_interaction %}
+        <div class="card mt-4" id="call-section">
+            <div class="card-body p-4">
+                <h5 class="mb-3"><i class="bi bi-telephone me-2"></i>Llamada</h5>
+                <div id="call-idle">
+                    <button id="btn-start-call" class="btn btn-success">
+                        <i class="bi bi-telephone-fill me-1"></i>Iniciar llamada
+                    </button>
+                </div>
+                <div id="call-active" class="d-none">
+                    <div class="alert alert-info mb-3">
+                        <strong>Sala:</strong> <span id="room-id-display"></span>
+                        <br><small class="text-muted">Comparte este ID con el participante para que se una.</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="badge bg-danger"><i class="bi bi-record-circle me-1"></i>Grabando</span>
+                        <span id="call-timer" class="text-muted small">00:00</span>
+                    </div>
+                    <button id="btn-end-call" class="btn btn-danger">
+                        <i class="bi bi-telephone-x-fill me-1"></i>Colgar y guardar grabación
+                    </button>
+                </div>
+                <div id="call-uploading" class="d-none">
+                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                    Guardando grabación...
+                </div>
+                <div id="call-done" class="d-none">
+                    <div class="alert alert-success mb-0">
+                        <i class="bi bi-check-circle me-1"></i>Grabación guardada correctamente.
+                    </div>
+                </div>
+                <div id="call-error" class="d-none">
+                    <div class="alert alert-danger mb-0">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        <span id="call-error-msg">Error al guardar la grabación.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://sdk.videosdk.live/js-sdk/0.0.67/videosdk.js"></script>
+        <script>
+        (function () {
+            const caseId    = {{ case.pk }};
+            const tokenUrl  = "{% url 'generate_videosdk_token' case.pk %}";
+            const uploadUrl = "{% url 'upload_call_recording' case.pk %}";
+            const csrfToken = "{{ csrf_token }}";
+            const joinBase  = "{{ request.scheme }}://{{ request.get_host }}/casos/" + caseId + "/llamada/";
+
+            let mediaRecorder, audioChunks = [], timerInterval, seconds = 0;
+            let meeting = null, audioCtx = null, mixDest = null;
+
+            function showSection(id) {
+                ['call-idle','call-active','call-uploading','call-done','call-error']
+                    .forEach(s => document.getElementById(s).classList.add('d-none'));
+                document.getElementById(id).classList.remove('d-none');
+            }
+
+            function updateTimer() {
+                seconds++;
+                const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+                const s = String(seconds % 60).padStart(2, '0');
+                document.getElementById('call-timer').textContent = `${m}:${s}`;
+            }
+
+            document.getElementById('btn-start-call').addEventListener('click', async () => {
+                try {
+                    const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+                    const res = await fetch(tokenUrl, { headers: { 'X-CSRFToken': csrfToken } });
+                    if (!res.ok) throw new Error('No se pudo obtener el token de llamada');
+                    const { token, roomId } = await res.json();
+
+                    // Mostrar sala y link de unión
+                    document.getElementById('room-id-display').textContent = roomId;
+                    const joinLink = joinBase + roomId + '/unirse/';
+                    document.getElementById('join-link').value = joinLink;
+
+                    // AudioContext para mezclar audio local + remoto
+                    audioCtx = new AudioContext();
+                    mixDest  = audioCtx.createMediaStreamDestination();
+                    const localSrc = audioCtx.createMediaStreamSource(localStream);
+                    localSrc.connect(mixDest);
+
+                    // Inicializar VideoSDK
+                    window.VideoSDK.config(token);
+                    meeting = window.VideoSDK.initMeeting({
+                        meetingId: roomId,
+                        name: "{{ request.user.get_full_name|default:request.user.username }}",
+                        micEnabled: true,
+                        webcamEnabled: false,
+                    });
+
+                    // Conectar audio remoto al mixer cuando alguien se une
+                    meeting.on('participant-joined', (participant) => {
+                        participant.on('stream-enabled', (stream) => {
+                            if (stream.kind === 'audio') {
+                                const remoteStream = new MediaStream([stream.track]);
+                                const remoteSrc = audioCtx.createMediaStreamSource(remoteStream);
+                                remoteSrc.connect(mixDest);
+                            }
+                        });
+                    });
+
+                    meeting.join();
+
+                    // Grabar el stream mezclado (local + remoto)
+                    audioChunks = [];
+                    mediaRecorder = new MediaRecorder(mixDest.stream);
+                    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+                    mediaRecorder.start(1000);
+
+                    seconds = 0;
+                    timerInterval = setInterval(updateTimer, 1000);
+                    showSection('call-active');
+                } catch (err) {
+                    document.getElementById('call-error-msg').textContent = err.message || 'Error al iniciar la llamada.';
+                    showSection('call-error');
+                }
+            });
+
+            document.getElementById('btn-copy-link').addEventListener('click', () => {
+                const link = document.getElementById('join-link').value;
+                navigator.clipboard.writeText(link).then(() => {
+                    document.getElementById('btn-copy-link').textContent = '¡Copiado!';
+                    setTimeout(() => document.getElementById('btn-copy-link').textContent = 'Copiar', 2000);
+                });
+            });
+
+            document.getElementById('btn-end-call').addEventListener('click', () => {
+                clearInterval(timerInterval);
+                mediaRecorder.stop();
+                if (meeting) { try { meeting.leave(); } catch(_) {} }
+                if (audioCtx) audioCtx.close();
+
+                mediaRecorder.onstop = async () => {
+                    showSection('call-uploading');
+                    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const formData = new FormData();
+                    formData.append('audio', blob, 'grabacion.webm');
+                    formData.append('description', 'Llamada grabada desde la plataforma');
+                    formData.append('csrfmiddlewaretoken', csrfToken);
+
+                    try {
+                        const res = await fetch(uploadUrl, { method: 'POST', body: formData });
+                        if (!res.ok) throw new Error('Error del servidor al guardar la grabación');
+                        showSection('call-done');
+                        setTimeout(() => location.reload(), 1500);
+                    } catch (err) {
+                        document.getElementById('call-error-msg').textContent = err.message;
+                        showSection('call-error');
+                    }
+                };
+            });
+        })();
+        </script>
+        {% endif %}
+
         <!-- HU-21: Historial de comunicaciones -->
         <div class="card mt-4">
             <div class="card-body p-4">
@@ -291,6 +450,12 @@
                                             {% endif %}
                                         </span>
                                         <p class="mb-0 mt-1 text-muted small">{{ interaction.description }}</p>
+                                        {% if interaction.audio_file %}
+                                        <audio controls class="mt-2 w-100" style="max-width:400px;">
+                                            <source src="{{ interaction.audio_file.url }}" type="audio/webm">
+                                            Tu navegador no soporta reproducción de audio.
+                                        </audio>
+                                        {% endif %}
                                     </div>
                                     <small class="text-muted text-nowrap ms-3">{{ interaction.timestamp|date:"d/m/Y H:i" }}</small>
                                 </div>
