@@ -1,8 +1,10 @@
 from datetime import datetime
 import io
+import json
 import logging
 import mimetypes
 import os
+import urllib.request
 import time
 import uuid
 
@@ -43,7 +45,7 @@ from .forms import (
     CaseRejectionForm,
     CommunicationInteractionForm,
 )
-from .models import Case, CaseAuditLog, CaseDocument, CommunicationInteraction, Notification
+from .models import Case, CaseAuditLog, CallSession, CaseDocument, CommunicationInteraction, Notification
 from .services import auto_assign_case, reassign_case
 
 User = get_user_model()
@@ -1381,15 +1383,97 @@ def serve_call_recording(request, interaction_id):
             user=request.user,
             action='SECURITY_DENIED',
             description=(
-                f'Acceso denegado a grabacion de llamada del caso {case.code} '
+                f'Acceso denegado a grabación de llamada del caso {case.code} '
                 f'por el usuario {request.user.username}.'
             ),
             case_radicado=case.code,
             ip_address=get_client_ip(request),
         )
-        return HttpResponseForbidden('No tienes permiso para acceder a esta grabacion.')
+        return HttpResponseForbidden('No tienes permiso para acceder a esta grabación.')
 
     if not interaction.audio_file:
-        raise Http404('No hay grabacion para esta interaccion.')
+        raise Http404('No hay grabación para esta interacción.')
 
     return redirect(interaction.audio_file.url)
+
+
+# ─── WebRTC nativo (reemplaza VideoSDK) ─────────────────────────────────────
+
+@login_required
+def get_ice_servers(request, case_id):
+    api_key = os.environ.get('METERED_API_KEY', '')
+    domain  = os.environ.get('METERED_DOMAIN', '')
+    if not api_key or not domain:
+        return JsonResponse({'error': 'TURN no configurado'}, status=503)
+    url = f'https://{domain}/api/v1/turn/credentials?apiKey={api_key}'
+    try:
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            ice_servers = json.loads(resp.read())
+        return JsonResponse({'iceServers': ice_servers})
+    except Exception as exc:
+        logger.error('Error obteniendo ICE servers: %s', exc)
+        return JsonResponse({'error': 'No se pudo obtener servidores TURN'}, status=503)
+
+
+@login_required
+def create_call_session(request, case_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    case = get_object_or_404(Case, pk=case_id)
+    if not can_add_interaction(request.user, case):
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+    session = CallSession.objects.create(case=case, created_by=request.user)
+    return JsonResponse({'roomId': str(session.room_id)})
+
+
+@login_required
+def set_call_offer(request, case_id, room_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    session = get_object_or_404(CallSession, room_id=room_id, case_id=case_id)
+    data = json.loads(request.body)
+    session.offer_sdp = json.dumps(data['sdp'])
+    session.save(update_fields=['offer_sdp'])
+    return JsonResponse({'status': 'ok'})
+
+
+def get_call_state(request, case_id, room_id):
+    session = get_object_or_404(CallSession, room_id=room_id, case_id=case_id)
+    return JsonResponse({
+        'status':  session.status,
+        'hasOffer': bool(session.offer_sdp),
+        'answer':  json.loads(session.answer_sdp) if session.answer_sdp else None,
+    })
+
+
+def set_call_answer(request, case_id, room_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    session = get_object_or_404(CallSession, room_id=room_id, case_id=case_id)
+    data = json.loads(request.body)
+    session.answer_sdp = json.dumps(data['sdp'])
+    session.status = CallSession.STATUS_ACTIVE
+    session.save(update_fields=['answer_sdp', 'status'])
+    return JsonResponse({'status': 'ok'})
+
+
+def get_call_offer(request, case_id, room_id):
+    session = get_object_or_404(CallSession, room_id=room_id, case_id=case_id)
+    return JsonResponse({
+        'offer':  json.loads(session.offer_sdp) if session.offer_sdp else None,
+        'status': session.status,
+    })
+
+
+def join_webrtc_call(request, case_id, room_id):
+    case = get_object_or_404(Case, pk=case_id)
+    get_object_or_404(CallSession, room_id=room_id, case_id=case_id)
+    return render(request, 'cases/call_room.html', {
+        'case': case,
+        'room_id': room_id,
+        'ice_url': request.build_absolute_uri(f'/casos/{case_id}/webrtc/ice/'),
+        'offer_url': request.build_absolute_uri(f'/casos/{case_id}/webrtc/{room_id}/oferta/'),
+        'answer_url': request.build_absolute_uri(f'/casos/{case_id}/webrtc/{room_id}/respuesta/'),
+        'state_url': request.build_absolute_uri(f'/casos/{case_id}/webrtc/{room_id}/estado/'),
+    })
+
