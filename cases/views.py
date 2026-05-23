@@ -1,7 +1,12 @@
 from datetime import datetime
 import io
+import logging
 import mimetypes
 import os
+import time
+import uuid
+
+import jwt
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -29,7 +34,7 @@ from .forms import (
     CaseRejectionForm,
     CommunicationInteractionForm, 
 )
-from .models import Case, CaseAuditLog, CaseDocument, Notification
+from .models import Case, CaseAuditLog, CaseDocument, CommunicationInteraction, Notification
 
 from .services import auto_assign_case, reassign_case
 from core.utils import get_client_ip
@@ -1209,3 +1214,81 @@ def serve_case_document(request, document_id):
         f'inline; filename="{os.path.basename(file_path)}"'
     )
     return response
+
+
+# ─── HU-22: Grabar llamadas ───────────────────────────────────────────────────
+
+logger = logging.getLogger(__name__)
+
+
+@login_required
+def generate_videosdk_token(request, case_id):
+    case = get_object_or_404(Case, pk=case_id)
+
+    if not can_add_interaction(request.user, case):
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+
+    api_key = os.environ.get('VIDEOSDK_API_KEY', '')
+    secret = os.environ.get('VIDEOSDK_SECRET_KEY', '')
+
+    if not api_key or not secret:
+        logger.error('VIDEOSDK_API_KEY o VIDEOSDK_SECRET_KEY no configurados')
+        return JsonResponse({'error': 'Servicio de llamadas no configurado'}, status=503)
+
+    room_id = str(uuid.uuid4())
+    payload = {
+        'apikey': api_key,
+        'permissions': ['allow_join', 'allow_mod'],
+        'iat': int(time.time()),
+        'exp': int(time.time()) + 3600,
+    }
+    token = jwt.encode(payload, secret, algorithm='HS256')
+
+    return JsonResponse({'token': token, 'roomId': room_id})
+
+
+@login_required
+def upload_call_recording(request, case_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    case = get_object_or_404(Case, pk=case_id)
+
+    if not can_add_interaction(request.user, case):
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+
+    audio = request.FILES.get('audio')
+    if not audio:
+        return JsonResponse({'error': 'No se recibió archivo de audio'}, status=400)
+
+    description = request.POST.get('description', 'Llamada grabada desde la plataforma')
+
+    try:
+        interaction = CommunicationInteraction.objects.create(
+            case=case,
+            registered_by=request.user,
+            interaction_type=CommunicationInteraction.TYPE_CALL,
+            direction=CommunicationInteraction.DIRECTION_OUT,
+            description=description,
+            audio_file=audio,
+        )
+        CaseAuditLog.objects.create(
+            case=case,
+            user=request.user,
+            action='COMMUNICATION',
+            description=f'Grabación de llamada subida para el caso {case.code}.',
+            case_radicado=case.code,
+            ip_address=get_client_ip(request),
+        )
+        return JsonResponse({'status': 'ok', 'interaction_id': interaction.pk})
+    except Exception as exc:
+        logger.error('Error al guardar grabación de llamada para caso %s: %s', case.code, exc)
+        CaseAuditLog.objects.create(
+            case=case,
+            user=request.user,
+            action='COMMUNICATION',
+            description=f'Error al guardar grabación de llamada para el caso {case.code}: {exc}',
+            case_radicado=case.code,
+            ip_address=get_client_ip(request),
+        )
+        return JsonResponse({'error': 'Error al guardar la grabación'}, status=500)

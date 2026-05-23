@@ -148,6 +148,11 @@ def case_document_upload_path(instance, filename):
     return f'case_documents/{instance.case.code}/{timezone.now().strftime("%Y%m%d%H%M%S%f")}{extension}'
 
 
+def call_recording_upload_path(instance, filename):
+    extension = os.path.splitext(filename)[1]
+    return f'call_recordings/{instance.case.code}/{timezone.now().strftime("%Y%m%d%H%M%S%f")}{extension}'
+
+
 class CaseDocument(models.Model):
     case = models.ForeignKey(
         Case,
@@ -371,6 +376,12 @@ class CommunicationInteraction(models.Model):
     timestamp = models.DateTimeField(
         default=timezone.now,
         verbose_name='Fecha y hora',
+    )
+    audio_file = models.FileField(
+        upload_to=call_recording_upload_path,
+        null=True,
+        blank=True,
+        verbose_name='Grabacion de llamada',
     )
 
     class Meta:
