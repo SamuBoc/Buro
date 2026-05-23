@@ -40,4 +40,6 @@ urlpatterns = [
     path('<int:case_id>/webrtc/<str:room_id>/estado/', views.get_call_state, name='get_call_state'),
     path('<int:case_id>/webrtc/<str:room_id>/oferta/leer/', views.get_call_offer, name='get_call_offer'),
     path('<int:case_id>/webrtc/<str:room_id>/sala/', views.join_webrtc_call, name='join_webrtc_call'),
+    # HU-24
+    path('metricas/comunicaciones/', views.communication_metrics, name='communication_metrics'),
 ]

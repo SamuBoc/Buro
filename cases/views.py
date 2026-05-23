@@ -1429,3 +1429,42 @@ def join_webrtc_call(request, case_id, room_id):
         'answer_url': request.build_absolute_uri(f'/casos/{case_id}/webrtc/{room_id}/respuesta/'),
         'state_url': request.build_absolute_uri(f'/casos/{case_id}/webrtc/{room_id}/estado/'),
     })
+
+
+# ─── HU-24: Métricas de canales de comunicación ──────────────────────────────
+
+@login_required
+@role_required(ROLE_ADMINISTRADOR)
+def communication_metrics(request):
+    tipo_filter = request.GET.get('tipo', '')
+
+    qs = CommunicationInteraction.objects.all()
+    if tipo_filter:
+        qs = qs.filter(interaction_type=tipo_filter)
+
+    by_type = (
+        CommunicationInteraction.objects
+        .values('interaction_type')
+        .annotate(count=Count('id'))
+        .order_by('-count')
+    )
+
+    type_labels = dict(CommunicationInteraction.TYPE_CHOICES)
+    metrics = [
+        {
+            'type': row['interaction_type'],
+            'label': type_labels.get(row['interaction_type'], row['interaction_type']),
+            'count': row['count'],
+        }
+        for row in by_type
+    ]
+
+    interactions = qs.select_related('case', 'registered_by').order_by('-timestamp')[:100]
+
+    return render(request, 'cases/communication_metrics.html', {
+        'metrics': metrics,
+        'interactions': interactions,
+        'tipo_filter': tipo_filter,
+        'tipo_choices': CommunicationInteraction.TYPE_CHOICES,
+        'total': CommunicationInteraction.objects.count(),
+    })
