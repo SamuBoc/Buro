@@ -7,7 +7,11 @@
 - [x] **PASO 0 — Cloudinary**: configurado como storage de media. Rama `feat/cloudinary-setup` mergeada a `develop`.
 - [x] **HU-22 — Grabar llamadas**: implementada. Ver detalles técnicos abajo.
 - [x] **HU-23 — Acceso controlado a grabaciones**: implementada. 10 tests unitarios pasando.
-- [x] **Fix — Migración a WebRTC nativo**: VideoSDK reemplazado por WebRTC + Metered.ca. Rama `fix/webrtc-nativo` activa (pendiente merge a develop).
+- [x] **HU-24 — Métricas de canales**: view `communication_metrics` (solo admin), template con tarjetas + filtro + tabla. 13 tests unitarios pasando.
+- [x] **Tests unitarios — HU-22, HU-23, HU-24**: 33 tests pasando, coverage >90% en archivos clave.
+- [x] **Documentación DB**: `docs/modelo_de_datos.md` — todas las tablas, campos, índices, notas de seguridad.
+- [x] **Casos de prueba**: `docs/samuel_hu_y_casos_de_prueba.md` — diseño de pruebas para sprint 3.
+- [x] **Fix — Migración a WebRTC nativo**: VideoSDK reemplazado por WebRTC + Metered.ca.
 
 ---
 
@@ -41,37 +45,94 @@ Se reemplazó VideoSDK con **WebRTC nativo del browser** (`RTCPeerConnection`) y
 
 ---
 
-- [x] **HU-24 — Métricas de canales**: view `communication_metrics` (solo admin), template con tarjetas + filtro + tabla. 13 tests unitarios pasando. Mergeada a `develop`.
+## Tests Selenium (HU-23 y HU-24)
+
+### Estructura
+```
+cases/tests/selenium_tests/
+├── features/
+│   ├── environment.py        # Django ORM setup + before_all (crea usuarios con roles correctos)
+│   ├── RecordingAccess.feature   # HU-23
+│   ├── CommunicationMetrics.feature  # HU-24
+│   └── steps/
+│       ├── recording_access_steps.py
+│       └── communication_metrics_steps.py
+└── pages/
+    ├── base_page.py
+    ├── login_page.py
+    ├── recording_access_page.py
+    └── metrics_page.py
+```
+
+### Cómo correr
+```bash
+cd cases/tests/selenium_tests
+python -m behave features/ --no-capture
+```
+
+**Prerequisito**: el servidor Django debe estar corriendo (`python manage.py runserver`).
+**Los usuarios** `admin_selenium/selenium123` y `secretaria_selenium/selenium123` los crea automáticamente `environment.py` con los roles correctos.
+**Las grabaciones**: el test HU-23 necesita al menos una interacción con `audio_file` en la DB. Se usa la primera disponible.
+
+### Fixes aplicados (sesión anterior + sesión actual)
+- `environment.py`: Django ORM setup en `before_all` — crea/verifica usuarios con `groups.set` (no `add`) para evitar contaminación de grupos
+- `base_page.py`: `click` usa `element_to_be_clickable` + `scrollIntoView` para botones en headless
+- `metrics_page.py`: selector de botón filtro cambiado a `form[method="get"] button[type="submit"]` (evita el botón de logout del sidebar); `filter_by_type` ahora espera que la URL contenga `tipo=<valor>` antes de retornar (fix de `StaleElementReferenceException`)
+- `login_page.py`: espera que el browser salga de `/login` antes de retornar (evita race condition entre redirección y navegación del test)
+- `recording_access_steps.py`: assertion de acceso denegado añade `'permiso'` al check; usa contexto dinámico para case_id e interaction_id
+- `communication_metrics_steps.py`: assertion de secretaria verifica URL ≠ metrics URL; deprecación Selenium corregida
+
+### Resultado final
+```
+2 features passed, 0 failed, 0 skipped
+7 scenarios passed, 0 failed, 0 skipped
+22 steps passed, 0 failed, 0 skipped
+Took 0min 24.458s
+```
 
 ---
 
 ## Última tarea completada
 
-HU-24 implementada y mergeada a develop: vista de métricas de canales de comunicación (agrupación por tipo, filtro, tabla últimas 100 interacciones). 13 tests unitarios pasando.
+Todos los tests Selenium de HU-23 y HU-24 pasan (7/7). Fix final: `filter_by_type` en `metrics_page.py` espera que la URL cambie después de enviar el formulario, eliminando el `StaleElementReferenceException`.
 
 ---
 
 ## Siguiente paso
 
-Tests Selenium para HU-22, HU-23 y HU-24 (formato `behave`, igual que `cite/tests/selenium_tests/`).
+Los tests Selenium están completos. Opciones posibles:
+1. Generar reporte HTML de coverage unitario: `pytest cases/tests/ --cov=cases --cov-report=html:docs/coverage_html`
+2. Mergear `fix-uui-update` a `develop` (el usuario hace push manualmente)
+3. Cerrar el sprint si no hay más tareas pendientes
 
 ---
 
 ## Branch activo
 
-`develop` — todas las HUs mergeadas
+`fix-uui-update` — rama actual (pendiente merge a develop)
 
 ---
 
-## Archivos tocados (WebRTC + fixes)
+## Archivos tocados (WebRTC + HU-24 + Selenium fixes)
 
 - `cases/models.py` — `CallSession` model, `RawMediaCloudinaryStorage` en `audio_file`
-- `cases/views.py` — 7 vistas WebRTC, fix `@login_required`, fix `offer_url`
-- `cases/urls.py` — 8 URLs WebRTC
+- `cases/views.py` — 7 vistas WebRTC + `communication_metrics` (HU-24) + fixes
+- `cases/urls.py` — 8 URLs WebRTC + 1 HU-24
 - `cases/migrations/0005_add_callsession_model.py`
 - `cases/migrations/0006_audio_file_raw_storage.py`
-- `templates/cases/case_detail.html` — UI caller WebRTC (reemplaza VideoSDK)
-- `templates/cases/call_room.html` — UI callee WebRTC (reemplaza VideoSDK)
+- `templates/cases/case_detail.html` — UI caller WebRTC
+- `templates/cases/call_room.html` — UI callee WebRTC
+- `templates/cases/communication_metrics.html` — HU-24
+- `cases/tests/test_hu22_recordings.py` — 10 tests ✅
+- `cases/tests/test_hu23_recording_access.py` — 10 tests ✅
+- `cases/tests/test_hu24_metrics.py` — 13 tests ✅
+- `cases/tests/selenium_tests/features/environment.py` — Django setup + before_all
+- `cases/tests/selenium_tests/features/steps/recording_access_steps.py`
+- `cases/tests/selenium_tests/features/steps/communication_metrics_steps.py`
+- `cases/tests/selenium_tests/pages/base_page.py` — click fix
+- `cases/tests/selenium_tests/pages/metrics_page.py` — selector fix
+- `docs/modelo_de_datos.md`
+- `docs/samuel_hu_y_casos_de_prueba.md`
 - `.env` — `METERED_API_KEY`, `METERED_DOMAIN`
 
 ---
@@ -85,12 +146,3 @@ CLOUDINARY_API_SECRET=...
 METERED_API_KEY=f18988561fca5ad697faddf7cf405201f78c
 METERED_DOMAIN=burooficial.metered.live
 ```
-
----
-
-## Pendiente (Sprint 3)
-
-- [ ] HU-24 — Métricas de canales: view + template + tests unitarios + tests Selenium
-- [ ] Tests Selenium HU-22 y HU-23
-- [ ] Actualizar `.env.example` con las variables de Metered.ca
-- [ ] Merge `fix/webrtc-nativo` → `develop`

@@ -1,12 +1,12 @@
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import Select
+from selenium.webdriver.support.ui import Select, WebDriverWait
 from .base_page import BasePage, BASE_URL
 
 
 class MetricsPage(BasePage):
     METRIC_CARDS = (By.CSS_SELECTOR, '.card .fw-bold')
     FILTER_SELECT = (By.NAME, 'tipo')
-    FILTER_BUTTON = (By.CSS_SELECTOR, 'button[type="submit"]')
+    FILTER_BUTTON = (By.CSS_SELECTOR, 'form[method="get"] button[type="submit"]')
     CLEAR_BUTTON = (By.PARTIAL_LINK_TEXT, 'Limpiar')
     TABLE_ROWS = (By.CSS_SELECTOR, 'tbody tr')
     CHANNEL_BADGES = (By.CSS_SELECTOR, 'tbody .badge.bg-secondary')
@@ -15,13 +15,19 @@ class MetricsPage(BasePage):
         self.driver.get(f"{BASE_URL}/casos/metricas/comunicaciones/")
 
     def get_metric_counts(self):
-        elements = self.find_elements(self.METRIC_CARDS)
-        return [e.text for e in elements]
+        try:
+            elements = self.find_elements(self.METRIC_CARDS)
+            return [e.text for e in elements]
+        except Exception:
+            return []
 
     def filter_by_type(self, tipo_value):
         select = Select(self.find_element(self.FILTER_SELECT))
         select.select_by_value(tipo_value)
         self.click(self.FILTER_BUTTON)
+        WebDriverWait(self.driver, 10).until(
+            lambda d: f'tipo={tipo_value}' in d.current_url
+        )
 
     def clear_filter(self):
         self.click(self.CLEAR_BUTTON)

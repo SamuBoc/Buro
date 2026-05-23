@@ -13,6 +13,7 @@ import jwt
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import FileResponse, Http404, HttpResponseForbidden, JsonResponse
@@ -1399,6 +1400,7 @@ def get_call_state(request, case_id, room_id):
     })
 
 
+@csrf_exempt
 def set_call_answer(request, case_id, room_id):
     if request.method != 'POST':
         return JsonResponse({'error': 'Método no permitido'}, status=405)

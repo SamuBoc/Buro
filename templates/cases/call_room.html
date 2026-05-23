@@ -52,6 +52,7 @@
         </div>
     </div>
 </div>
+{% csrf_token %}
 
 <script>
 (function () {
@@ -59,6 +60,13 @@
     const offerUrl  = "{{ offer_url }}";
     const answerUrl = "{{ answer_url }}";
     let pc = null;
+
+    function getCsrfToken() {
+        const input = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (input) return input.value;
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        return match ? match[1] : '';
+    }
 
     function show(id) {
         ['state-waiting','state-connecting','state-active','state-ended','state-error']
@@ -102,7 +110,11 @@
             pc = new RTCPeerConnection({ iceServers });
             localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
-            pc.ontrack = () => {
+            pc.ontrack = (event) => {
+                const remoteStream = event.streams[0] || new MediaStream([event.track]);
+                const remoteAudio = new Audio();
+                remoteAudio.srcObject = remoteStream;
+                remoteAudio.play().catch(() => {});
                 show('state-active');
             };
 
@@ -115,7 +127,10 @@
 
             await fetch(answerUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
                 body: JSON.stringify({ sdp: pc.localDescription }),
             });
 

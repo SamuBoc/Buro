@@ -297,6 +297,7 @@
                         <span class="badge bg-danger"><i class="bi bi-record-circle me-1"></i>Grabando</span>
                         <span id="call-timer" class="text-muted small">00:00</span>
                         <span id="call-status-badge" class="badge bg-warning text-dark">Esperando participante…</span>
+                        <span id="mic-indicator" class="badge bg-secondary" title="Nivel de micrófono"><i class="bi bi-mic-fill"></i></span>
                     </div>
                     <button id="btn-end-call" class="btn btn-danger">
                         <i class="bi bi-telephone-x-fill me-1"></i>Colgar y guardar grabación
@@ -331,6 +332,7 @@
 
             let pc = null, mediaRecorder, audioChunks = [], timerInterval, seconds = 0;
             let audioCtx = null, mixDest = null, pollInterval = null;
+            let micAnalyser = null, micAnimFrame = null, remoteAudio = null;
 
             function showSection(id) {
                 ['call-idle','call-connecting','call-active','call-uploading','call-done','call-error']
@@ -381,14 +383,43 @@
                     pc = new RTCPeerConnection({ iceServers });
                     audioCtx = new AudioContext();
                     mixDest  = audioCtx.createMediaStreamDestination();
-                    audioCtx.createMediaStreamSource(localStream).connect(mixDest);
+
+                    const localSource = audioCtx.createMediaStreamSource(localStream);
+                    localSource.connect(mixDest);
+
+                    // Mic level indicator
+                    micAnalyser = audioCtx.createAnalyser();
+                    micAnalyser.fftSize = 256;
+                    localSource.connect(micAnalyser);
+                    const micData = new Uint8Array(micAnalyser.frequencyBinCount);
+                    const micBadge = document.getElementById('mic-indicator');
+                    function animateMic() {
+                        micAnalyser.getByteFrequencyData(micData);
+                        const avg = micData.reduce((a, b) => a + b, 0) / micData.length;
+                        micBadge.className = avg > 8 ? 'badge bg-danger' : 'badge bg-secondary';
+                        micAnimFrame = requestAnimationFrame(animateMic);
+                    }
+                    animateMic();
+
                     localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+                    function markCallActive() {
+                        document.getElementById('call-status-badge').textContent = 'En llamada';
+                        document.getElementById('call-status-badge').className = 'badge bg-success';
+                    }
 
                     pc.ontrack = (event) => {
                         const remoteStream = event.streams[0] || new MediaStream([event.track]);
                         audioCtx.createMediaStreamSource(remoteStream).connect(mixDest);
-                        document.getElementById('call-status-badge').textContent = 'En llamada';
-                        document.getElementById('call-status-badge').className = 'badge bg-success';
+                        // Play remote audio through speakers
+                        remoteAudio = new Audio();
+                        remoteAudio.srcObject = remoteStream;
+                        remoteAudio.play().catch(() => {});
+                        markCallActive();
+                    };
+
+                    pc.onconnectionstatechange = () => {
+                        if (pc.connectionState === 'connected') markCallActive();
                     };
 
                     const offer = await pc.createOffer();
@@ -437,6 +468,8 @@
             document.getElementById('btn-end-call').addEventListener('click', () => {
                 clearInterval(timerInterval);
                 clearInterval(pollInterval);
+                if (micAnimFrame) cancelAnimationFrame(micAnimFrame);
+                if (remoteAudio) { remoteAudio.pause(); remoteAudio.srcObject = null; }
                 if (pc) pc.close();
                 if (audioCtx) audioCtx.close();
                 if (mediaRecorder && mediaRecorder.state !== 'inactive') {

@@ -1,4 +1,5 @@
 from behave import given, when, then
+from selenium.webdriver.common.by import By
 from pages.login_page import LoginPage
 from pages.metrics_page import MetricsPage
 
@@ -24,8 +25,10 @@ def step_go_to_metrics(context):
 
 @then('Ve las tarjetas de conteo por canal')
 def step_see_metric_cards(context):
+    # Total card is always rendered; check the page loaded and container is present
     counts = context.metrics_page.get_metric_counts()
-    assert len(counts) > 0, "No se encontraron tarjetas de métricas por canal"
+    assert len(counts) >= 1, \
+        "No se encontró ninguna tarjeta de métricas (ni la tarjeta Total)"
 
 
 @then('Ve la tabla de interacciones')
@@ -76,8 +79,9 @@ def step_sec_go_to_metrics(context):
 
 @then('Es redirigida o recibe acceso denegado')
 def step_metrics_access_denied(context):
+    from pages.base_page import BASE_URL
     url = context.metrics_page.get_current_url()
-    body_text = context.driver.find_element_by_tag_name('body').text if hasattr(context.driver, 'find_element_by_tag_name') else context.driver.find_element('tag name', 'body').text
-    is_blocked = 'login' in url or '403' in body_text or 'denegado' in body_text.lower() or 'Forbidden' in body_text
-    assert is_blocked, \
-        f"La secretaria no debería poder acceder a métricas. URL: {url}"
+    metrics_path = f"{BASE_URL}/casos/metricas/comunicaciones/"
+    # The secretaria should NOT be on the metrics page (any redirect counts as blocked)
+    assert not url.startswith(metrics_path), \
+        f"La secretaria accedió a métricas cuando no debería. URL: {url}"

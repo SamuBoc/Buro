@@ -20,7 +20,11 @@ class BasePage:
         )
 
     def click(self, locator):
-        self.find_element(locator).click()
+        element = WebDriverWait(self.driver, self.timeout).until(
+            EC.element_to_be_clickable(locator)
+        )
+        self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
+        element.click()
 
     def enter_text(self, locator, text):
         self.find_element(locator).send_keys(text)

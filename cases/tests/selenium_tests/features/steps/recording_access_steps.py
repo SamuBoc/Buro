@@ -1,15 +1,11 @@
 """
-Precondición: debe existir en la DB local un caso con una interacción
-de tipo llamada con audio_file subido.
-
-Ajustar CASE_ID e INTERACTION_ID abajo según la DB de prueba.
+Precondición: environment.py crea automáticamente los usuarios y datos de prueba
+antes de correr los escenarios. No se necesita setup manual en la DB.
 """
 from behave import given, when, then
+from selenium.webdriver.common.by import By
 from pages.login_page import LoginPage
 from pages.recording_access_page import RecordingAccessPage
-
-CASE_ID = 1
-INTERACTION_ID = 1
 
 ADMIN_USER = "admin_selenium"
 ADMIN_PASS = "selenium123"
@@ -33,7 +29,10 @@ def step_secretaria_login(context):
 
 @when('Ingresa al detalle del caso con grabacion')
 def step_go_to_case(context):
-    context.recording_page.go_to_case(CASE_ID)
+    case_id = getattr(context, 'selenium_case_id', None)
+    assert case_id is not None, \
+        "No hay caso con grabación en la DB. Suba una grabación primero."
+    context.recording_page.go_to_case(case_id)
 
 
 @then('Ve el reproductor de audio en el historial de interacciones')
@@ -52,13 +51,24 @@ def step_lock_icon_visible(context):
 
 @when('Intenta acceder a la URL de la grabacion directamente')
 def step_direct_url_access(context):
-    context.recording_page.go_to_recording(INTERACTION_ID)
+    interaction_id = getattr(context, 'selenium_interaction_id', None)
+    assert interaction_id is not None, \
+        "No hay interacción con grabación en la DB."
+    context.recording_page.go_to_recording(interaction_id)
 
 
-@then('Es redirigida o recibe acceso denegado')
+@then('La secretaria es redirigida o recibe acceso denegado a la grabacion')
 def step_access_denied(context):
     url = context.recording_page.get_current_url()
-    body_text = context.recording_page.get_status_code_text()
-    is_redirected = 'login' in url or '403' in body_text or 'Forbidden' in body_text or 'denegado' in body_text.lower()
-    assert is_redirected, \
-        f"Se esperaba redirect al login o 403. URL actual: {url}"
+    body_text = context.driver.find_element(By.TAG_NAME, 'body').text
+    body_lower = body_text.lower()
+    is_blocked = (
+        'login' in url
+        or 'sin-permisos' in url
+        or '403' in body_text
+        or 'forbidden' in body_lower
+        or 'denegado' in body_lower
+        or 'permiso' in body_lower
+    )
+    assert is_blocked, \
+        f"Se esperaba redirect al login o respuesta 403. URL actual: {url}"

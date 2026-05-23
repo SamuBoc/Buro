@@ -13,4 +13,4 @@ Feature: Acceso controlado a grabaciones de llamadas (HU-23)
   Scenario: Secretaria no puede acceder a la URL de grabacion directamente
     Given La secretaria inicia sesion
     When Intenta acceder a la URL de la grabacion directamente
-    Then Es redirigida o recibe acceso denegado
+    Then La secretaria es redirigida o recibe acceso denegado a la grabacion

@@ -1,19 +1,5 @@
-"""
-Requiere usuarios de prueba en la DB local:
-  - admin_selenium / selenium123  (grupo: administrador)
-  - secretaria_selenium / selenium123  (grupo: secretaria)
-
-Crearlos con:
-  python manage.py shell -c "
-  from django.contrib.auth.models import User, Group
-  for username, role in [('admin_selenium','administrador'),('secretaria_selenium','secretaria')]:
-      u, _ = User.objects.get_or_create(username=username)
-      u.set_password('selenium123'); u.save()
-      g, _ = Group.objects.get_or_create(name=role)
-      u.groups.set([g])
-  "
-"""
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
 from .base_page import BasePage, BASE_URL
 
 
@@ -30,3 +16,7 @@ class LoginPage(BasePage):
         self.enter_text(self.USER_INPUT, username)
         self.enter_text(self.PASSWORD_INPUT, password)
         self.click(self.BUTTON_SUBMIT)
+        # Wait until the browser leaves the login page (redirect completes)
+        WebDriverWait(self.driver, 10).until(
+            lambda d: '/login' not in d.current_url
+        )
