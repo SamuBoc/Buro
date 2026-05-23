@@ -13,7 +13,7 @@ from accounts.constants import (
 )
 
 from .email_utils import send_deadline_alert_email
-from .models import Case, CaseReassignmentLog, Notification
+from .models import Case, CaseAuditLog, CaseReassignmentLog, Notification
 
 User = get_user_model()
 
@@ -71,6 +71,17 @@ def get_available_student(case=None):
     )
 
 
+def select_best_student_candidate(case):
+    """
+    Selecciona el mejor candidato academico para un caso usando:
+    - disponibilidad
+    - carga maxima
+    - menor cantidad de casos activos
+    - afinidad con la sala juridica
+    """
+    return get_available_student(case)
+
+
 def _get_assignment_recipients(case, student):
     """Retorna lista de destinatarios para notificación de asignación."""
     recipients = []
@@ -113,8 +124,43 @@ def _notify_assignment(case, student):
         )
 
 
+def _log_auto_assignment(case, student):
+    """
+    Registra en bitacora el resultado del proceso de asignacion automatica.
+    """
+    if student is None:
+        CaseAuditLog.objects.create(
+            case=case,
+            user=None,
+            action='UPDATED',
+            description=(
+                f'No fue posible asignar automaticamente el caso {case.code}. '
+                'El caso permanece pendiente por falta de estudiantes disponibles '
+                'o por capacidad academica insuficiente.'
+            ),
+            previous_status=Case.STATE_PENDING,
+            new_status=case.state,
+            case_radicado=case.code,
+        )
+        return
+
+    CaseAuditLog.objects.create(
+        case=case,
+        user=None,
+        action='ASSIGNED',
+        description=(
+            f'Asignacion automatica realizada para el caso {case.code}. '
+            f'Estudiante seleccionado: {student.get_full_name() or student.username}. '
+            f'Carga activa actual del estudiante: {student.profile.active_cases}.'
+        ),
+        previous_status=Case.STATE_PENDING,
+        new_status=case.state,
+        case_radicado=case.code,
+    )
+
+
 def auto_assign_case(case):
-    student = get_available_student(case)
+    student = select_best_student_candidate(case)
     if student is None:
         case.state = Case.STATE_NO_STUDENTS
         case.assigned_student = None
@@ -122,6 +168,10 @@ def auto_assign_case(case):
         case.assigned_student = student
         case.state = Case.STATE_ASSIGNED
     case.save(update_fields=['assigned_student', 'state'])
+
+    # La carga activa no se incrementa manualmente: se calcula a partir de
+    # los casos asignados no borrador, por lo que queda actualizada tras guardar.
+    _log_auto_assignment(case, student)
 
     if student is not None:
         _notify_assignment(case, student)
