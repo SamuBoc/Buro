@@ -1399,7 +1399,6 @@ def serve_call_recording(request, interaction_id):
 
 # ─── WebRTC nativo (reemplaza VideoSDK) ─────────────────────────────────────
 
-@login_required
 def get_ice_servers(request, case_id):
     api_key = os.environ.get('METERED_API_KEY', '')
     domain  = os.environ.get('METERED_DOMAIN', '')
@@ -1472,7 +1471,7 @@ def join_webrtc_call(request, case_id, room_id):
         'case': case,
         'room_id': room_id,
         'ice_url': request.build_absolute_uri(f'/casos/{case_id}/webrtc/ice/'),
-        'offer_url': request.build_absolute_uri(f'/casos/{case_id}/webrtc/{room_id}/oferta/'),
+        'offer_url': request.build_absolute_uri(f'/casos/{case_id}/webrtc/{room_id}/oferta/leer/'),
         'answer_url': request.build_absolute_uri(f'/casos/{case_id}/webrtc/{room_id}/respuesta/'),
         'state_url': request.build_absolute_uri(f'/casos/{case_id}/webrtc/{room_id}/estado/'),
     })
