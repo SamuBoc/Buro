@@ -1,6 +1,7 @@
 import io
 import tempfile
-from unittest.mock import patch
+import time
+from unittest.mock import patch, MagicMock
 
 from django.contrib.auth.models import User, Group
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -10,6 +11,17 @@ from django.urls import reverse
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_ESTUDIANTE, ROLE_SECRETARIA
 from cases.models import Case, CommunicationInteraction, CaseAuditLog, CallSession
 from beneficiary.models import Beneficiary
+
+_FAKE_CLOUDINARY_RESPONSE = {
+    'public_id': 'media/call_recordings/test/grabacion',
+    'secure_url': 'https://res.cloudinary.com/test/raw/upload/v1/grabacion.webm',
+    'url': 'http://res.cloudinary.com/test/raw/upload/v1/grabacion.webm',
+    'resource_type': 'raw',
+    'type': 'upload',
+    'format': 'webm',
+    'version': 1,
+    'tags': [],
+}
 
 
 def _make_user(username, role):
@@ -71,10 +83,15 @@ _TEST_STORAGES = {
 class UploadCallRecordingTests(TestCase):
 
     def setUp(self):
+        self.cloudinary_patch = patch('cloudinary.uploader.upload', return_value=_FAKE_CLOUDINARY_RESPONSE)
+        self.cloudinary_patch.start()
         self.client = Client()
         self.admin = _make_user('admin_upload', ROLE_ADMINISTRADOR)
         self.case = _make_case(self.admin)
         self.url = reverse('upload_call_recording', args=[self.case.pk])
+
+    def tearDown(self):
+        self.cloudinary_patch.stop()
 
     def _fake_audio(self):
         return SimpleUploadedFile('grabacion.webm', b'fake_audio_bytes', content_type='audio/webm')

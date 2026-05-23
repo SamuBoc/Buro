@@ -1,9 +1,18 @@
 import tempfile
+from unittest.mock import patch
 
 from django.contrib.auth.models import User, Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+
+_FAKE_CLOUDINARY_RESPONSE = {
+    'public_id': 'media/call_recordings/test/rec',
+    'secure_url': 'https://res.cloudinary.com/test/raw/upload/v1/rec.webm',
+    'url': 'http://res.cloudinary.com/test/raw/upload/v1/rec.webm',
+    'resource_type': 'raw', 'type': 'upload', 'format': 'webm',
+    'version': 1, 'tags': [],
+}
 
 from accounts.constants import (
     ROLE_ADMINISTRADOR,
@@ -58,6 +67,13 @@ def _make_interaction_with_audio(case, user, media_root):
 class ServeCallRecordingTests(TestCase):
 
     def setUp(self):
+        self.cloudinary_upload_patch = patch('cloudinary.uploader.upload', return_value=_FAKE_CLOUDINARY_RESPONSE)
+        self.cloudinary_url_patch = patch(
+            'cloudinary_storage.storage.RawMediaCloudinaryStorage.url',
+            return_value='https://res.cloudinary.com/test/raw/upload/v1/rec.webm',
+        )
+        self.cloudinary_upload_patch.start()
+        self.cloudinary_url_patch.start()
         self.client = Client()
         self.admin = _make_user('admin_hu23', ROLE_ADMINISTRADOR)
         self.profesor = _make_user('profesor_hu23', ROLE_PROFESOR)
@@ -69,6 +85,10 @@ class ServeCallRecordingTests(TestCase):
         self.media_root = tempfile.mkdtemp()
         self.interaction = _make_interaction_with_audio(self.case, self.admin, self.media_root)
         self.url = reverse('serve_call_recording', args=[self.interaction.pk])
+
+    def tearDown(self):
+        self.cloudinary_upload_patch.stop()
+        self.cloudinary_url_patch.stop()
 
     def test_administrador_puede_acceder(self):
         self.client.login(username='admin_hu23', password='pass1234')
