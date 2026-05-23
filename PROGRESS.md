@@ -41,25 +41,25 @@ Se reemplazó VideoSDK con **WebRTC nativo del browser** (`RTCPeerConnection`) y
 
 ---
 
+- [x] **HU-24 — Métricas de canales**: view `communication_metrics` (solo admin), template con tarjetas + filtro + tabla. 13 tests unitarios pasando. Mergeada a `develop`.
+
+---
+
 ## Última tarea completada
 
-Fix del storage de audio: `audio_file` en `CommunicationInteraction` ahora usa `RawMediaCloudinaryStorage` en vez de `MediaCloudinaryStorage`. Grabaciones de llamadas (.webm) se suben correctamente a Cloudinary.
+HU-24 implementada y mergeada a develop: vista de métricas de canales de comunicación (agrupación por tipo, filtro, tabla últimas 100 interacciones). 13 tests unitarios pasando.
 
 ---
 
 ## Siguiente paso
 
-**Mergear `fix/webrtc-nativo` a `develop`**, luego:
-1. Crear rama desde `develop` para HU-24 (o recuperar stash de `feat/hu-24-metricas-canales`)
-2. Implementar `communication_metrics` view (ya existe parcialmente)
-3. Escribir tests unitarios HU-24
-4. Mergear a `develop`
+Tests Selenium para HU-22, HU-23 y HU-24 (formato `behave`, igual que `cite/tests/selenium_tests/`).
 
 ---
 
 ## Branch activo
 
-`fix/webrtc-nativo` — pendiente merge a develop
+`develop` — todas las HUs mergeadas
 
 ---
 
