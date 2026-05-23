@@ -1,6 +1,7 @@
 import os
 import uuid
 
+from cloudinary_storage.storage import RawMediaCloudinaryStorage
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
@@ -380,6 +381,7 @@ class CommunicationInteraction(models.Model):
     )
     audio_file = models.FileField(
         upload_to=call_recording_upload_path,
+        storage=RawMediaCloudinaryStorage(),
         null=True,
         blank=True,
         verbose_name='Grabacion de llamada',
