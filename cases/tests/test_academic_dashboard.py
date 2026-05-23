@@ -61,10 +61,10 @@ class AcademicDashboardAccessTests(TestCase):
         response = self.client.get(reverse('academic_dashboard'))
         self.assertEqual(response.status_code, 200)
 
-    def test_secretaria_is_redirected(self):
+    def test_secretaria_can_access_dashboard(self):
         self.client.login(username='sec_acad', password='pass1234')
         response = self.client.get(reverse('academic_dashboard'))
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
 
     def test_estudiante_is_redirected(self):
         self.client.login(username='stud_acad', password='pass1234')
@@ -139,6 +139,36 @@ class AcademicDashboardMetricsTests(TestCase):
         )
         metrics = response.context['metrics']
         self.assertEqual(metrics['rejected_cases'], 1)
+
+    def test_dashboard_can_filter_by_student(self):
+        self.client.force_login(self.profesor)
+        response = self.client.get(
+            reverse('academic_dashboard'),
+            {'estudiante': str(self.student_one.id)},
+        )
+        self.assertEqual(response.status_code, 200)
+        students = list(response.context['students'])
+        self.assertEqual(len(students), 1)
+        self.assertEqual(students[0], self.student_one)
+        self.assertEqual(response.context['total_assigned_cases'], 2)
+
+    def test_dashboard_sala_filter_hides_students_without_cases_in_selected_sala(self):
+        make_case(
+            beneficiary=self.beneficiary,
+            assigned_student=self.student_two,
+            sala=Case.ROOM_PENAL,
+            deadline_date=timezone.localdate() + timedelta(days=5),
+            state=Case.STATE_ASSIGNED,
+        )
+        self.client.force_login(self.profesor)
+        response = self.client.get(
+            reverse('academic_dashboard'),
+            {'sala': Case.ROOM_PENAL},
+        )
+        self.assertEqual(response.status_code, 200)
+        students = list(response.context['students'])
+        self.assertEqual(len(students), 1)
+        self.assertEqual(students[0], self.student_two)
 
 
 class AcademicDashboardExportTests(TestCase):

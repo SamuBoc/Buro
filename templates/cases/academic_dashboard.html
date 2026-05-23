@@ -9,13 +9,22 @@
     <div>
       <h2 class="fw-bold mb-1"><i class="bi bi-mortarboard-fill me-2"></i>Panel academico</h2>
       <div class="text-muted">Supervision del desempeno y avance de estudiantes.</div>
-      {% if filtro_estado or filtro_sala or filtro_desde or filtro_hasta %}
+      {% if filtro_estado or filtro_sala or filtro_estudiante or filtro_desde or filtro_hasta %}
       <div class="d-flex flex-wrap gap-2 mt-2">
         {% if date_range_label %}
           <span class="badge rounded-pill bg-light text-dark border">{{ date_range_label }}</span>
         {% endif %}
         {% if sala_label %}
           <span class="badge rounded-pill bg-light text-dark border">Sala: {{ sala_label }}</span>
+        {% endif %}
+        {% if filtro_estudiante %}
+          {% for student in students_for_filter %}
+            {% if filtro_estudiante == student.id|stringformat:"s" %}
+              <span class="badge rounded-pill bg-light text-dark border">
+                Estudiante: {{ student.get_full_name|default:student.username }}
+              </span>
+            {% endif %}
+          {% endfor %}
         {% endif %}
         {% if filtro_estado %}
           <span class="badge rounded-pill bg-light text-dark border">Estado: {{ filtro_estado }}</span>
@@ -59,6 +68,17 @@
             <option value="">Todos</option>
             {% for estado in estado_choices %}
               <option value="{{ estado }}" {% if filtro_estado == estado %}selected{% endif %}>{{ estado }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="estudiante" class="form-label fw-semibold">Estudiante</label>
+          <select class="form-select" id="estudiante" name="estudiante">
+            <option value="">Todos</option>
+            {% for student in students_for_filter %}
+              <option value="{{ student.id }}" {% if filtro_estudiante == student.id|stringformat:"s" %}selected{% endif %}>
+                {{ student.get_full_name|default:student.username }}
+              </option>
             {% endfor %}
           </select>
         </div>

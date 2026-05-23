@@ -8,9 +8,16 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Count, Q
-from django.http import JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_ESTUDIANTE, ROLE_PROFESOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
@@ -124,8 +131,16 @@ def _build_academic_dashboard_filters(request):
     filtro_hasta = request.GET.get('hasta')
     filtro_estado = request.GET.get('estado')
     filtro_sala = request.GET.get('sala')
+    filtro_estudiante = (request.GET.get('estudiante') or '').strip()
     desde_date = None
     hasta_date = None
+    student_filter = None
+    students_for_filter = (
+        User.objects
+        .filter(is_active=True, groups__name=ROLE_ESTUDIANTE)
+        .order_by('first_name', 'last_name', 'username')
+        .distinct()
+    )
 
     case_filters = Q(assigned_student__isnull=False)
     assigned_cases_filters = Q(assigned_cases__isnull=False)
@@ -151,6 +166,14 @@ def _build_academic_dashboard_filters(request):
         except ValueError:
             filtro_hasta = ''
             hasta_date = None
+    if filtro_estudiante:
+        try:
+            student_filter = int(filtro_estudiante)
+            case_filters &= Q(assigned_student_id=student_filter)
+            assigned_cases_filters &= Q(assigned_cases__assigned_student_id=student_filter)
+        except ValueError:
+            filtro_estudiante = ''
+            student_filter = None
 
     sala_label = ''
     if filtro_sala:
@@ -173,6 +196,9 @@ def _build_academic_dashboard_filters(request):
         'filtro_hasta': filtro_hasta,
         'filtro_estado': filtro_estado,
         'filtro_sala': filtro_sala,
+        'filtro_estudiante': filtro_estudiante,
+        'student_filter': student_filter,
+        'students_for_filter': students_for_filter,
         'sala_label': sala_label,
         'date_range_label': date_range_label,
         'case_filters': case_filters,
@@ -181,7 +207,7 @@ def _build_academic_dashboard_filters(request):
     }
 
 
-@role_required(ROLE_PROFESOR, ROLE_ADMINISTRADOR)
+@role_required(ROLE_PROFESOR, ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
 def academic_dashboard(request):
     filters = _build_academic_dashboard_filters(request)
     today = filters['today']
@@ -210,6 +236,10 @@ def academic_dashboard(request):
         )
         .order_by('first_name', 'last_name', 'username')
     )
+    if filters['student_filter']:
+        students = students.filter(pk=filters['student_filter'])
+    if filters['filtro_sala']:
+        students = students.filter(total_cases__gt=0)
 
     cases_with_student = Case.objects.filter(case_filters)
     total_assigned = cases_with_student.count()
@@ -225,6 +255,8 @@ def academic_dashboard(request):
         'filtro_hasta': filters['filtro_hasta'],
         'filtro_estado': filters['filtro_estado'],
         'filtro_sala': filters['filtro_sala'],
+        'filtro_estudiante': filters['filtro_estudiante'],
+        'students_for_filter': filters['students_for_filter'],
         'estado_choices': [
             Case.STATE_PENDING,
             Case.STATE_ASSIGNED,
@@ -236,7 +268,7 @@ def academic_dashboard(request):
     })
 
 
-@role_required(ROLE_PROFESOR, ROLE_ADMINISTRADOR)
+@role_required(ROLE_PROFESOR, ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
 def academic_student_detail(request, student_id):
     today = timezone.localdate()
     filtro_desde = request.GET.get('desde')
