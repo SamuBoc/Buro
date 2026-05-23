@@ -38,6 +38,7 @@ def academic_student_register(request):
                 profile.max_cases = form.cleaned_data['max_cases']
                 profile.availability = form.cleaned_data['availability']
                 profile.preferred_room = form.cleaned_data['preferred_room']
+                profile.supervising_professor = form.cleaned_data['supervising_professor']
                 profile.save()
 
             messages.success(request, 'El estudiante fue registrado correctamente.')

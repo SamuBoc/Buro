@@ -9,7 +9,7 @@
     <div>
       <h2 class="fw-bold mb-1"><i class="bi bi-mortarboard-fill me-2"></i>Panel academico</h2>
       <div class="text-muted">Supervision del desempeno y avance de estudiantes.</div>
-      {% if filtro_estado or filtro_sala or filtro_estudiante or filtro_desde or filtro_hasta %}
+      {% if filtro_estado or filtro_sala or filtro_estudiante or filtro_profesor or filtro_desde or filtro_hasta %}
       <div class="d-flex flex-wrap gap-2 mt-2">
         {% if date_range_label %}
           <span class="badge rounded-pill bg-light text-dark border">{{ date_range_label }}</span>
@@ -22,6 +22,15 @@
             {% if filtro_estudiante == student.id|stringformat:"s" %}
               <span class="badge rounded-pill bg-light text-dark border">
                 Estudiante: {{ student.get_full_name|default:student.username }}
+              </span>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {% if filtro_profesor %}
+          {% for professor in professors_for_filter %}
+            {% if filtro_profesor == professor.id|stringformat:"s" %}
+              <span class="badge rounded-pill bg-light text-dark border">
+                Profesor: {{ professor.get_full_name|default:professor.username }}
               </span>
             {% endif %}
           {% endfor %}
@@ -78,6 +87,17 @@
             {% for student in students_for_filter %}
               <option value="{{ student.id }}" {% if filtro_estudiante == student.id|stringformat:"s" %}selected{% endif %}>
                 {{ student.get_full_name|default:student.username }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="profesor" class="form-label fw-semibold">Profesor</label>
+          <select class="form-select" id="profesor" name="profesor">
+            <option value="">Todos</option>
+            {% for professor in professors_for_filter %}
+              <option value="{{ professor.id }}" {% if filtro_profesor == professor.id|stringformat:"s" %}selected{% endif %}>
+                {{ professor.get_full_name|default:professor.username }}
               </option>
             {% endfor %}
           </select>
@@ -167,7 +187,7 @@
               <td class="text-end text-danger">{{ student.overdue_cases }}</td>
               <td class="text-end text-warning">{{ student.without_deadline_cases }}</td>
               <td class="text-center">
-                <a href="{% url 'academic_student_detail' student.id %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-sm btn-outline-primary">
+                <a href="{% url 'case_academic_student_detail' student.id %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-sm btn-outline-primary">
                   <i class="bi bi-bar-chart-line"></i> Ver detalle
                 </a>
               </td>

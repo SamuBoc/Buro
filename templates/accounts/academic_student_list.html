@@ -27,6 +27,7 @@
                         <th>Casos activos</th>
                         <th>Disponibilidad</th>
                         <th>Sala preferente</th>
+                        <th>Profesor supervisor</th>
                         <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
@@ -48,6 +49,13 @@
                             {% endif %}
                         </td>
                         <td>{{ student.profile.get_preferred_room_display|default:'Sin preferencia' }}</td>
+                        <td>
+                            {% if student.profile.supervising_professor %}
+                                {{ student.profile.supervising_professor.get_full_name|default:student.profile.supervising_professor.username }}
+                            {% else %}
+                                Sin asignar
+                            {% endif %}
+                        </td>
                         <td class="text-center">
                             <a href="{% url 'academic_student_detail' student.pk %}" class="btn btn-sm btn-secondary">
                                 <i class="bi bi-eye"></i> Ver

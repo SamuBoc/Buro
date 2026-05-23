@@ -132,12 +132,20 @@ def _build_academic_dashboard_filters(request):
     filtro_estado = request.GET.get('estado')
     filtro_sala = request.GET.get('sala')
     filtro_estudiante = (request.GET.get('estudiante') or '').strip()
+    filtro_profesor = (request.GET.get('profesor') or '').strip()
     desde_date = None
     hasta_date = None
     student_filter = None
+    professor_filter = None
     students_for_filter = (
         User.objects
         .filter(is_active=True, groups__name=ROLE_ESTUDIANTE)
+        .order_by('first_name', 'last_name', 'username')
+        .distinct()
+    )
+    professors_for_filter = (
+        User.objects
+        .filter(is_active=True, groups__name=ROLE_PROFESOR)
         .order_by('first_name', 'last_name', 'username')
         .distinct()
     )
@@ -174,6 +182,16 @@ def _build_academic_dashboard_filters(request):
         except ValueError:
             filtro_estudiante = ''
             student_filter = None
+    if filtro_profesor:
+        try:
+            professor_filter = int(filtro_profesor)
+            case_filters &= Q(assigned_student__profile__supervising_professor_id=professor_filter)
+            assigned_cases_filters &= Q(
+                assigned_cases__assigned_student__profile__supervising_professor_id=professor_filter
+            )
+        except ValueError:
+            filtro_profesor = ''
+            professor_filter = None
 
     sala_label = ''
     if filtro_sala:
@@ -197,8 +215,11 @@ def _build_academic_dashboard_filters(request):
         'filtro_estado': filtro_estado,
         'filtro_sala': filtro_sala,
         'filtro_estudiante': filtro_estudiante,
+        'filtro_profesor': filtro_profesor,
         'student_filter': student_filter,
+        'professor_filter': professor_filter,
         'students_for_filter': students_for_filter,
+        'professors_for_filter': professors_for_filter,
         'sala_label': sala_label,
         'date_range_label': date_range_label,
         'case_filters': case_filters,
@@ -238,6 +259,8 @@ def academic_dashboard(request):
     )
     if filters['student_filter']:
         students = students.filter(pk=filters['student_filter'])
+    if filters['professor_filter']:
+        students = students.filter(profile__supervising_professor_id=filters['professor_filter'])
     if filters['filtro_sala']:
         students = students.filter(total_cases__gt=0)
 
@@ -256,7 +279,9 @@ def academic_dashboard(request):
         'filtro_estado': filters['filtro_estado'],
         'filtro_sala': filters['filtro_sala'],
         'filtro_estudiante': filters['filtro_estudiante'],
+        'filtro_profesor': filters['filtro_profesor'],
         'students_for_filter': filters['students_for_filter'],
+        'professors_for_filter': filters['professors_for_filter'],
         'estado_choices': [
             Case.STATE_PENDING,
             Case.STATE_ASSIGNED,

@@ -81,8 +81,13 @@ class AcademicDashboardMetricsTests(TestCase):
     def setUp(self):
         self.client = Client()
         self.profesor = make_user('prof_acad_metrics', group_name=ROLE_PROFESOR)
+        self.profesor_secundario = make_user('prof_acad_metrics_b', group_name=ROLE_PROFESOR)
         self.student_one = make_user('stud_metrics_1', group_name=ROLE_ESTUDIANTE)
         self.student_two = make_user('stud_metrics_2', group_name=ROLE_ESTUDIANTE)
+        self.student_one.profile.supervising_professor = self.profesor
+        self.student_one.profile.save()
+        self.student_two.profile.supervising_professor = self.profesor_secundario
+        self.student_two.profile.save()
         self.beneficiary = make_beneficiary(email='metrics@test.com')
 
         today = timezone.localdate()
@@ -117,7 +122,7 @@ class AcademicDashboardMetricsTests(TestCase):
     def test_student_detail_metrics(self):
         self.client.force_login(self.profesor)
         response = self.client.get(
-            reverse('academic_student_detail', args=[self.student_one.id])
+            reverse('case_academic_student_detail', args=[self.student_one.id])
         )
         self.assertEqual(response.status_code, 200)
         metrics = response.context['metrics']
@@ -135,7 +140,7 @@ class AcademicDashboardMetricsTests(TestCase):
         )
         self.client.force_login(self.profesor)
         response = self.client.get(
-            reverse('academic_student_detail', args=[self.student_two.id])
+            reverse('case_academic_student_detail', args=[self.student_two.id])
         )
         metrics = response.context['metrics']
         self.assertEqual(metrics['rejected_cases'], 1)
@@ -169,6 +174,18 @@ class AcademicDashboardMetricsTests(TestCase):
         students = list(response.context['students'])
         self.assertEqual(len(students), 1)
         self.assertEqual(students[0], self.student_two)
+
+    def test_dashboard_can_filter_by_professor(self):
+        self.client.force_login(self.profesor)
+        response = self.client.get(
+            reverse('academic_dashboard'),
+            {'profesor': str(self.profesor.id)},
+        )
+        self.assertEqual(response.status_code, 200)
+        students = list(response.context['students'])
+        self.assertEqual(len(students), 1)
+        self.assertEqual(students[0], self.student_one)
+        self.assertEqual(response.context['total_assigned_cases'], 2)
 
 
 class AcademicDashboardExportTests(TestCase):
