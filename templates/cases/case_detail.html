@@ -315,13 +315,14 @@
         <script src="https://sdk.videosdk.live/js-sdk/0.0.67/videosdk.js"></script>
         <script>
         (function () {
-            const caseId   = {{ case.pk }};
-            const tokenUrl = "{% url 'generate_videosdk_token' case.pk %}";
+            const caseId    = {{ case.pk }};
+            const tokenUrl  = "{% url 'generate_videosdk_token' case.pk %}";
             const uploadUrl = "{% url 'upload_call_recording' case.pk %}";
             const csrfToken = "{{ csrf_token }}";
+            const joinBase  = "{{ request.scheme }}://{{ request.get_host }}/casos/" + caseId + "/llamada/";
 
             let mediaRecorder, audioChunks = [], timerInterval, seconds = 0;
-            let meeting = null;
+            let meeting = null, audioCtx = null, mixDest = null;
 
             function showSection(id) {
                 ['call-idle','call-active','call-uploading','call-done','call-error']
@@ -338,15 +339,22 @@
 
             document.getElementById('btn-start-call').addEventListener('click', async () => {
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-                    const res = await fetch(tokenUrl, {
-                        headers: { 'X-CSRFToken': csrfToken }
-                    });
+                    const res = await fetch(tokenUrl, { headers: { 'X-CSRFToken': csrfToken } });
                     if (!res.ok) throw new Error('No se pudo obtener el token de llamada');
                     const { token, roomId } = await res.json();
 
+                    // Mostrar sala y link de unión
                     document.getElementById('room-id-display').textContent = roomId;
+                    const joinLink = joinBase + roomId + '/unirse/';
+                    document.getElementById('join-link').value = joinLink;
+
+                    // AudioContext para mezclar audio local + remoto
+                    audioCtx = new AudioContext();
+                    mixDest  = audioCtx.createMediaStreamDestination();
+                    const localSrc = audioCtx.createMediaStreamSource(localStream);
+                    localSrc.connect(mixDest);
 
                     // Inicializar VideoSDK
                     window.VideoSDK.config(token);
@@ -356,11 +364,23 @@
                         micEnabled: true,
                         webcamEnabled: false,
                     });
+
+                    // Conectar audio remoto al mixer cuando alguien se une
+                    meeting.on('participant-joined', (participant) => {
+                        participant.on('stream-enabled', (stream) => {
+                            if (stream.kind === 'audio') {
+                                const remoteStream = new MediaStream([stream.track]);
+                                const remoteSrc = audioCtx.createMediaStreamSource(remoteStream);
+                                remoteSrc.connect(mixDest);
+                            }
+                        });
+                    });
+
                     meeting.join();
 
-                    // Grabar audio local con MediaRecorder
+                    // Grabar el stream mezclado (local + remoto)
                     audioChunks = [];
-                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder = new MediaRecorder(mixDest.stream);
                     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
                     mediaRecorder.start(1000);
 
@@ -373,10 +393,19 @@
                 }
             });
 
+            document.getElementById('btn-copy-link').addEventListener('click', () => {
+                const link = document.getElementById('join-link').value;
+                navigator.clipboard.writeText(link).then(() => {
+                    document.getElementById('btn-copy-link').textContent = '¡Copiado!';
+                    setTimeout(() => document.getElementById('btn-copy-link').textContent = 'Copiar', 2000);
+                });
+            });
+
             document.getElementById('btn-end-call').addEventListener('click', () => {
                 clearInterval(timerInterval);
                 mediaRecorder.stop();
                 if (meeting) { try { meeting.leave(); } catch(_) {} }
+                if (audioCtx) audioCtx.close();
 
                 mediaRecorder.onstop = async () => {
                     showSection('call-uploading');
