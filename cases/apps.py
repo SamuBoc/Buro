@@ -2,15 +2,19 @@ import os
 import sys
 
 from django.apps import AppConfig
+from django.conf import settings
 
 
 class CasesConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'cases'
-    verbose_name = 'Gestión de Casos'
+    verbose_name = 'Gestion de Casos'
 
     def ready(self):
-        import cases.signals  # noqa: F401 — registrar señales
+        import cases.signals  # noqa: F401
+
+        if not getattr(settings, 'ENABLE_APP_SCHEDULERS', False):
+            return
 
         management_commands_to_skip = {
             'check',
@@ -31,7 +35,8 @@ class CasesConfig(AppConfig):
         from apscheduler.schedulers.background import BackgroundScheduler
         from apscheduler.triggers.cron import CronTrigger
         from django_apscheduler.jobstores import DjangoJobStore
-        from .scheduler import send_deadline_alerts   # HU-28
+
+        from .scheduler import send_deadline_alerts
 
         try:
             scheduler = BackgroundScheduler()
@@ -40,10 +45,10 @@ class CasesConfig(AppConfig):
                 send_deadline_alerts,
                 trigger=CronTrigger(hour=7, minute=0),
                 id='send_deadline_alerts',
-                name='Alertas automáticas de vencimiento de casos',
+                name='Alertas automaticas de vencimiento de casos',
                 replace_existing=True,
             )
             scheduler.start()
         except Exception:
-            # No bloquea el arranque si las tablas del scheduler aún no existen.
+            # No bloquea el arranque si las tablas del scheduler aun no existen.
             return
