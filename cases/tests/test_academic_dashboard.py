@@ -119,6 +119,23 @@ class AcademicDashboardMetricsTests(TestCase):
         self.assertEqual(response.context['total_overdue_cases'], 1)
         self.assertEqual(response.context['total_without_deadline_cases'], 1)
 
+    def test_dashboard_includes_sala_distribution(self):
+        make_case(
+            beneficiary=self.beneficiary,
+            assigned_student=self.student_two,
+            sala=Case.ROOM_PENAL,
+            deadline_date=timezone.localdate() + timedelta(days=4),
+            state=Case.STATE_ASSIGNED,
+        )
+        self.client.force_login(self.profesor)
+        response = self.client.get(reverse('academic_dashboard'))
+        self.assertEqual(response.status_code, 200)
+        distribution = response.context['sala_distribution']
+        civil_row = next(row for row in distribution if row['sala'] == 'Civil')
+        penal_row = next(row for row in distribution if row['sala'] == 'Penal')
+        self.assertEqual(civil_row['cantidad'], 3)
+        self.assertEqual(penal_row['cantidad'], 1)
+
     def test_student_detail_metrics(self):
         self.client.force_login(self.profesor)
         response = self.client.get(

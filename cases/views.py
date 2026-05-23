@@ -268,12 +268,28 @@ def academic_dashboard(request):
     total_assigned = cases_with_student.count()
     total_overdue = cases_with_student.filter(deadline_date__lt=today).count()
     total_without_deadline = cases_with_student.filter(deadline_date__isnull=True).count()
+
+    sala_counts = {
+        row['sala']: row['count']
+        for row in cases_with_student.values('sala').annotate(count=Count('id'))
+    }
+    sala_distribution = []
+    for value, label in Case.ROOM_CHOICES:
+        cantidad = sala_counts.get(value, 0)
+        porcentaje = round((cantidad / total_assigned * 100), 1) if total_assigned else 0.0
+        sala_distribution.append({
+            'sala': label,
+            'cantidad': cantidad,
+            'porcentaje': porcentaje,
+        })
+
     return render(request, 'cases/academic_dashboard.html', {
         'students': students,
         'total_students': students.count(),
         'total_assigned_cases': total_assigned,
         'total_overdue_cases': total_overdue,
         'total_without_deadline_cases': total_without_deadline,
+        'sala_distribution': sala_distribution,
         'filtro_desde': filters['filtro_desde'],
         'filtro_hasta': filters['filtro_hasta'],
         'filtro_estado': filters['filtro_estado'],
