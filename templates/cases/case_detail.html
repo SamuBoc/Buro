@@ -271,7 +271,7 @@
         </div>
         {% endif %}
 
-        <!-- HU-22: Llamada con grabación -->
+        <!-- HU-22: Llamada con grabación (WebRTC nativo) -->
         {% if can_add_interaction %}
         <div class="card mt-4" id="call-section">
             <div class="card-body p-4">
@@ -281,14 +281,23 @@
                         <i class="bi bi-telephone-fill me-1"></i>Iniciar llamada
                     </button>
                 </div>
+                <div id="call-connecting" class="d-none">
+                    <div class="spinner-border spinner-border-sm text-success me-2" role="status"></div>
+                    <span class="text-muted">Preparando llamada…</span>
+                </div>
                 <div id="call-active" class="d-none">
                     <div class="alert alert-info mb-3">
-                        <strong>Sala:</strong> <span id="room-id-display"></span>
-                        <br><small class="text-muted">Comparte este ID con el participante para que se una.</small>
+                        <small class="text-muted d-block mb-2">Compartí este link con el otro participante:</small>
+                        <div class="input-group input-group-sm">
+                            <input type="text" id="join-link" class="form-control" readonly>
+                            <button id="btn-copy-link" class="btn btn-outline-secondary" type="button">Copiar</button>
+                        </div>
                     </div>
                     <div class="d-flex align-items-center gap-2 mb-3">
                         <span class="badge bg-danger"><i class="bi bi-record-circle me-1"></i>Grabando</span>
                         <span id="call-timer" class="text-muted small">00:00</span>
+                        <span id="call-status-badge" class="badge bg-warning text-dark">Esperando participante…</span>
+                        <span id="mic-indicator" class="badge bg-secondary" title="Nivel de micrófono"><i class="bi bi-mic-fill"></i></span>
                     </div>
                     <button id="btn-end-call" class="btn btn-danger">
                         <i class="bi bi-telephone-x-fill me-1"></i>Colgar y guardar grabación
@@ -312,20 +321,21 @@
             </div>
         </div>
 
-        <script src="https://sdk.videosdk.live/js-sdk/0.0.67/videosdk.js"></script>
         <script>
         (function () {
             const caseId    = {{ case.pk }};
-            const tokenUrl  = "{% url 'generate_videosdk_token' case.pk %}";
+            const iceUrl    = "{% url 'get_ice_servers' case.pk %}";
+            const createUrl = "{% url 'create_call_session' case.pk %}";
             const uploadUrl = "{% url 'upload_call_recording' case.pk %}";
             const csrfToken = "{{ csrf_token }}";
-            const joinBase  = "{{ request.scheme }}://{{ request.get_host }}/casos/" + caseId + "/llamada/";
+            const joinBase  = "{{ request.scheme }}://{{ request.get_host }}/casos/" + caseId + "/webrtc/";
 
-            let mediaRecorder, audioChunks = [], timerInterval, seconds = 0;
-            let meeting = null, audioCtx = null, mixDest = null;
+            let pc = null, mediaRecorder, audioChunks = [], timerInterval, seconds = 0;
+            let audioCtx = null, mixDest = null, pollInterval = null;
+            let micAnalyser = null, micAnimFrame = null, remoteAudio = null;
 
             function showSection(id) {
-                ['call-idle','call-active','call-uploading','call-done','call-error']
+                ['call-idle','call-connecting','call-active','call-uploading','call-done','call-error']
                     .forEach(s => document.getElementById(s).classList.add('d-none'));
                 document.getElementById(id).classList.remove('d-none');
             }
@@ -337,56 +347,110 @@
                 document.getElementById('call-timer').textContent = `${m}:${s}`;
             }
 
+            function waitForIceGathering(connection) {
+                return new Promise(resolve => {
+                    if (connection.iceGatheringState === 'complete') { resolve(); return; }
+                    const check = () => {
+                        if (connection.iceGatheringState === 'complete') {
+                            connection.removeEventListener('icegatheringstatechange', check);
+                            resolve();
+                        }
+                    };
+                    connection.addEventListener('icegatheringstatechange', check);
+                    setTimeout(resolve, 10000);
+                });
+            }
+
             document.getElementById('btn-start-call').addEventListener('click', async () => {
+                showSection('call-connecting');
                 try {
                     const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-                    const res = await fetch(tokenUrl, { headers: { 'X-CSRFToken': csrfToken } });
-                    if (!res.ok) throw new Error('No se pudo obtener el token de llamada');
-                    const { token, roomId } = await res.json();
+                    const iceRes = await fetch(iceUrl, { headers: { 'X-CSRFToken': csrfToken } });
+                    if (!iceRes.ok) throw new Error('No se pudo obtener servidores ICE');
+                    const { iceServers } = await iceRes.json();
 
-                    // Mostrar sala y link de unión
-                    document.getElementById('room-id-display').textContent = roomId;
-                    const joinLink = joinBase + roomId + '/unirse/';
-                    document.getElementById('join-link').value = joinLink;
+                    const sessionRes = await fetch(createUrl, {
+                        method: 'POST', headers: { 'X-CSRFToken': csrfToken },
+                    });
+                    if (!sessionRes.ok) throw new Error('No se pudo crear la sesión');
+                    const { roomId } = await sessionRes.json();
 
-                    // AudioContext para mezclar audio local + remoto
+                    const offerUrl = `/casos/${caseId}/webrtc/${roomId}/oferta/`;
+                    const stateUrl = `/casos/${caseId}/webrtc/${roomId}/estado/`;
+                    const joinLink = `${joinBase}${roomId}/sala/`;
+
+                    pc = new RTCPeerConnection({ iceServers });
                     audioCtx = new AudioContext();
                     mixDest  = audioCtx.createMediaStreamDestination();
-                    const localSrc = audioCtx.createMediaStreamSource(localStream);
-                    localSrc.connect(mixDest);
 
-                    // Inicializar VideoSDK
-                    window.VideoSDK.config(token);
-                    meeting = window.VideoSDK.initMeeting({
-                        meetingId: roomId,
-                        name: "{{ request.user.get_full_name|default:request.user.username }}",
-                        micEnabled: true,
-                        webcamEnabled: false,
+                    const localSource = audioCtx.createMediaStreamSource(localStream);
+                    localSource.connect(mixDest);
+
+                    // Mic level indicator
+                    micAnalyser = audioCtx.createAnalyser();
+                    micAnalyser.fftSize = 256;
+                    localSource.connect(micAnalyser);
+                    const micData = new Uint8Array(micAnalyser.frequencyBinCount);
+                    const micBadge = document.getElementById('mic-indicator');
+                    function animateMic() {
+                        micAnalyser.getByteFrequencyData(micData);
+                        const avg = micData.reduce((a, b) => a + b, 0) / micData.length;
+                        micBadge.className = avg > 8 ? 'badge bg-danger' : 'badge bg-secondary';
+                        micAnimFrame = requestAnimationFrame(animateMic);
+                    }
+                    animateMic();
+
+                    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+                    function markCallActive() {
+                        document.getElementById('call-status-badge').textContent = 'En llamada';
+                        document.getElementById('call-status-badge').className = 'badge bg-success';
+                    }
+
+                    pc.ontrack = (event) => {
+                        const remoteStream = event.streams[0] || new MediaStream([event.track]);
+                        audioCtx.createMediaStreamSource(remoteStream).connect(mixDest);
+                        // Play remote audio through speakers
+                        remoteAudio = new Audio();
+                        remoteAudio.srcObject = remoteStream;
+                        remoteAudio.play().catch(() => {});
+                        markCallActive();
+                    };
+
+                    pc.onconnectionstatechange = () => {
+                        if (pc.connectionState === 'connected') markCallActive();
+                    };
+
+                    const offer = await pc.createOffer();
+                    await pc.setLocalDescription(offer);
+                    await waitForIceGathering(pc);
+
+                    await fetch(offerUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify({ sdp: pc.localDescription }),
                     });
 
-                    // Conectar audio remoto al mixer cuando alguien se une
-                    meeting.on('participant-joined', (participant) => {
-                        participant.on('stream-enabled', (stream) => {
-                            if (stream.kind === 'audio') {
-                                const remoteStream = new MediaStream([stream.track]);
-                                const remoteSrc = audioCtx.createMediaStreamSource(remoteStream);
-                                remoteSrc.connect(mixDest);
-                            }
-                        });
-                    });
-
-                    meeting.join();
-
-                    // Grabar el stream mezclado (local + remoto)
+                    document.getElementById('join-link').value = joinLink;
                     audioChunks = [];
                     mediaRecorder = new MediaRecorder(mixDest.stream);
                     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
                     mediaRecorder.start(1000);
-
                     seconds = 0;
                     timerInterval = setInterval(updateTimer, 1000);
                     showSection('call-active');
+
+                    pollInterval = setInterval(async () => {
+                        try {
+                            const s = await (await fetch(stateUrl)).json();
+                            if (s.answer && pc.signalingState !== 'stable') {
+                                clearInterval(pollInterval);
+                                await pc.setRemoteDescription(new RTCSessionDescription(s.answer));
+                            }
+                        } catch (_) {}
+                    }, 1500);
+
                 } catch (err) {
                     document.getElementById('call-error-msg').textContent = err.message || 'Error al iniciar la llamada.';
                     showSection('call-error');
@@ -403,28 +467,31 @@
 
             document.getElementById('btn-end-call').addEventListener('click', () => {
                 clearInterval(timerInterval);
-                mediaRecorder.stop();
-                if (meeting) { try { meeting.leave(); } catch(_) {} }
+                clearInterval(pollInterval);
+                if (micAnimFrame) cancelAnimationFrame(micAnimFrame);
+                if (remoteAudio) { remoteAudio.pause(); remoteAudio.srcObject = null; }
+                if (pc) pc.close();
                 if (audioCtx) audioCtx.close();
-
-                mediaRecorder.onstop = async () => {
-                    showSection('call-uploading');
-                    const blob = new Blob(audioChunks, { type: 'audio/webm' });
-                    const formData = new FormData();
-                    formData.append('audio', blob, 'grabacion.webm');
-                    formData.append('description', 'Llamada grabada desde la plataforma');
-                    formData.append('csrfmiddlewaretoken', csrfToken);
-
-                    try {
-                        const res = await fetch(uploadUrl, { method: 'POST', body: formData });
-                        if (!res.ok) throw new Error('Error del servidor al guardar la grabación');
-                        showSection('call-done');
-                        setTimeout(() => location.reload(), 1500);
-                    } catch (err) {
-                        document.getElementById('call-error-msg').textContent = err.message;
-                        showSection('call-error');
-                    }
-                };
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.onstop = async () => {
+                        showSection('call-uploading');
+                        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const formData = new FormData();
+                        formData.append('audio', blob, 'grabacion.webm');
+                        formData.append('description', 'Llamada grabada desde la plataforma');
+                        formData.append('csrfmiddlewaretoken', csrfToken);
+                        try {
+                            const res = await fetch(uploadUrl, { method: 'POST', body: formData });
+                            if (!res.ok) throw new Error('Error del servidor al guardar la grabación');
+                            showSection('call-done');
+                            setTimeout(() => location.reload(), 1500);
+                        } catch (err) {
+                            document.getElementById('call-error-msg').textContent = err.message;
+                            showSection('call-error');
+                        }
+                    };
+                    mediaRecorder.stop();
+                }
             });
         })();
         </script>

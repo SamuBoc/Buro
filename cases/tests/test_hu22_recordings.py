@@ -1,17 +1,27 @@
 import io
 import tempfile
 import time
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
-import jwt
 from django.contrib.auth.models import User, Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_ESTUDIANTE, ROLE_SECRETARIA
-from cases.models import Case, CommunicationInteraction, CaseAuditLog
+from cases.models import Case, CommunicationInteraction, CaseAuditLog, CallSession
 from beneficiary.models import Beneficiary
+
+_FAKE_CLOUDINARY_RESPONSE = {
+    'public_id': 'media/call_recordings/test/grabacion',
+    'secure_url': 'https://res.cloudinary.com/test/raw/upload/v1/grabacion.webm',
+    'url': 'http://res.cloudinary.com/test/raw/upload/v1/grabacion.webm',
+    'resource_type': 'raw',
+    'type': 'upload',
+    'format': 'webm',
+    'version': 1,
+    'tags': [],
+}
 
 
 def _make_user(username, role):
@@ -31,45 +41,36 @@ def _make_case(created_by):
     return Case.objects.create(beneficiary=beneficiary, created_by=created_by)
 
 
-class GenerateVideosdkTokenTests(TestCase):
+class CreateCallSessionTests(TestCase):
 
     def setUp(self):
         self.client = Client()
         self.admin = _make_user('admin_hu22', ROLE_ADMINISTRADOR)
         self.case = _make_case(self.admin)
-        self.url = reverse('generate_videosdk_token', args=[self.case.pk])
+        self.url = reverse('create_call_session', args=[self.case.pk])
 
-    @patch.dict('os.environ', {'VIDEOSDK_API_KEY': 'test_key', 'VIDEOSDK_SECRET_KEY': 'test_secret'})
-    def test_token_generado_correctamente(self):
+    def test_crea_sesion_y_retorna_room_id(self):
         self.client.login(username='admin_hu22', password='pass1234')
-        response = self.client.get(self.url)
+        response = self.client.post(self.url)
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertIn('token', data)
         self.assertIn('roomId', data)
-        decoded = jwt.decode(data['token'], 'test_secret', algorithms=['HS256'])
-        self.assertEqual(decoded['apikey'], 'test_key')
-        self.assertIn('allow_join', decoded['permissions'])
-
-    @patch.dict('os.environ', {'VIDEOSDK_API_KEY': '', 'VIDEOSDK_SECRET_KEY': ''})
-    def test_error_si_credenciales_no_configuradas(self):
-        self.client.login(username='admin_hu22', password='pass1234')
-        response = self.client.get(self.url)
-        self.assertEqual(response.status_code, 503)
+        self.assertTrue(CallSession.objects.filter(room_id=data['roomId']).exists())
 
     def test_sin_login_redirige(self):
-        response = self.client.get(self.url)
+        response = self.client.post(self.url)
         self.assertNotEqual(response.status_code, 200)
 
     def test_usuario_sin_permiso_obtiene_403(self):
-        secretaria = _make_user('sec_hu22', ROLE_SECRETARIA)
-        other_case = _make_case(secretaria)
-        # Estudiante sin asignación no puede
         estudiante = _make_user('est_hu22', ROLE_ESTUDIANTE)
         self.client.login(username='est_hu22', password='pass1234')
-        url = reverse('generate_videosdk_token', args=[self.case.pk])
-        response = self.client.get(url)
+        response = self.client.post(self.url)
         self.assertEqual(response.status_code, 403)
+
+    def test_metodo_get_retorna_405(self):
+        self.client.login(username='admin_hu22', password='pass1234')
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 405)
 
 
 _TEST_STORAGES = {
@@ -82,10 +83,15 @@ _TEST_STORAGES = {
 class UploadCallRecordingTests(TestCase):
 
     def setUp(self):
+        self.cloudinary_patch = patch('cloudinary.uploader.upload', return_value=_FAKE_CLOUDINARY_RESPONSE)
+        self.cloudinary_patch.start()
         self.client = Client()
         self.admin = _make_user('admin_upload', ROLE_ADMINISTRADOR)
         self.case = _make_case(self.admin)
         self.url = reverse('upload_call_recording', args=[self.case.pk])
+
+    def tearDown(self):
+        self.cloudinary_patch.stop()
 
     def _fake_audio(self):
         return SimpleUploadedFile('grabacion.webm', b'fake_audio_bytes', content_type='audio/webm')

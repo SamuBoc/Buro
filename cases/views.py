@@ -1,16 +1,16 @@
 from datetime import datetime
 import io
+import json
 import logging
 import mimetypes
 import os
-import time
+import urllib.request
 import uuid
-
-import jwt
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
@@ -43,7 +43,7 @@ from .forms import (
     CaseRejectionForm,
     CommunicationInteractionForm,
 )
-from .models import Case, CaseAuditLog, CaseDocument, CommunicationInteraction, Notification
+from .models import Case, CaseAuditLog, CallSession, CaseDocument, CommunicationInteraction, Notification
 from .services import auto_assign_case, reassign_case
 
 User = get_user_model()
@@ -1234,57 +1234,6 @@ def serve_case_document(request, document_id):
 logger = logging.getLogger(__name__)
 
 
-def _build_videosdk_token(room_id=None):
-    api_key = os.environ.get('VIDEOSDK_API_KEY', '')
-    secret = os.environ.get('VIDEOSDK_SECRET_KEY', '')
-    if not api_key or not secret:
-        return None, None, 'Servicio de llamadas no configurado'
-    if room_id is None:
-        room_id = str(uuid.uuid4())
-    payload = {
-        'apikey': api_key,
-        'permissions': ['allow_join', 'allow_mod'],
-        'iat': int(time.time()),
-        'exp': int(time.time()) + 3600,
-    }
-    token = jwt.encode(payload, secret, algorithm='HS256')
-    return token, room_id, None
-
-
-@login_required
-def generate_videosdk_token(request, case_id):
-    case = get_object_or_404(Case, pk=case_id)
-
-    if not can_add_interaction(request.user, case):
-        return JsonResponse({'error': 'Sin permiso'}, status=403)
-
-    token, room_id, error = _build_videosdk_token()
-    if error:
-        logger.error(error)
-        return JsonResponse({'error': error}, status=503)
-
-    return JsonResponse({'token': token, 'roomId': room_id})
-
-
-def get_join_token(request, case_id, room_id):
-    """Genera token para unirse a una sala existente (sin login requerido)."""
-    token, _, error = _build_videosdk_token(room_id=room_id)
-    if error:
-        return JsonResponse({'error': error}, status=503)
-    return JsonResponse({'token': token, 'roomId': room_id})
-
-
-def join_call(request, case_id, room_id):
-    """Página pública para que el segundo participante se una a la llamada."""
-    case = get_object_or_404(Case, pk=case_id)
-    return render(request, 'cases/call_room.html', {
-        'case': case,
-        'room_id': room_id,
-        'join_token_url': request.build_absolute_uri(
-            f'/casos/{case_id}/llamada/{room_id}/token/'
-        ),
-    })
-
 
 @login_required
 def upload_call_recording(request, case_id):
@@ -1381,15 +1330,97 @@ def serve_call_recording(request, interaction_id):
             user=request.user,
             action='SECURITY_DENIED',
             description=(
-                f'Acceso denegado a grabacion de llamada del caso {case.code} '
+                f'Acceso denegado a grabación de llamada del caso {case.code} '
                 f'por el usuario {request.user.username}.'
             ),
             case_radicado=case.code,
             ip_address=get_client_ip(request),
         )
-        return HttpResponseForbidden('No tienes permiso para acceder a esta grabacion.')
+        return HttpResponseForbidden('No tienes permiso para acceder a esta grabación.')
 
     if not interaction.audio_file:
-        raise Http404('No hay grabacion para esta interaccion.')
+        raise Http404('No hay grabación para esta interacción.')
 
     return redirect(interaction.audio_file.url)
+
+
+# ─── WebRTC nativo (reemplaza VideoSDK) ─────────────────────────────────────
+
+def get_ice_servers(request, case_id):
+    api_key = os.environ.get('METERED_API_KEY', '')
+    domain  = os.environ.get('METERED_DOMAIN', '')
+    if not api_key or not domain:
+        return JsonResponse({'error': 'TURN no configurado'}, status=503)
+    url = f'https://{domain}/api/v1/turn/credentials?apiKey={api_key}'
+    try:
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            ice_servers = json.loads(resp.read())
+        return JsonResponse({'iceServers': ice_servers})
+    except Exception as exc:
+        logger.error('Error obteniendo ICE servers: %s', exc)
+        return JsonResponse({'error': 'No se pudo obtener servidores TURN'}, status=503)
+
+
+@login_required
+def create_call_session(request, case_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    case = get_object_or_404(Case, pk=case_id)
+    if not can_add_interaction(request.user, case):
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+    session = CallSession.objects.create(case=case, created_by=request.user)
+    return JsonResponse({'roomId': str(session.room_id)})
+
+
+@login_required
+def set_call_offer(request, case_id, room_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    session = get_object_or_404(CallSession, room_id=room_id, case_id=case_id)
+    data = json.loads(request.body)
+    session.offer_sdp = json.dumps(data['sdp'])
+    session.save(update_fields=['offer_sdp'])
+    return JsonResponse({'status': 'ok'})
+
+
+def get_call_state(request, case_id, room_id):
+    session = get_object_or_404(CallSession, room_id=room_id, case_id=case_id)
+    return JsonResponse({
+        'status':  session.status,
+        'hasOffer': bool(session.offer_sdp),
+        'answer':  json.loads(session.answer_sdp) if session.answer_sdp else None,
+    })
+
+
+@csrf_exempt
+def set_call_answer(request, case_id, room_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    session = get_object_or_404(CallSession, room_id=room_id, case_id=case_id)
+    data = json.loads(request.body)
+    session.answer_sdp = json.dumps(data['sdp'])
+    session.status = CallSession.STATUS_ACTIVE
+    session.save(update_fields=['answer_sdp', 'status'])
+    return JsonResponse({'status': 'ok'})
+
+
+def get_call_offer(request, case_id, room_id):
+    session = get_object_or_404(CallSession, room_id=room_id, case_id=case_id)
+    return JsonResponse({
+        'offer':  json.loads(session.offer_sdp) if session.offer_sdp else None,
+        'status': session.status,
+    })
+
+
+def join_webrtc_call(request, case_id, room_id):
+    case = get_object_or_404(Case, pk=case_id)
+    get_object_or_404(CallSession, room_id=room_id, case_id=case_id)
+    return render(request, 'cases/call_room.html', {
+        'case': case,
+        'room_id': room_id,
+        'ice_url': request.build_absolute_uri(f'/casos/{case_id}/webrtc/ice/'),
+        'offer_url': request.build_absolute_uri(f'/casos/{case_id}/webrtc/{room_id}/oferta/leer/'),
+        'answer_url': request.build_absolute_uri(f'/casos/{case_id}/webrtc/{room_id}/respuesta/'),
+        'state_url': request.build_absolute_uri(f'/casos/{case_id}/webrtc/{room_id}/estado/'),
+    })
+

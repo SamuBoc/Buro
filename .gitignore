@@ -38,3 +38,6 @@ staticfiles/
 
 #Selenium
 chromedriver.exe
+
+# Archivos de notas locales
+PROGRESS.md
