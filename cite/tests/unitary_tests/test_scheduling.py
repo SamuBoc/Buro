@@ -1,16 +1,21 @@
 from datetime import date, timedelta
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from accounts.constants import ROLE_SECRETARIA, ROLE_ESTUDIANTE, ROLE_PROFESOR
 from beneficiary.models import Beneficiary
 from cite.models import Cite
 
 
-def make_user(username, password='pass1234'):
-    return User.objects.create_user(username=username, password=password)
+def make_user(username, password='pass1234', group_name=None):
+    user = User.objects.create_user(username=username, password=password)
+    if group_name:
+        group, _ = Group.objects.get_or_create(name=group_name)
+        user.groups.add(group)
+    return user
 
 
 def make_beneficiary():
@@ -39,7 +44,7 @@ class CiteCreationTest(TestCase):
 
     def setUp(self):
         self.client = Client()
-        self.user = make_user('user_cite')
+        self.user = make_user('user_cite', group_name=ROLE_SECRETARIA)
         self.client.login(username='user_cite', password='pass1234')
         self.beneficiary = make_beneficiary()
         self.url = reverse('create_cite', args=[self.beneficiary.pk])
@@ -101,7 +106,7 @@ class CiteModalitySelectionTest(TestCase):
 
     def setUp(self):
         self.client = Client()
-        make_user('user_modality')
+        make_user('user_modality', group_name=ROLE_SECRETARIA)
         self.client.login(username='user_modality', password='pass1234')
         self.beneficiary = make_beneficiary()
 
@@ -136,7 +141,7 @@ class CiteCancellationTest(TestCase):
 
     def setUp(self):
         self.client = Client()
-        make_user('user_cancel')
+        make_user('user_cancel', group_name=ROLE_SECRETARIA)
         self.client.login(username='user_cancel', password='pass1234')
         self.beneficiary = make_beneficiary()
 
@@ -171,7 +176,7 @@ class CiteReschedulingTest(TestCase):
 
     def setUp(self):
         self.client = Client()
-        make_user('user_reschedule')
+        make_user('user_reschedule', group_name=ROLE_SECRETARIA)
         self.client.login(username='user_reschedule', password='pass1234')
         self.beneficiary = make_beneficiary()
 
@@ -204,3 +209,85 @@ class CiteReschedulingTest(TestCase):
         response = self.client.get(reverse('reschedule_cite', args=[cite.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, cite.date_assigned.strftime('%d/%m/%Y'))
+
+
+class CiteAccessControlTest(TestCase):
+    """
+    Verifica que estudiantes y profesores no pueden crear, cancelar ni
+    reprogramar citas. Solo secretaria y administrador tienen acceso (HU-16).
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.beneficiary = make_beneficiary()
+        self.cite = make_cite(self.beneficiary)
+        self.create_url = reverse('create_cite', args=[self.beneficiary.pk])
+        self.cancel_url = reverse('cancel_cite', args=[self.cite.pk])
+        self.reschedule_url = reverse('reschedule_cite', args=[self.cite.pk])
+
+    def _assert_forbidden(self, url, method='get'):
+        """Verifica que la vista devuelve 302 (redirección a forbidden/login)."""
+        response = getattr(self.client, method)(url)
+        self.assertEqual(
+            response.status_code, 302,
+            f'Se esperaba 302 en {url} pero se obtuvo {response.status_code}.',
+        )
+
+    def test_student_cannot_create_cite(self):
+        """NEGATIVO: Un estudiante no puede agendar citas."""
+        make_user('est_create', group_name=ROLE_ESTUDIANTE)
+        self.client.login(username='est_create', password='pass1234')
+        self._assert_forbidden(self.create_url, method='get')
+
+    def test_student_cannot_cancel_cite(self):
+        """NEGATIVO: Un estudiante no puede cancelar citas."""
+        make_user('est_cancel', group_name=ROLE_ESTUDIANTE)
+        self.client.login(username='est_cancel', password='pass1234')
+        self._assert_forbidden(self.cancel_url, method='post')
+        self.cite.refresh_from_db()
+        self.assertNotEqual(
+            self.cite.state_cite, Cite.STATE_CANCELED,
+            'La cita no debe haberse cancelado tras intento de un estudiante.',
+        )
+
+    def test_student_cannot_reschedule_cite(self):
+        """NEGATIVO: Un estudiante no puede reprogramar citas."""
+        make_user('est_reschedule', group_name=ROLE_ESTUDIANTE)
+        self.client.login(username='est_reschedule', password='pass1234')
+        self._assert_forbidden(self.reschedule_url, method='get')
+
+    def test_professor_cannot_create_cite(self):
+        """NEGATIVO: Un profesor no puede agendar citas."""
+        make_user('prof_create', group_name=ROLE_PROFESOR)
+        self.client.login(username='prof_create', password='pass1234')
+        self._assert_forbidden(self.create_url, method='get')
+
+    def test_professor_cannot_cancel_cite(self):
+        """NEGATIVO: Un profesor no puede cancelar citas."""
+        make_user('prof_cancel', group_name=ROLE_PROFESOR)
+        self.client.login(username='prof_cancel', password='pass1234')
+        self._assert_forbidden(self.cancel_url, method='post')
+        self.cite.refresh_from_db()
+        self.assertNotEqual(self.cite.state_cite, Cite.STATE_CANCELED)
+
+    def test_professor_cannot_reschedule_cite(self):
+        """NEGATIVO: Un profesor no puede reprogramar citas."""
+        make_user('prof_reschedule', group_name=ROLE_PROFESOR)
+        self.client.login(username='prof_reschedule', password='pass1234')
+        self._assert_forbidden(self.reschedule_url, method='get')
+
+    def test_secretaria_can_create_cite(self):
+        """POSITIVO: La secretaria sí puede agendar citas."""
+        make_user('sec_create', group_name=ROLE_SECRETARIA)
+        self.client.login(username='sec_create', password='pass1234')
+        response = self.client.get(self.create_url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_secretaria_can_cancel_cite(self):
+        """POSITIVO: La secretaria sí puede cancelar citas."""
+        make_user('sec_cancel', group_name=ROLE_SECRETARIA)
+        self.client.login(username='sec_cancel', password='pass1234')
+        response = self.client.post(self.cancel_url)
+        self.assertEqual(response.status_code, 302)
+        self.cite.refresh_from_db()
+        self.assertEqual(self.cite.state_cite, Cite.STATE_CANCELED)
