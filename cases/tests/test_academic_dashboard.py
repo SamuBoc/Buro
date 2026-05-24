@@ -61,10 +61,10 @@ class AcademicDashboardAccessTests(TestCase):
         response = self.client.get(reverse('academic_dashboard'))
         self.assertEqual(response.status_code, 200)
 
-    def test_secretaria_is_redirected(self):
+    def test_secretaria_can_access_dashboard(self):
         self.client.login(username='sec_acad', password='pass1234')
         response = self.client.get(reverse('academic_dashboard'))
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
 
     def test_estudiante_is_redirected(self):
         self.client.login(username='stud_acad', password='pass1234')
@@ -81,8 +81,13 @@ class AcademicDashboardMetricsTests(TestCase):
     def setUp(self):
         self.client = Client()
         self.profesor = make_user('prof_acad_metrics', group_name=ROLE_PROFESOR)
+        self.profesor_secundario = make_user('prof_acad_metrics_b', group_name=ROLE_PROFESOR)
         self.student_one = make_user('stud_metrics_1', group_name=ROLE_ESTUDIANTE)
         self.student_two = make_user('stud_metrics_2', group_name=ROLE_ESTUDIANTE)
+        self.student_one.profile.supervising_professor = self.profesor
+        self.student_one.profile.save()
+        self.student_two.profile.supervising_professor = self.profesor_secundario
+        self.student_two.profile.save()
         self.beneficiary = make_beneficiary(email='metrics@test.com')
 
         today = timezone.localdate()
@@ -114,10 +119,27 @@ class AcademicDashboardMetricsTests(TestCase):
         self.assertEqual(response.context['total_overdue_cases'], 1)
         self.assertEqual(response.context['total_without_deadline_cases'], 1)
 
+    def test_dashboard_includes_sala_distribution(self):
+        make_case(
+            beneficiary=self.beneficiary,
+            assigned_student=self.student_two,
+            sala=Case.ROOM_PENAL,
+            deadline_date=timezone.localdate() + timedelta(days=4),
+            state=Case.STATE_ASSIGNED,
+        )
+        self.client.force_login(self.profesor)
+        response = self.client.get(reverse('academic_dashboard'))
+        self.assertEqual(response.status_code, 200)
+        distribution = response.context['sala_distribution']
+        civil_row = next(row for row in distribution if row['sala'] == 'Civil')
+        penal_row = next(row for row in distribution if row['sala'] == 'Penal')
+        self.assertEqual(civil_row['cantidad'], 3)
+        self.assertEqual(penal_row['cantidad'], 1)
+
     def test_student_detail_metrics(self):
         self.client.force_login(self.profesor)
         response = self.client.get(
-            reverse('academic_student_detail', args=[self.student_one.id])
+            reverse('case_academic_student_detail', args=[self.student_one.id])
         )
         self.assertEqual(response.status_code, 200)
         metrics = response.context['metrics']
@@ -135,10 +157,52 @@ class AcademicDashboardMetricsTests(TestCase):
         )
         self.client.force_login(self.profesor)
         response = self.client.get(
-            reverse('academic_student_detail', args=[self.student_two.id])
+            reverse('case_academic_student_detail', args=[self.student_two.id])
         )
         metrics = response.context['metrics']
         self.assertEqual(metrics['rejected_cases'], 1)
+
+    def test_dashboard_can_filter_by_student(self):
+        self.client.force_login(self.profesor)
+        response = self.client.get(
+            reverse('academic_dashboard'),
+            {'estudiante': str(self.student_one.id)},
+        )
+        self.assertEqual(response.status_code, 200)
+        students = list(response.context['students'])
+        self.assertEqual(len(students), 1)
+        self.assertEqual(students[0], self.student_one)
+        self.assertEqual(response.context['total_assigned_cases'], 2)
+
+    def test_dashboard_sala_filter_hides_students_without_cases_in_selected_sala(self):
+        make_case(
+            beneficiary=self.beneficiary,
+            assigned_student=self.student_two,
+            sala=Case.ROOM_PENAL,
+            deadline_date=timezone.localdate() + timedelta(days=5),
+            state=Case.STATE_ASSIGNED,
+        )
+        self.client.force_login(self.profesor)
+        response = self.client.get(
+            reverse('academic_dashboard'),
+            {'sala': Case.ROOM_PENAL},
+        )
+        self.assertEqual(response.status_code, 200)
+        students = list(response.context['students'])
+        self.assertEqual(len(students), 1)
+        self.assertEqual(students[0], self.student_two)
+
+    def test_dashboard_can_filter_by_professor(self):
+        self.client.force_login(self.profesor)
+        response = self.client.get(
+            reverse('academic_dashboard'),
+            {'profesor': str(self.profesor.id)},
+        )
+        self.assertEqual(response.status_code, 200)
+        students = list(response.context['students'])
+        self.assertEqual(len(students), 1)
+        self.assertEqual(students[0], self.student_one)
+        self.assertEqual(response.context['total_assigned_cases'], 2)
 
 
 class AcademicDashboardExportTests(TestCase):

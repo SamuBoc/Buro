@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
-from .models import Case, CommunicationInteraction
+from .models import Case, CaseEvaluation, CommunicationInteraction
 
 class MultipleFileInput(forms.ClearableFileInput):
     allow_multiple_selected = True
@@ -185,3 +185,43 @@ class CommunicationInteractionForm(forms.ModelForm):
         if not description.strip():
             raise ValidationError('La descripción no puede estar vacía.')
         return description.strip()
+
+
+class CaseEvaluationForm(forms.ModelForm):
+    score = forms.DecimalField(
+        min_value=0,
+        max_value=5,
+        required=False,
+        label='Puntaje (0-5)',
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+    )
+
+    class Meta:
+        model = CaseEvaluation
+        fields = ['case', 'score', 'feedback']
+        widgets = {
+            'case': forms.Select(attrs={'class': 'form-select'}),
+            'feedback': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Ingrese la retroalimentacion docente...',
+            }),
+        }
+        labels = {
+            'case': 'Caso asociado',
+            'feedback': 'Retroalimentacion',
+        }
+
+    def __init__(self, *args, **kwargs):
+        case_queryset = kwargs.pop('case_queryset', None)
+        super().__init__(*args, **kwargs)
+        self.fields['case'].empty_label = 'Seleccione un caso'
+        if case_queryset is not None:
+            self.fields['case'].queryset = case_queryset
+
+    def clean_feedback(self):
+        feedback = self.cleaned_data.get('feedback', '')
+        if not feedback.strip():
+            raise ValidationError('La retroalimentacion no puede estar vacia.')
+        return feedback.strip()

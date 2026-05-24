@@ -3,6 +3,7 @@ import uuid
 
 from cloudinary_storage.storage import RawMediaCloudinaryStorage
 from django.contrib.auth.models import User
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -427,3 +428,49 @@ class CallSession(models.Model):
 
     def __str__(self):
         return f'Llamada {self.room_id[:8]} — {self.case.code}'
+
+
+class CaseEvaluation(models.Model):
+    case = models.ForeignKey(
+        Case,
+        on_delete=models.CASCADE,
+        related_name='evaluations',
+        verbose_name='Caso',
+    )
+    student = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='case_evaluations',
+        verbose_name='Estudiante',
+    )
+    professor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='given_evaluations',
+        verbose_name='Profesor',
+    )
+    score = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(5)],
+        verbose_name='Puntaje',
+    )
+    feedback = models.TextField(verbose_name='Retroalimentacion')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de registro')
+
+    class Meta:
+        verbose_name = 'Evaluacion de caso'
+        verbose_name_plural = 'Evaluaciones de caso'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['student', '-created_at']),
+            models.Index(fields=['case', '-created_at']),
+        ]
+
+    def __str__(self):
+        professor_name = self.professor.get_full_name() if self.professor else 'Sin profesor'
+        return f'{self.case.code} - {self.student.get_full_name() or self.student.username} ({professor_name})'

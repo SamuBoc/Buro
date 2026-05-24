@@ -57,6 +57,11 @@
                             {% for error in form.preferred_room.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
                         </div>
                         <div class="col-md-6">
+                            <label class="form-label">{{ form.supervising_professor.label }}</label>
+                            {{ form.supervising_professor }}
+                            {% for error in form.supervising_professor.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-6">
                             <label class="form-label">{{ form.password.label }}</label>
                             {{ form.password }}
                             {% for error in form.password.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}

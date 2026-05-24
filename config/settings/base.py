@@ -97,3 +97,4 @@ LOGOUT_REDIRECT_URL = 'login'
 DEFAULT_FROM_EMAIL = 'Consultorio Jurídico ICESI <consultorio@icesi.edu.co>'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY', 'gBaEftHUk6JepNdWxqPOn17SQaFAdYHfgwQds5v8-W0=')
+ENABLE_APP_SCHEDULERS = False

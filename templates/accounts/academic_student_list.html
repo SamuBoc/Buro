@@ -8,9 +8,11 @@
         <h4 class="mb-0"><i class="bi bi-mortarboard-fill me-2"></i>Estudiantes academicos</h4>
         <small class="opacity-75">Consulta la carga actual y disponibilidad de los estudiantes.</small>
     </div>
+    {% if 'administrador' in user_roles or 'secretaria' in user_roles or user.is_superuser %}
     <a href="{% url 'academic_student_register' %}" class="btn btn-primary">
         <i class="bi bi-person-plus-fill me-1"></i>Registrar estudiante
     </a>
+    {% endif %}
 </div>
 
 <div class="card">
@@ -27,6 +29,7 @@
                         <th>Casos activos</th>
                         <th>Disponibilidad</th>
                         <th>Sala preferente</th>
+                        <th>Profesor supervisor</th>
                         <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
@@ -48,8 +51,15 @@
                             {% endif %}
                         </td>
                         <td>{{ student.profile.get_preferred_room_display|default:'Sin preferencia' }}</td>
+                        <td>
+                            {% if student.profile.supervising_professor %}
+                                {{ student.profile.supervising_professor.get_full_name|default:student.profile.supervising_professor.username }}
+                            {% else %}
+                                Sin asignar
+                            {% endif %}
+                        </td>
                         <td class="text-center">
-                            <a href="{% url 'academic_student_detail' student.pk %}" class="btn btn-sm btn-secondary">
+                            <a href="{% url detail_url_name student.pk %}" class="btn btn-sm btn-secondary">
                                 <i class="bi bi-eye"></i> Ver
                             </a>
                         </td>
