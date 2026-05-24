@@ -31,4 +31,5 @@ urlpatterns = [
     path('<int:case_id>/llamada/subir/', views.upload_call_recording, name='upload_call_recording'),
     path('<int:case_id>/llamada/<str:room_id>/token/', views.get_join_token, name='get_join_token'),
     path('<int:case_id>/llamada/<str:room_id>/unirse/', views.join_call, name='join_call'),
+    path('metricas/comunicaciones/', views.communication_metrics, name='communication_metrics'),
 ]

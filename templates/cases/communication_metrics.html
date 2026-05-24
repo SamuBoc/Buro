@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}Métricas de comunicación — Buro Juridico{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0"><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Métricas de canales de comunicación</h4>
+    </div>
+
+    <!-- Tarjetas por canal -->
+    <div class="row g-3 mb-4">
+        {% for m in metrics %}
+        <div class="col-sm-6 col-lg-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <p class="text-muted small mb-1">{{ m.label }}</p>
+                    <h2 class="fw-bold mb-0">{{ m.count }}</h2>
+                    <p class="text-muted small mt-1">interacciones</p>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <p class="text-muted">No hay interacciones registradas.</p>
+        </div>
+        {% endfor %}
+        <div class="col-sm-6 col-lg-3">
+            <div class="card shadow-sm h-100 bg-light">
+                <div class="card-body text-center">
+                    <p class="text-muted small mb-1">Total</p>
+                    <h2 class="fw-bold mb-0">{{ total }}</h2>
+                    <p class="text-muted small mt-1">todas las interacciones</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtro por canal -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-auto">
+                    <label class="form-label small mb-1">Filtrar por canal</label>
+                    <select name="tipo" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                        {% for value, label in tipo_choices %}
+                        <option value="{{ value }}" {% if tipo_filter == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
+                    {% if tipo_filter %}
+                    <a href="{% url 'communication_metrics' %}" class="btn btn-outline-secondary btn-sm ms-1">Limpiar</a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de interacciones -->
+    <div class="card shadow-sm">
+        <div class="card-header small fw-semibold">
+            Últimas 100 interacciones
+            {% if tipo_filter %}— filtrado por: <strong>{{ tipo_filter }}</strong>{% endif %}
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Caso</th>
+                        <th>Canal</th>
+                        <th>Dirección</th>
+                        <th>Registrado por</th>
+                        <th>Descripción</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i in interactions %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'case_detail' i.case.pk %}" class="text-decoration-none">
+                                {{ i.case.code }}
+                            </a>
+                        </td>
+                        <td><span class="badge bg-secondary">{{ i.get_interaction_type_display }}</span></td>
+                        <td><span class="badge bg-light text-dark border">{{ i.get_direction_display }}</span></td>
+                        <td>
+                            {% if i.registered_by %}
+                                {{ i.registered_by.get_full_name|default:i.registered_by.username }}
+                            {% else %}
+                                Sistema
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">{{ i.description|truncatechars:60 }}</td>
+                        <td class="text-muted small text-nowrap">{{ i.timestamp|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-3">No hay interacciones para mostrar.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
