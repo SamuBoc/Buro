@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Case, CaseDocument, CaseReassignmentLog
+from .models import Case, CaseDocument, CaseEvaluation, CaseReassignmentLog
 from .models import Notification
 
 
@@ -85,4 +85,21 @@ class CaseReassignmentLogAdmin(admin.ModelAdmin):
         'changed_by__last_name',
     )
     autocomplete_fields = ('case', 'old_student', 'new_student', 'changed_by')
+    readonly_fields = ('created_at',)
+
+
+@admin.register(CaseEvaluation)
+class CaseEvaluationAdmin(admin.ModelAdmin):
+    list_display = ('case', 'student', 'professor', 'score', 'created_at')
+    list_filter = ('score', 'created_at')
+    search_fields = (
+        'case__code',
+        'student__username',
+        'student__first_name',
+        'student__last_name',
+        'professor__username',
+        'professor__first_name',
+        'professor__last_name',
+    )
+    autocomplete_fields = ('case', 'student', 'professor')
     readonly_fields = ('created_at',)
