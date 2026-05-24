@@ -42,6 +42,9 @@ def case_post_save(sender, instance, created, **kwargs):
         current_status  = instance.state
 
         if previous_status and previous_status != current_status:
+            if getattr(instance, '_skip_status_log', False):
+                return
+
             CaseAuditLog.objects.create(
                 case=instance,
                 user=user,
