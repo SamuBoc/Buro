@@ -26,3 +26,5 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+
+ENABLE_APP_SCHEDULERS = True

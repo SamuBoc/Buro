@@ -47,6 +47,14 @@ class UserProfile(models.Model):
         blank=True,
         verbose_name='Sala preferente'
     )
+    supervising_professor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='supervised_student_profiles',
+        verbose_name='Profesor supervisor'
+    )
 
     class Meta:
         verbose_name = 'Perfil de usuario'

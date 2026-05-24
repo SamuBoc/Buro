@@ -2,6 +2,7 @@ import os
 import sys
 
 from django.apps import AppConfig
+from django.conf import settings
 
 
 class CiteConfig(AppConfig):
@@ -10,6 +11,9 @@ class CiteConfig(AppConfig):
     verbose_name = 'Gestion de Citas'
 
     def ready(self):
+        if not getattr(settings, 'ENABLE_APP_SCHEDULERS', False):
+            return
+
         management_commands_to_skip = {
             'check',
             'makemigrations',

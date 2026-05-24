@@ -3,7 +3,7 @@ from django.dispatch import receiver
 
 from core.utils import get_client_ip
 from .models import Case, CaseAuditLog, Notification
-from .email_utils import send_case_status_email
+from .email_utils import send_case_status_email, send_case_assignment_email
 
 
 @receiver(pre_save, sender=Case)
@@ -69,8 +69,13 @@ def case_post_save(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=Notification)
 def notification_post_save(sender, instance, created, **kwargs):
-    if created and instance.notification_type == 'STATUS_CHANGE':
+    if not created:
+        return
+
+    if instance.notification_type == 'STATUS_CHANGE':
         send_case_status_email(instance)
+    elif instance.notification_type == 'ASSIGNMENT':
+        send_case_assignment_email(instance)
 
 
 def _create_status_notification(case, previous_status, new_status, triggered_by):

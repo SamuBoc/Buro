@@ -49,6 +49,16 @@
                 <i class="bi bi-arrow-right-circle me-1"></i>Ir a citas
             </span>
         </a>
+        <a href="{% url 'cite_attendance_report' %}" class="home-card">
+            <div class="home-card-icon">
+                <i class="bi bi-clipboard-data-fill" aria-hidden="true"></i>
+            </div>
+            <h5 class="home-card-title">Metricas de Asistencia</h5>
+            <p class="home-card-desc">Visualice el porcentaje de asistencia y no asistencia de usuarios.</p>
+            <span class="home-card-btn">
+                <i class="bi bi-arrow-right-circle me-1"></i>Ver metricas
+            </span>
+        </a>
         {% endif %}
 
         {% if 'administrador' in user_roles or 'profesor' in user_roles %}
@@ -60,6 +70,17 @@
             <p class="home-card-desc">Analice casos por estado, sala y métricas del consultorio.</p>
             <span class="home-card-btn">
                 <i class="bi bi-arrow-right-circle me-1"></i>Ir a reportes
+            </span>
+        </a>
+
+        <a href="{% url 'academic_dashboard' %}" class="home-card">
+            <div class="home-card-icon">
+                <i class="bi bi-mortarboard-fill" aria-hidden="true"></i>
+            </div>
+            <h5 class="home-card-title">Panel academico</h5>
+            <p class="home-card-desc">Supervise el desempeno y avance de estudiantes asignados.</p>
+            <span class="home-card-btn">
+                <i class="bi bi-arrow-right-circle me-1"></i>Ir al panel
             </span>
         </a>
         {% endif %}
