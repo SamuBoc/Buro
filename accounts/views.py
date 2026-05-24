@@ -16,7 +16,7 @@ from .models import UserProfile
 
 @login_required
 def no_permission(request):
-    return render(request, 'accounts/no_permission.html', status=403)
+    return render(request, 'accounts/no_permission.html')
 
 
 def _get_student_case_history(student):
@@ -35,8 +35,8 @@ def _get_student_case_history(student):
 
 def _build_student_history_context(student, request_user, evaluation_form=None):
     assigned_cases = student.assigned_cases.exclude(status='borrador').order_by('-created_at')
-    case_history = _get_student_case_history(student)
-    evaluations = (
+    case_history   = _get_student_case_history(student)
+    evaluations    = (
         CaseEvaluation.objects.filter(student=student)
         .select_related('case', 'professor')
         .order_by('-created_at')
@@ -49,13 +49,13 @@ def _build_student_history_context(student, request_user, evaluation_form=None):
         evaluation_form = CaseEvaluationForm(case_queryset=case_history)
 
     return {
-        'student': student,
-        'assigned_cases': assigned_cases,
+        'student':            student,
+        'assigned_cases':     assigned_cases,
         'active_cases_count': assigned_cases.count(),
-        'case_history': case_history,
-        'evaluations': evaluations,
-        'evaluation_form': evaluation_form,
-        'can_evaluate': can_evaluate,
+        'case_history':       case_history,
+        'evaluations':        evaluations,
+        'evaluation_form':    evaluation_form,
+        'can_evaluate':       can_evaluate,
     }
 
 
@@ -76,11 +76,11 @@ def academic_student_register(request):
                 )
                 user.groups.add(student_group)
 
-                profile = user.profile
-                profile.student_code = form.cleaned_data['student_code']
-                profile.max_cases = form.cleaned_data['max_cases']
-                profile.availability = form.cleaned_data['availability']
-                profile.preferred_room = form.cleaned_data['preferred_room']
+                profile                       = user.profile
+                profile.student_code          = form.cleaned_data['student_code']
+                profile.max_cases             = form.cleaned_data['max_cases']
+                profile.availability          = form.cleaned_data['availability']
+                profile.preferred_room        = form.cleaned_data['preferred_room']
                 profile.supervising_professor = form.cleaned_data['supervising_professor']
                 profile.save()
 
@@ -109,7 +109,7 @@ def academic_student_list(request):
     ).distinct().order_by('first_name', 'last_name', 'username')
 
     return render(request, 'accounts/academic_student_list.html', {
-        'students': students,
+        'students':        students,
         'detail_url_name': 'academic_student_detail',
     })
 
@@ -124,8 +124,8 @@ def academic_student_detail(request, pk):
     assigned_cases = student.assigned_cases.exclude(status='borrador').order_by('-created_at')
 
     return render(request, 'accounts/academic_student_detail.html', {
-        'student': student,
-        'assigned_cases': assigned_cases,
+        'student':            student,
+        'assigned_cases':     assigned_cases,
         'active_cases_count': assigned_cases.count(),
     })
 
@@ -143,7 +143,7 @@ def academic_student_history_list(request):
     ).distinct().order_by('first_name', 'last_name', 'username')
 
     return render(request, 'accounts/academic_student_list.html', {
-        'students': students,
+        'students':        students,
         'detail_url_name': 'academic_student_history',
     })
 
@@ -172,11 +172,11 @@ def academic_student_add_evaluation(request, pk):
         return redirect('academic_student_history', pk=pk)
 
     case_history = _get_student_case_history(student)
-    form = CaseEvaluationForm(request.POST, case_queryset=case_history)
+    form         = CaseEvaluationForm(request.POST, case_queryset=case_history)
 
     if form.is_valid():
-        evaluation = form.save(commit=False)
-        evaluation.student = student
+        evaluation           = form.save(commit=False)
+        evaluation.student   = student
         evaluation.professor = request.user
         evaluation.save()
         messages.success(request, 'La retroalimentacion fue registrada correctamente.')
