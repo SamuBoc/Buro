@@ -1,3 +1,5 @@
+import os
+
 from django import forms
 
 from .models import Beneficiary, DataDeletionRequest, DocumentBeneficiary
@@ -41,6 +43,9 @@ class BeneficiaryForm(forms.ModelForm):
 
 
 class DocumentBeneficiaryForm(forms.ModelForm):
+
+    ALLOWED_EXTENSIONS = {'.pdf', '.png', '.jpg', '.jpeg'}
+
     class Meta:
         model = DocumentBeneficiary
         fields = ['file']
@@ -53,6 +58,16 @@ class DocumentBeneficiaryForm(forms.ModelForm):
         labels = {
             'file': 'Documento de identidad',
         }
+
+    def clean_file(self):
+        file = self.cleaned_data.get('file')
+        if file:
+            ext = os.path.splitext(file.name)[1].lower()
+            if ext not in self.ALLOWED_EXTENSIONS:
+                raise forms.ValidationError(
+                    'Formato no permitido. Solo se aceptan archivos PDF, PNG, JPG o JPEG.'
+                )
+        return file
 
 
 class UpdateBeneficiaryForm(forms.ModelForm):
