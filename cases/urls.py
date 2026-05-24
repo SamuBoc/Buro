@@ -27,10 +27,7 @@ urlpatterns = [
     path('exportar/pdf/', views.export_cases_pdf, name='export_cases_pdf'),
     path('documentos/<int:document_id>/ver/', views.serve_case_document, name='serve_case_document'),
     path('<int:case_id>/interacciones/', views.case_add_interaction, name='case_add_interaction'),
-    path('<int:case_id>/llamada/token/', views.generate_videosdk_token, name='generate_videosdk_token'),
     path('<int:case_id>/llamada/subir/', views.upload_call_recording, name='upload_call_recording'),
-    path('<int:case_id>/llamada/<str:room_id>/token/', views.get_join_token, name='get_join_token'),
-    path('<int:case_id>/llamada/<str:room_id>/unirse/', views.join_call, name='join_call'),
     path('grabaciones/<int:interaction_id>/', views.serve_call_recording, name='serve_call_recording'),
     # WebRTC nativo
     path('<int:case_id>/webrtc/ice/', views.get_ice_servers, name='get_ice_servers'),

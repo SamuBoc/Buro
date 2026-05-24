@@ -5,10 +5,7 @@ import logging
 import mimetypes
 import os
 import urllib.request
-import time
 import uuid
-
-import jwt
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -1298,57 +1295,6 @@ def serve_case_document(request, document_id):
 
 logger = logging.getLogger(__name__)
 
-
-def _build_videosdk_token(room_id=None):
-    api_key = os.environ.get('VIDEOSDK_API_KEY', '')
-    secret = os.environ.get('VIDEOSDK_SECRET_KEY', '')
-    if not api_key or not secret:
-        return None, None, 'Servicio de llamadas no configurado'
-    if room_id is None:
-        room_id = str(uuid.uuid4())
-    payload = {
-        'apikey': api_key,
-        'permissions': ['allow_join', 'allow_mod'],
-        'iat': int(time.time()),
-        'exp': int(time.time()) + 3600,
-    }
-    token = jwt.encode(payload, secret, algorithm='HS256')
-    return token, room_id, None
-
-
-@login_required
-def generate_videosdk_token(request, case_id):
-    case = get_object_or_404(Case, pk=case_id)
-
-    if not can_add_interaction(request.user, case):
-        return JsonResponse({'error': 'Sin permiso'}, status=403)
-
-    token, room_id, error = _build_videosdk_token()
-    if error:
-        logger.error(error)
-        return JsonResponse({'error': error}, status=503)
-
-    return JsonResponse({'token': token, 'roomId': room_id})
-
-
-def get_join_token(request, case_id, room_id):
-    """Genera token para unirse a una sala existente (sin login requerido)."""
-    token, _, error = _build_videosdk_token(room_id=room_id)
-    if error:
-        return JsonResponse({'error': error}, status=503)
-    return JsonResponse({'token': token, 'roomId': room_id})
-
-
-def join_call(request, case_id, room_id):
-    """Página pública para que el segundo participante se una a la llamada."""
-    case = get_object_or_404(Case, pk=case_id)
-    return render(request, 'cases/call_room.html', {
-        'case': case,
-        'room_id': room_id,
-        'join_token_url': request.build_absolute_uri(
-            f'/casos/{case_id}/llamada/{room_id}/token/'
-        ),
-    })
 
 
 @login_required
