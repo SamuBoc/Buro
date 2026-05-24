@@ -22,24 +22,23 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_ESTUDIANTE, ROLE_PROFESOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
 from accounts.permissions import (
-    can_add_interaction,   
+    can_add_interaction,
     can_manage_case_deadline,
     can_reassign_case,
     can_view_case,
 )
-from core.utils import get_client_ip 
+from core.utils import get_client_ip
 
+from .email_utils import send_interaction_email
 from .forms import (
     CaseDeadlineForm,
     CaseForm,
     CaseReassignmentForm,
     CaseRejectionForm,
-    CommunicationInteractionForm, 
+    CommunicationInteractionForm,
 )
-from .models import Case, CaseAuditLog, CaseDocument, Notification
-
+from .models import Case, CaseAuditLog, CaseDocument, CommunicationInteraction, Notification
 from .services import auto_assign_case, reassign_case
-from core.utils import get_client_ip
 
 User = get_user_model()
 
@@ -105,24 +104,6 @@ def _build_deadline_priority(case, today):
         'priority_class': priority_class,
         'deadline_class': deadline_class,
     }
-
-
-@login_required
-def case_list(request):
-    today = timezone.localdate()
-    cases = list(Case.objects.select_related('beneficiary', 'assigned_student').all())
-
-    for case in cases:
-        deadline_priority = _build_deadline_priority(case, today)
-        case.deadline_status_text = deadline_priority['text']
-        case.days_remaining = deadline_priority['days_remaining']
-        case.priority_label = deadline_priority['priority_label']
-        case.priority_class = deadline_priority['priority_class']
-        case.deadline_class = deadline_priority['deadline_class']
-
-    return render(request, 'cases/case_list.html', {
-        'cases': cases,
-    })
 
 
 def _build_academic_dashboard_filters(request):
@@ -226,6 +207,22 @@ def _build_academic_dashboard_filters(request):
         'assigned_cases_filters': assigned_cases_filters,
         'filter_query': request.GET.urlencode(),
     }
+
+
+@login_required
+def case_list(request):
+    today = timezone.localdate()
+    cases = list(Case.objects.select_related('beneficiary', 'assigned_student').all())
+
+    for case in cases:
+        deadline_priority = _build_deadline_priority(case, today)
+        case.deadline_status_text = deadline_priority['text']
+        case.days_remaining       = deadline_priority['days_remaining']
+        case.priority_label       = deadline_priority['priority_label']
+        case.priority_class       = deadline_priority['priority_class']
+        case.deadline_class       = deadline_priority['deadline_class']
+
+    return render(request, 'cases/case_list.html', {'cases': cases})
 
 
 @role_required(ROLE_PROFESOR, ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
@@ -412,11 +409,9 @@ def case_create(request):
                 with transaction.atomic():
                     case = form.save(commit=False)
                     case.created_by = request.user
-                    case._request = request
+                    case._request   = request
                     case.status = (
-                        Case.STATUS_DRAFT
-                        if is_draft_submission
-                        else Case.STATUS_COMPLETE
+                        Case.STATUS_DRAFT if is_draft_submission else Case.STATUS_COMPLETE
                     )
                     case.save()
 
@@ -471,10 +466,7 @@ def case_draft_list(request):
         .select_related('beneficiary', 'assigned_student')
         .order_by('-created_at')
     )
-
-    return render(request, 'cases/case_draft_list.html', {
-        'drafts': drafts,
-    })
+    return render(request, 'cases/case_draft_list.html', {'drafts': drafts})
 
 
 @login_required
@@ -490,7 +482,7 @@ def case_edit_draft(request, pk):
         return redirect('case_draft_list')
 
     if request.method == 'POST':
-        submit_action = request.POST.get('submit_action', 'draft')
+        submit_action       = request.POST.get('submit_action', 'draft')
         is_draft_submission = submit_action == 'draft'
         form = CaseForm(
             request.POST,
@@ -504,7 +496,7 @@ def case_edit_draft(request, pk):
                 with transaction.atomic():
                     case = form.save(commit=False)
                     case.created_by = draft_case.created_by or request.user
-                    case._request = request
+                    case._request   = request
                     case.status = (
                         Case.STATUS_DRAFT if is_draft_submission else Case.STATUS_COMPLETE
                     )
@@ -518,10 +510,7 @@ def case_edit_draft(request, pk):
                         student = auto_assign_case(case)
 
                 if is_draft_submission:
-                    messages.success(
-                        request,
-                        f'Se actualizo el borrador del caso {case.code}.'
-                    )
+                    messages.success(request, f'Se actualizo el borrador del caso {case.code}.')
                     return redirect('case_edit_draft', pk=case.pk)
 
                 if student is None:
@@ -545,12 +534,7 @@ def case_edit_draft(request, pk):
     else:
         form = CaseForm(instance=draft_case, allow_partial=True)
 
-    return _render_case_form(
-        request,
-        form,
-        draft_case=draft_case,
-        is_editing_draft=True,
-    )
+    return _render_case_form(request, form, draft_case=draft_case, is_editing_draft=True)
 
 
 @login_required
@@ -563,9 +547,9 @@ def case_detail(request, pk):
             'reassignment_logs__changed_by',
             'reassignment_logs__old_student',
             'reassignment_logs__new_student',
-            'interactions__registered_by',    
+            'interactions__registered_by',
         ),
-        pk=pk
+        pk=pk,
     )
 
     if not can_view_case(request.user, case):
@@ -573,15 +557,15 @@ def case_detail(request, pk):
         return redirect('case_list')
 
     return render(request, 'cases/case_detail.html', {
-        'case': case,
-        'can_reassign': can_reassign_case(request.user),
+        'case':                case,
+        'can_reassign':        can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
-        'can_add_interaction': can_add_interaction(request.user, case),               
-        'deadline_form': CaseDeadlineForm(instance=case),
-        'reassignment_form': CaseReassignmentForm(case=case),
-        'rejection_form': CaseRejectionForm(instance=case),
-        'interaction_form': CommunicationInteractionForm(),                             
-        'interactions': case.interactions.select_related('registered_by').order_by('-timestamp'),
+        'can_add_interaction': can_add_interaction(request.user, case),
+        'deadline_form':       CaseDeadlineForm(instance=case),
+        'reassignment_form':   CaseReassignmentForm(case=case),
+        'rejection_form':      CaseRejectionForm(instance=case),
+        'interaction_form':    CommunicationInteractionForm(),
+        'interactions':        case.interactions.select_related('registered_by').order_by('-timestamp'),
     })
 
 
@@ -589,7 +573,7 @@ def case_detail(request, pk):
 def case_update_deadline(request, pk):
     case = get_object_or_404(
         Case.objects.select_related('beneficiary', 'assigned_student'),
-        pk=pk
+        pk=pk,
     )
 
     if request.method != 'POST':
@@ -599,22 +583,19 @@ def case_update_deadline(request, pk):
 
     if form.is_valid():
         deadline_case = form.save()
-        messages.success(
-            request,
-            f'La fecha limite del caso {deadline_case.code} fue actualizada.'
-        )
+        messages.success(request, f'La fecha limite del caso {deadline_case.code} fue actualizada.')
         return redirect('case_detail', pk=case.pk)
 
     return render(request, 'cases/case_detail.html', {
-        'case': case,
-        'can_reassign': can_reassign_case(request.user),
+        'case':                case,
+        'can_reassign':        can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
         'can_add_interaction': can_add_interaction(request.user, case),
-        'deadline_form': form,
-        'reassignment_form': CaseReassignmentForm(case=case),
-        'rejection_form': CaseRejectionForm(instance=case),
-        'interaction_form': CommunicationInteractionForm(),
-        'interactions': case.interactions.select_related('registered_by').order_by('-timestamp'),
+        'deadline_form':       form,
+        'reassignment_form':   CaseReassignmentForm(case=case),
+        'rejection_form':      CaseRejectionForm(instance=case),
+        'interaction_form':    CommunicationInteractionForm(),
+        'interactions':        case.interactions.select_related('registered_by').order_by('-timestamp'),
     })
 
 
@@ -622,7 +603,7 @@ def case_update_deadline(request, pk):
 def case_reassign(request, pk):
     case = get_object_or_404(
         Case.objects.select_related('beneficiary', 'assigned_student'),
-        pk=pk
+        pk=pk,
     )
 
     if request.method != 'POST':
@@ -631,10 +612,10 @@ def case_reassign(request, pk):
     form = CaseReassignmentForm(request.POST, case=case)
 
     if form.is_valid():
-        new_student = form.cleaned_data['assigned_student']
-        old_student = reassign_case(case, new_student, request.user)
+        new_student   = form.cleaned_data['assigned_student']
+        old_student   = reassign_case(case, new_student, request.user)
         previous_name = old_student.get_full_name() or old_student.username if old_student else 'Sin asignar'
-        new_name = new_student.get_full_name() or new_student.username
+        new_name      = new_student.get_full_name() or new_student.username
         messages.success(
             request,
             f'El caso {case.code} fue reasignado de {previous_name} a {new_name}.'
@@ -643,15 +624,15 @@ def case_reassign(request, pk):
 
     messages.error(request, 'Por favor seleccione un estudiante valido.')
     return render(request, 'cases/case_detail.html', {
-        'case': case,
-        'can_reassign': can_reassign_case(request.user),
+        'case':                case,
+        'can_reassign':        can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
         'can_add_interaction': can_add_interaction(request.user, case),
-        'deadline_form': CaseDeadlineForm(instance=case),
-        'reassignment_form': form,
-        'rejection_form': CaseRejectionForm(instance=case),
-        'interaction_form': CommunicationInteractionForm(),
-        'interactions': case.interactions.select_related('registered_by').order_by('-timestamp'),
+        'deadline_form':       CaseDeadlineForm(instance=case),
+        'reassignment_form':   form,
+        'rejection_form':      CaseRejectionForm(instance=case),
+        'interaction_form':    CommunicationInteractionForm(),
+        'interactions':        case.interactions.select_related('registered_by').order_by('-timestamp'),
     })
 
 
@@ -659,7 +640,7 @@ def case_reassign(request, pk):
 def case_reject(request, pk):
     case = get_object_or_404(
         Case.objects.select_related('beneficiary', 'assigned_student'),
-        pk=pk
+        pk=pk,
     )
 
     if request.method != 'POST':
@@ -670,33 +651,26 @@ def case_reject(request, pk):
     if form.is_valid():
         try:
             with transaction.atomic():
-                case.state = Case.STATE_REJECTED
+                case.state            = Case.STATE_REJECTED
                 case.rejection_reason = form.cleaned_data['rejection_reason']
-                case._request = request
+                case._request         = request
                 case.save()
-
-                messages.success(
-                    request,
-                    f'El caso {case.code} ha sido rechazado exitosamente.'
-                )
+                messages.success(request, f'El caso {case.code} ha sido rechazado exitosamente.')
         except Exception:
-            messages.error(
-                request,
-                'Ocurrió un problema al rechazar el caso. Intente nuevamente.'
-            )
+            messages.error(request, 'Ocurrió un problema al rechazar el caso. Intente nuevamente.')
         return redirect('case_detail', pk=case.pk)
 
     messages.error(request, 'Por favor ingrese una causal de rechazo válida.')
     return render(request, 'cases/case_detail.html', {
-        'case': case,
-        'can_reassign': can_reassign_case(request.user),
+        'case':                case,
+        'can_reassign':        can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
         'can_add_interaction': can_add_interaction(request.user, case),
-        'deadline_form': CaseDeadlineForm(instance=case),
-        'reassignment_form': CaseReassignmentForm(case=case),
-        'rejection_form': form,
-        'interaction_form': CommunicationInteractionForm(),
-        'interactions': case.interactions.select_related('registered_by').order_by('-timestamp'),
+        'deadline_form':       CaseDeadlineForm(instance=case),
+        'reassignment_form':   CaseReassignmentForm(case=case),
+        'rejection_form':      form,
+        'interaction_form':    CommunicationInteractionForm(),
+        'interactions':        case.interactions.select_related('registered_by').order_by('-timestamp'),
     })
 
 
@@ -717,8 +691,8 @@ def case_add_interaction(request, case_id):
 
     form = CommunicationInteractionForm(request.POST)
     if form.is_valid():
-        interaction = form.save(commit=False)
-        interaction.case = case
+        interaction               = form.save(commit=False)
+        interaction.case          = case
         interaction.registered_by = request.user
         interaction.save()
 
@@ -738,14 +712,33 @@ def case_add_interaction(request, case_id):
             case_radicado=case.code,
             ip_address=get_client_ip(request),
         )
-        messages.success(request, 'Interacción de comunicación registrada exitosamente.')
+
+        if interaction.interaction_type == CommunicationInteraction.TYPE_EMAIL:
+            send_interaction_email(interaction)
+            messages.success(
+                request,
+                f'Interacción registrada y correo enviado a {case.beneficiary.email}.'
+            )
+        elif interaction.interaction_type == CommunicationInteraction.TYPE_MESSAGE:
+            phone = getattr(case.beneficiary, 'phone', '') or ''
+            clean_phone = phone.replace(' ', '').replace('-', '')
+            whatsapp_url = f'https://wa.me/57{clean_phone}' if clean_phone else None
+            if whatsapp_url:
+                messages.success(
+                    request,
+                    f'Interacción registrada. Enlace WhatsApp: {whatsapp_url}'
+                )
+            else:
+                messages.success(request, 'Interacción de comunicación registrada exitosamente.')
+        else:
+            messages.success(request, 'Interacción de comunicación registrada exitosamente.')
     else:
         messages.error(request, 'Por favor corrija los errores del formulario.')
 
     return redirect('case_detail', pk=case_id)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ─── Audit logs ──────────────────────────────────────────────────────────────
 
 @login_required
 def case_audit_log(request, case_id):
@@ -765,8 +758,8 @@ def case_audit_log(request, case_id):
     logs = CaseAuditLog.objects.filter(case=case).select_related('user').order_by('-timestamp')
 
     return render(request, 'cases/case_audit_log.html', {
-        'case': case,
-        'logs': logs,
+        'case':       case,
+        'logs':       logs,
         'page_title': f'Bitacora - {case.code}',
     })
 
@@ -782,7 +775,7 @@ def global_audit_log(request):
 
     logs = CaseAuditLog.objects.select_related('user', 'case').order_by('-timestamp')[:500]
     return render(request, 'cases/global_audit_log.html', {
-        'logs': logs,
+        'logs':       logs,
         'page_title': 'Bitacora Global de Casos',
     })
 
@@ -797,8 +790,8 @@ def notification_list(request):
 
     return render(request, 'cases/notifications.html', {
         'notifications': notifications,
-        'unread_count': unread_count,
-        'page_title': 'Mis Notificaciones',
+        'unread_count':  unread_count,
+        'page_title':    'Mis Notificaciones',
     })
 
 
@@ -858,11 +851,10 @@ def _parse_report_date(raw_value):
 def case_report_by_state(request):
     desde_raw = (request.GET.get('desde') or '').strip()
     hasta_raw = (request.GET.get('hasta') or '').strip()
-    sala_raw = (request.GET.get('sala') or '').strip()
+    sala_raw  = (request.GET.get('sala') or '').strip()
 
-    desde_date = _parse_report_date(desde_raw)
-    hasta_date = _parse_report_date(hasta_raw)
-
+    desde_date  = _parse_report_date(desde_raw)
+    hasta_date  = _parse_report_date(hasta_raw)
     valid_salas = {value for value, _ in Case.ROOM_CHOICES}
     sala_filter = sala_raw if sala_raw in valid_salas else ''
 
@@ -874,8 +866,7 @@ def case_report_by_state(request):
     if sala_filter:
         cases = cases.filter(sala=sala_filter)
 
-    total = cases.count()
-
+    total        = cases.count()
     state_counts = {
         row['state']: row['count']
         for row in cases.values('state').annotate(count=Count('id'))
@@ -883,46 +874,34 @@ def case_report_by_state(request):
 
     rows = []
     for state in REPORT_KNOWN_STATES:
-        cantidad = state_counts.pop(state, 0)
+        cantidad   = state_counts.pop(state, 0)
         porcentaje = round((cantidad / total * 100), 1) if total else 0.0
-        rows.append({
-            'estado': state,
-            'cantidad': cantidad,
-            'porcentaje': porcentaje,
-        })
+        rows.append({'estado': state, 'cantidad': cantidad, 'porcentaje': porcentaje})
     for extra_state, cantidad in state_counts.items():
         porcentaje = round((cantidad / total * 100), 1) if total else 0.0
-        rows.append({
-            'estado': extra_state or 'Sin estado',
-            'cantidad': cantidad,
-            'porcentaje': porcentaje,
-        })
-
-    chart_labels = [row['estado'] for row in rows]
-    chart_values = [row['cantidad'] for row in rows]
+        rows.append({'estado': extra_state or 'Sin estado', 'cantidad': cantidad, 'porcentaje': porcentaje})
 
     return render(request, 'cases/report_by_state.html', {
-        'page_title': 'Reporte de casos por estado',
-        'rows': rows,
-        'total': total,
+        'page_title':   'Reporte de casos por estado',
+        'rows':         rows,
+        'total':        total,
         'filtro_desde': desde_raw,
         'filtro_hasta': hasta_raw,
-        'filtro_sala': sala_filter,
-        'salas': Case.ROOM_CHOICES,
-        'chart_labels': chart_labels,
-        'chart_values': chart_values,
+        'filtro_sala':  sala_filter,
+        'salas':        Case.ROOM_CHOICES,
+        'chart_labels': [row['estado']   for row in rows],
+        'chart_values': [row['cantidad'] for row in rows],
     })
 
 
 @role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
 def case_report_by_sala(request):
-    desde_raw = (request.GET.get('desde') or '').strip()
-    hasta_raw = (request.GET.get('hasta') or '').strip()
-    state_raw = (request.GET.get('estado') or '').strip()
+    desde_raw  = (request.GET.get('desde') or '').strip()
+    hasta_raw  = (request.GET.get('hasta') or '').strip()
+    state_raw  = (request.GET.get('estado') or '').strip()
 
-    desde_date = _parse_report_date(desde_raw)
-    hasta_date = _parse_report_date(hasta_raw)
-
+    desde_date   = _parse_report_date(desde_raw)
+    hasta_date   = _parse_report_date(hasta_raw)
     valid_states = set(REPORT_KNOWN_STATES)
     state_filter = state_raw if state_raw in valid_states else ''
 
@@ -934,8 +913,7 @@ def case_report_by_sala(request):
     if state_filter:
         cases = cases.filter(state=state_filter)
 
-    total = cases.count()
-
+    total      = cases.count()
     sala_counts = {
         row['sala']: row['count']
         for row in cases.values('sala').annotate(count=Count('id'))
@@ -943,34 +921,28 @@ def case_report_by_sala(request):
 
     rows = []
     for value, label in Case.ROOM_CHOICES:
-        cantidad = sala_counts.get(value, 0)
+        cantidad   = sala_counts.get(value, 0)
         porcentaje = round((cantidad / total * 100), 1) if total else 0.0
         rows.append({'sala': label, 'cantidad': cantidad, 'porcentaje': porcentaje})
 
-    chart_labels = [row['sala'] for row in rows]
-    chart_values = [row['cantidad'] for row in rows]
-
     return render(request, 'cases/report_by_sala.html', {
-        'page_title': 'Reporte de casos por sala jurídica',
-        'rows': rows,
-        'total': total,
-        'filtro_desde': desde_raw,
-        'filtro_hasta': hasta_raw,
+        'page_title':    'Reporte de casos por sala jurídica',
+        'rows':          rows,
+        'total':         total,
+        'filtro_desde':  desde_raw,
+        'filtro_hasta':  hasta_raw,
         'filtro_estado': state_filter,
-        'estados': REPORT_KNOWN_STATES,
-        'chart_labels': chart_labels,
-        'chart_values': chart_values,
+        'estados':       REPORT_KNOWN_STATES,
+        'chart_labels':  [row['sala']     for row in rows],
+        'chart_values':  [row['cantidad'] for row in rows],
     })
 
 
 @role_required(ROLE_ADMINISTRADOR)
 def export_cases_excel(request):
-    """HU-40: Exporta todos los casos a un archivo Excel."""
     cases = Case.objects.select_related(
         'beneficiary', 'assigned_student'
-    ).filter(
-        status=Case.STATUS_COMPLETE
-    ).order_by('-created_at')
+    ).filter(status=Case.STATUS_COMPLETE).order_by('-created_at')
 
     wb = Workbook()
     ws = wb.active
@@ -978,23 +950,21 @@ def export_cases_excel(request):
 
     headers = [
         'Código', 'Sala', 'Beneficiario', 'Estudiante Asignado',
-        'Estado', 'Fecha de Creación', 'Fecha Límite'
+        'Estado', 'Fecha de Creación', 'Fecha Límite',
     ]
     header_fill = PatternFill(start_color='1A3A5C', end_color='1A3A5C', fill_type='solid')
     header_font = Font(color='FFFFFF', bold=True)
 
     for col, header in enumerate(headers, start=1):
-        cell = ws.cell(row=1, column=col, value=header)
-        cell.fill = header_fill
-        cell.font = header_font
+        cell           = ws.cell(row=1, column=col, value=header)
+        cell.fill      = header_fill
+        cell.font      = header_font
         cell.alignment = Alignment(horizontal='center')
 
     for row_idx, case in enumerate(cases, start=2):
         ws.cell(row=row_idx, column=1).value = case.code
         ws.cell(row=row_idx, column=2).value = case.get_sala_display() if case.sala else 'Sin sala'
-        ws.cell(row=row_idx, column=3).value = (
-            case.beneficiary.name if case.beneficiary else 'Sin beneficiario'
-        )
+        ws.cell(row=row_idx, column=3).value = case.beneficiary.name if case.beneficiary else 'Sin beneficiario'
         ws.cell(row=row_idx, column=4).value = (
             case.assigned_student.get_full_name() or case.assigned_student.username
             if case.assigned_student else 'Sin asignar'
@@ -1015,7 +985,7 @@ def export_cases_excel(request):
 
     response = HttpResponse(
         buffer,
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
     response['Content-Disposition'] = 'attachment; filename="reporte_casos.xlsx"'
     return response
@@ -1023,35 +993,25 @@ def export_cases_excel(request):
 
 @role_required(ROLE_ADMINISTRADOR)
 def export_cases_pdf(request):
-    """HU-40: Exporta todos los casos a un archivo PDF."""
     cases = Case.objects.select_related(
         'beneficiary', 'assigned_student'
-    ).filter(
-        status=Case.STATUS_COMPLETE
-    ).order_by('-created_at')
+    ).filter(status=Case.STATUS_COMPLETE).order_by('-created_at')
 
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
+    doc    = SimpleDocTemplate(
         buffer,
         pagesize=landscape(letter),
-        rightMargin=0.5 * inch,
-        leftMargin=0.5 * inch,
-        topMargin=0.5 * inch,
-        bottomMargin=0.5 * inch,
+        rightMargin=0.5 * inch, leftMargin=0.5 * inch,
+        topMargin=0.5 * inch,   bottomMargin=0.5 * inch,
     )
 
-    styles = getSampleStyleSheet()
-    elements = []
-
-    title = Paragraph(
-        '<b>Reporte de Casos — Consultorio Jurídico ICESI</b>',
-        styles['Title']
-    )
-    elements.append(title)
-    elements.append(Spacer(1, 0.2 * inch))
+    styles   = getSampleStyleSheet()
+    elements = [
+        Paragraph('<b>Reporte de Casos — Consultorio Jurídico ICESI</b>', styles['Title']),
+        Spacer(1, 0.2 * inch),
+    ]
 
     data = [['Código', 'Sala', 'Beneficiario', 'Estudiante Asignado', 'Estado', 'Fecha Creación']]
-
     for case in cases:
         data.append([
             case.code,
@@ -1067,17 +1027,17 @@ def export_cases_pdf(request):
 
     table = Table(data, colWidths=[1.2*inch, 1*inch, 2*inch, 2*inch, 2.5*inch, 1.3*inch])
     table.setStyle(TableStyle([
-        ('BACKGROUND',  (0, 0), (-1, 0),  colors.HexColor('#1A3A5C')),
-        ('TEXTCOLOR',   (0, 0), (-1, 0),  colors.white),
-        ('FONTNAME',    (0, 0), (-1, 0),  'Helvetica-Bold'),
-        ('FONTSIZE',    (0, 0), (-1, 0),  9),
-        ('ALIGN',       (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN',      (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTSIZE',    (0, 1), (-1, -1), 8),
+        ('BACKGROUND',     (0, 0), (-1, 0),  colors.HexColor('#1A3A5C')),
+        ('TEXTCOLOR',      (0, 0), (-1, 0),  colors.white),
+        ('FONTNAME',       (0, 0), (-1, 0),  'Helvetica-Bold'),
+        ('FONTSIZE',       (0, 0), (-1, 0),  9),
+        ('ALIGN',          (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN',         (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTSIZE',       (0, 1), (-1, -1), 8),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F4F6F9')]),
-        ('GRID',        (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
-        ('TOPPADDING',  (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('GRID',           (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
+        ('TOPPADDING',     (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING',  (0, 0), (-1, -1), 4),
     ]))
 
     elements.append(table)
@@ -1098,11 +1058,7 @@ def export_academic_dashboard_excel(request):
         User.objects
         .filter(is_active=True, groups__name=ROLE_ESTUDIANTE)
         .annotate(
-            total_cases=Count(
-                'assigned_cases',
-                filter=assigned_cases_filters,
-                distinct=True,
-            ),
+            total_cases=Count('assigned_cases', filter=assigned_cases_filters, distinct=True),
             overdue_cases=Count(
                 'assigned_cases',
                 filter=assigned_cases_filters & Q(assigned_cases__deadline_date__lt=filters['today']),
@@ -1121,20 +1077,14 @@ def export_academic_dashboard_excel(request):
     ws = wb.active
     ws.title = 'Panel Academico'
 
-    headers = [
-        'Estudiante',
-        'Usuario',
-        'Casos asignados',
-        'Casos vencidos',
-        'Sin fecha limite',
-    ]
+    headers = ['Estudiante', 'Usuario', 'Casos asignados', 'Casos vencidos', 'Sin fecha limite']
     header_fill = PatternFill(start_color='1A3A5C', end_color='1A3A5C', fill_type='solid')
     header_font = Font(color='FFFFFF', bold=True)
 
     for col, header in enumerate(headers, start=1):
-        cell = ws.cell(row=1, column=col, value=header)
-        cell.fill = header_fill
-        cell.font = header_font
+        cell           = ws.cell(row=1, column=col, value=header)
+        cell.fill      = header_fill
+        cell.font      = header_font
         cell.alignment = Alignment(horizontal='center')
 
     for row_idx, student in enumerate(students, start=2):
@@ -1144,8 +1094,7 @@ def export_academic_dashboard_excel(request):
         ws.cell(row=row_idx, column=4).value = student.overdue_cases
         ws.cell(row=row_idx, column=5).value = student.without_deadline_cases
 
-    column_widths = [28, 18, 18, 16, 18]
-    for col, width in enumerate(column_widths, start=1):
+    for col, width in enumerate([28, 18, 18, 16, 18], start=1):
         ws.column_dimensions[ws.cell(row=1, column=col).column_letter].width = width
 
     buffer = io.BytesIO()
@@ -1154,7 +1103,7 @@ def export_academic_dashboard_excel(request):
 
     response = HttpResponse(
         buffer,
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
     response['Content-Disposition'] = 'attachment; filename="reporte_panel_academico.xlsx"'
     return response
@@ -1169,11 +1118,7 @@ def export_academic_dashboard_pdf(request):
         User.objects
         .filter(is_active=True, groups__name=ROLE_ESTUDIANTE)
         .annotate(
-            total_cases=Count(
-                'assigned_cases',
-                filter=assigned_cases_filters,
-                distinct=True,
-            ),
+            total_cases=Count('assigned_cases', filter=assigned_cases_filters, distinct=True),
             overdue_cases=Count(
                 'assigned_cases',
                 filter=assigned_cases_filters & Q(assigned_cases__deadline_date__lt=filters['today']),
@@ -1189,33 +1134,20 @@ def export_academic_dashboard_pdf(request):
     )
 
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
+    doc    = SimpleDocTemplate(
         buffer,
         pagesize=landscape(letter),
-        rightMargin=0.5 * inch,
-        leftMargin=0.5 * inch,
-        topMargin=0.5 * inch,
-        bottomMargin=0.5 * inch,
+        rightMargin=0.5 * inch, leftMargin=0.5 * inch,
+        topMargin=0.5 * inch,   bottomMargin=0.5 * inch,
     )
 
-    styles = getSampleStyleSheet()
-    elements = []
+    styles   = getSampleStyleSheet()
+    elements = [
+        Paragraph('<b>Panel Academico — Consultorio Juridico ICESI</b>', styles['Title']),
+        Spacer(1, 0.2 * inch),
+    ]
 
-    title = Paragraph(
-        '<b>Panel Academico — Consultorio Juridico ICESI</b>',
-        styles['Title']
-    )
-    elements.append(title)
-    elements.append(Spacer(1, 0.2 * inch))
-
-    data = [[
-        'Estudiante',
-        'Usuario',
-        'Casos asignados',
-        'Casos vencidos',
-        'Sin fecha limite',
-    ]]
-
+    data = [['Estudiante', 'Usuario', 'Casos asignados', 'Casos vencidos', 'Sin fecha limite']]
     for student in students:
         data.append([
             student.get_full_name() or student.username,
@@ -1227,17 +1159,17 @@ def export_academic_dashboard_pdf(request):
 
     table = Table(data, colWidths=[2.2*inch, 1.4*inch, 1.2*inch, 1.2*inch, 1.4*inch])
     table.setStyle(TableStyle([
-        ('BACKGROUND',  (0, 0), (-1, 0),  colors.HexColor('#1A3A5C')),
-        ('TEXTCOLOR',   (0, 0), (-1, 0),  colors.white),
-        ('FONTNAME',    (0, 0), (-1, 0),  'Helvetica-Bold'),
-        ('FONTSIZE',    (0, 0), (-1, 0),  9),
-        ('ALIGN',       (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN',      (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTSIZE',    (0, 1), (-1, -1), 8),
+        ('BACKGROUND',     (0, 0), (-1, 0),  colors.HexColor('#1A3A5C')),
+        ('TEXTCOLOR',      (0, 0), (-1, 0),  colors.white),
+        ('FONTNAME',       (0, 0), (-1, 0),  'Helvetica-Bold'),
+        ('FONTSIZE',       (0, 0), (-1, 0),  9),
+        ('ALIGN',          (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN',         (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTSIZE',       (0, 1), (-1, -1), 8),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F4F6F9')]),
-        ('GRID',        (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
-        ('TOPPADDING',  (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('GRID',           (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
+        ('TOPPADDING',     (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING',  (0, 0), (-1, -1), 4),
     ]))
 
     elements.append(table)
@@ -1249,10 +1181,9 @@ def export_academic_dashboard_pdf(request):
     return response
 @login_required
 def serve_case_document(request, document_id):
-    """Sirve de forma segura archivos/documentos adjuntos a un caso, validando permisos."""
-
+    """Sirve de forma segura archivos adjuntos a un caso, validando permisos."""
     document = get_object_or_404(CaseDocument, pk=document_id)
-    case = document.case
+    case     = document.case
 
     if not can_view_case(request.user, case):
         CaseAuditLog.objects.create(
@@ -1264,7 +1195,7 @@ def serve_case_document(request, document_id):
                 f'del caso {case.code} por el usuario {request.user.username}.'
             ),
             case_radicado=case.code,
-            ip_address=get_client_ip(request) if 'get_client_ip' in locals() or 'get_client_ip' in globals() else None,
+            ip_address=get_client_ip(request),
         )
         messages.error(request, 'No tienes permiso para acceder a este archivo.')
         return redirect('case_list')
