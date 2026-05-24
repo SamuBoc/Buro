@@ -112,6 +112,13 @@ class CaseDeadlineForm(forms.ModelForm):
             'deadline_date': 'Fecha limite de atencion',
         }
 
+    def clean_deadline_date(self):
+        from django.utils import timezone
+        value = self.cleaned_data.get('deadline_date')
+        if value and value < timezone.localdate():
+            raise forms.ValidationError('La fecha límite no puede ser anterior a hoy.')
+        return value
+
 
 class CaseReassignmentForm(forms.Form):
     assigned_student = forms.ModelChoiceField(

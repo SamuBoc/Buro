@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User, Group
-from django.test import TestCase, Client
+from django.core import mail
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -241,3 +242,127 @@ class NotificationViewTest(TestCase):
         url = reverse('unread_count')
         response = self.client.get(url)
         self.assertEqual(response.json()['unread_count'], 50)
+
+
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class BeneficiaryStatusEmailTest(TestCase):
+    """
+    Verifica que _create_status_notification envía un email al beneficiario
+    cuando el estado de su caso cambia (HU-13).
+
+    Estos tests cubren el falso positivo previo: los tests anteriores solo
+    verificaban notificaciones internas (modelo Notification) y dejaban sin
+    probar el requisito principal de HU-13.
+    """
+
+    def setUp(self):
+        self.secretaria = make_user('secretaria_hu13', group_name='secretaria')
+        self.beneficiary = make_beneficiary()   # email='pedro@test.com'
+        self.case = make_case(self.beneficiary)
+
+    def _change_state(self, new_state, triggered_by=None):
+        """Cambia el estado del caso simulando la señal con _request asignado."""
+        from django.test import RequestFactory
+        from cases.signals import _create_status_notification
+
+        previous = self.case.state
+        self.case.state = new_state
+
+        if triggered_by:
+            factory = RequestFactory()
+            request = factory.get('/')
+            request.user = triggered_by
+            self.case._request = request
+
+        self.case.save()
+        return previous
+
+
+    def test_beneficiary_receives_email_on_manual_status_change(self):
+        """El beneficiario recibe email cuando la secretaria cambia el estado."""
+        mail.outbox.clear()
+        self._change_state(Case.STATE_ASSIGNED, triggered_by=self.secretaria)
+
+        beneficiary_emails = [m for m in mail.outbox if self.beneficiary.email in m.to]
+        self.assertGreaterEqual(
+            len(beneficiary_emails), 1,
+            'El beneficiario no recibió ningún email tras el cambio de estado.',
+        )
+
+    def test_beneficiary_email_contains_case_code(self):
+        """El email al beneficiario menciona el código del caso."""
+        mail.outbox.clear()
+        self._change_state(Case.STATE_ASSIGNED, triggered_by=self.secretaria)
+
+        beneficiary_emails = [m for m in mail.outbox if self.beneficiary.email in m.to]
+        self.assertTrue(
+            any(self.case.code in (m.subject + m.body) for m in beneficiary_emails),
+            f'Ningún email al beneficiario menciona el código de caso {self.case.code}.',
+        )
+
+    def test_beneficiary_email_contains_new_status(self):
+        """El email al beneficiario menciona el nuevo estado."""
+        mail.outbox.clear()
+        self._change_state(Case.STATE_ASSIGNED, triggered_by=self.secretaria)
+
+        beneficiary_emails = [m for m in mail.outbox if self.beneficiary.email in m.to]
+        self.assertTrue(
+            any(Case.STATE_ASSIGNED in m.body for m in beneficiary_emails),
+            'Ningún email al beneficiario menciona el nuevo estado del caso.',
+        )
+
+    def test_internal_notification_also_created_for_triggered_by(self):
+        """La notificación interna del sistema sigue creándose para quien hizo el cambio."""
+        mail.outbox.clear()
+        self._change_state(Case.STATE_ASSIGNED, triggered_by=self.secretaria)
+
+        internal = Notification.objects.filter(
+            recipient_user=self.secretaria,
+            notification_type='STATUS_CHANGE',
+        )
+        self.assertTrue(
+            internal.exists(),
+            'No se creó notificación interna para la secretaria que hizo el cambio.',
+        )
+
+    def test_beneficiary_receives_email_on_automatic_status_change(self):
+        """
+        El beneficiario recibe email incluso cuando el cambio de estado es
+        automático (triggered_by=None), por ejemplo en asignación por scheduler.
+        """
+        mail.outbox.clear()
+        self._change_state(Case.STATE_ASSIGNED, triggered_by=None)
+
+        beneficiary_emails = [m for m in mail.outbox if self.beneficiary.email in m.to]
+        self.assertGreaterEqual(
+            len(beneficiary_emails), 1,
+            'El beneficiario no recibió email en un cambio de estado automático.',
+        )
+
+    def test_no_internal_notification_on_automatic_change(self):
+        """No se crea notificación interna cuando el cambio es automático (triggered_by=None)."""
+        initial_count = Notification.objects.count()
+        self._change_state(Case.STATE_ASSIGNED, triggered_by=None)
+
+        self.assertEqual(
+            Notification.objects.count(), initial_count,
+            'Se creó una notificación interna para un cambio automático sin triggered_by.',
+        )
+
+
+    def test_no_email_sent_when_beneficiary_has_no_email(self):
+        """
+        Si el beneficiario no tiene email registrado no se intenta el envío
+        y el flujo no lanza excepción.
+        """
+        self.beneficiary.email = ''
+        self.beneficiary.save()
+        mail.outbox.clear()
+
+        try:
+            self._change_state(Case.STATE_ASSIGNED, triggered_by=self.secretaria)
+        except Exception as exc:
+            self.fail(f'El cambio de estado lanzó una excepción inesperada: {exc}')
+
+        beneficiary_emails = [m for m in mail.outbox if '' in m.to]
+        self.assertEqual(len(beneficiary_emails), 0)

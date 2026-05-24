@@ -2,7 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
-from accounts.constants import ROLE_ADMINISTRADOR, ROLE_SECRETARIA
+from accounts.constants import ROLE_ADMINISTRADOR, ROLE_PROFESOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
 
 from .forms import (
@@ -17,12 +17,12 @@ from .models import (
     DataDeletionRequest,
     DocumentBeneficiary,
 )
+from .signals import log_beneficiary_view
 
-# Module that send mail notifications to beneficiaries
 from mail import views
 
 
-@login_required
+@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR, ROLE_PROFESOR)
 def beneficiary_list(request):
     beneficiaries = Beneficiary.objects.all()
     return render(request, 'beneficiary/beneficiary_list.html', {
@@ -71,7 +71,9 @@ def beneficiary_update(request, pk):
         doc_form = DocumentBeneficiaryForm(request.POST, request.FILES, instance=saved_document)
 
         if form.is_valid():
-            form.save()
+            beneficiary          = form.save(commit=False)
+            beneficiary._request = request
+            beneficiary.save()
 
             if request.FILES.get('file'):
                 documento             = doc_form.save(commit=False)
@@ -80,7 +82,7 @@ def beneficiary_update(request, pk):
 
             messages.success(request, 'Beneficiario actualizado exitosamente.')
 
-            views.notify_beneficiary(beneficiary.id, "Actualización de Datos - Buro Juridico ICESI", 
+            views.notify_beneficiary(beneficiary.id, "Actualización de Datos - Buro Juridico ICESI",
                                beneficiary.name + " se han actualizado sus datos en la plataforma de Buro")
 
             return redirect('beneficiary_list')
@@ -101,6 +103,9 @@ def beneficiary_update(request, pk):
 def beneficiary_detail(request, pk):
     beneficiary = get_object_or_404(Beneficiary, pk=pk)
     documento   = DocumentBeneficiary.objects.filter(beneficiary=beneficiary).first()
+    ip = request.META.get('REMOTE_ADDR')
+    log_beneficiary_view(beneficiary, request.user, ip=ip)
+
     return render(request, 'beneficiary/beneficiary_detail.html', {
         'beneficiary': beneficiary,
         'documento':   documento,
@@ -206,4 +211,4 @@ def data_deletion_request_list(request):
         'requests':       requests,
         'status_choices': DataDeletionRequest.STATUS_CHOICES,
         'current_status': status_filter,
-    })  
+    })
