@@ -12,7 +12,7 @@ class CiteForm(forms.ModelForm):
         widgets = {
             'modality_cite': forms.Select(attrs={'class': 'form-select'}),
             'request_cite':  forms.Select(attrs={'class': 'form-select'}),
-            'date_assigned': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'date_assigned': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
             'description':   forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
         labels = {
@@ -36,7 +36,7 @@ class RescheduleCiteForm(forms.ModelForm):
         model = Cite
         fields = ['date_assigned']
         widgets = {
-            'date_assigned': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'date_assigned': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'date'}),
         }
         labels = {
             'date_assigned': 'Fecha de Asignación',
