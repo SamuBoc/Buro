@@ -1,6 +1,7 @@
 from datetime import date
 
 from django import forms
+from django.utils import timezone
 
 from .models import Cite
 
@@ -28,7 +29,7 @@ class CiteForm(forms.ModelForm):
 
     def clean_date_assigned(self):
         value = self.cleaned_data.get('date_assigned')
-        return value or date.today()
+        return value or timezone.localdate()
 
 
 class RescheduleCiteForm(forms.ModelForm):

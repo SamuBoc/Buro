@@ -6,6 +6,7 @@ from django.db.models import Count
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from reportlab.lib import colors
@@ -110,7 +111,7 @@ def register_cite_attendance(request, pk, status):
         messages.error(request, 'No puedes registrar asistencia en una cita cancelada.')
         return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
 
-    if cite.date_assigned and cite.date_assigned > date.today():
+    if cite.date_assigned and cite.date_assigned > timezone.now():
         messages.warning(request, 'Solo puedes registrar asistencia en citas de hoy o anteriores.')
         return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
 
@@ -127,7 +128,7 @@ def register_cite_attendance(request, pk, status):
 
     if cite.state_cite != new_state:
         cite.state_cite = new_state
-        cite.save()
+        cite.save(update_fields=['state_cite'])
         log_beneficiary_cite_attendance(
             cite.beneficiary,
             cite,
