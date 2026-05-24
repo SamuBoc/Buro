@@ -5,8 +5,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
 
-from django.conf import settings
-
 from .forms import (
     BeneficiaryForm,
     DataDeletionRequestForm,
@@ -19,6 +17,9 @@ from .models import (
     DataDeletionRequest,
     DocumentBeneficiary,
 )
+
+# Module that send mail notifications to beneficiaries
+from mail import views
 
 
 @login_required
@@ -44,7 +45,7 @@ def beneficiary_register(request):
             documento.beneficiary = beneficiary
             documento.save()
 
-            notify_beneficiary(beneficiary.id, "Registro Exitoso - Buro Juridico ICESI",
+            views.notify_beneficiary(beneficiary.id, "Registro Exitoso - Buro Juridico ICESI",
                                beneficiary.name + " usted a sido registrado exitosamente en la plataforma del Buro Juridíco de Icesi")
 
             return redirect('beneficiary_list')
@@ -205,19 +206,4 @@ def data_deletion_request_list(request):
         'requests':       requests,
         'status_choices': DataDeletionRequest.STATUS_CHOICES,
         'current_status': status_filter,
-    })
-
-
-from django.core.mail import send_mail
-from django.contrib import messages
-
-def notify_beneficiary(pk, subject, message):
-    beneficiary = get_object_or_404(Beneficiary, pk=pk)
-
-    if subject and message:
-        send_mail(
-            subject,
-            message,
-            settings.DEFAULT_FROM_EMAIL,
-            [beneficiary.email]
-        )   
+    })  
