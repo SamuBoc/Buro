@@ -6,7 +6,7 @@ from django.db import connection
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from accounts.constants import ROLE_ADMINISTRADOR, ROLE_ESTUDIANTE, ROLE_PROFESOR
+from accounts.constants import ROLE_ESTUDIANTE, ROLE_PROFESOR
 from beneficiary.models import Beneficiary
 from cases.models import Case, CaseAuditLog, CaseDocument
 from core.encryption import compute_hmac, decrypt, encrypt, verify_integrity
@@ -134,7 +134,9 @@ class ProtectedFileAccessTest(TestCase):
         self.student  = _make_user('est_seg', ROLE_ESTUDIANTE)
         self.student2 = _make_user('est_seg2', ROLE_ESTUDIANTE)
         self.profesor = _make_user('prof_seg', ROLE_PROFESOR)
-        self.case     = _make_case(student=self.student)
+        self.case = _make_case(student=self.student)
+        self.student.profile.supervising_professor = self.profesor
+        self.student.profile.save()
 
         os.makedirs('/tmp/test_media_hu35/', exist_ok=True)
         uploaded = SimpleUploadedFile('test_doc.pdf', b'contenido pdf', content_type='application/pdf')
