@@ -80,7 +80,7 @@ def beneficiary_update(request, pk):
 
             messages.success(request, 'Beneficiario actualizado exitosamente.')
 
-            notify_beneficiary(beneficiary.id, "Actualización de Datos - Buro Juridico ICESI", 
+            views.notify_beneficiary(beneficiary.id, "Actualización de Datos - Buro Juridico ICESI", 
                                beneficiary.name + " se han actualizado sus datos en la plataforma de Buro")
 
             return redirect('beneficiary_list')
@@ -174,7 +174,7 @@ def data_deletion_request_create(request, pk):
                 'La solicitud de eliminacion de datos fue registrada correctamente.'
             )
 
-            notify_beneficiary(beneficiary.id, "Solicitud de Eliminación de la plataforma - Buro Juridico Universidad Icesi",
+            views.notify_beneficiary(beneficiary.id, "Solicitud de Eliminación de la plataforma - Buro Juridico Universidad Icesi",
                                beneficiary.name + " usted a realizado una solicitud de eliminación de sus datos personales de la "
                                "plataforma Buro Juridico de Icesi. Su solicitud sera revisada y se le informara de su estado")
             return redirect('beneficiary_detail', pk=beneficiary.pk)
