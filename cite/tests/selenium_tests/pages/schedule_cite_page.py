@@ -1,5 +1,6 @@
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import Select
 from .base_page import BasePage
 
 class ScheduleCite(BasePage) :
@@ -9,6 +10,7 @@ class ScheduleCite(BasePage) :
 
     NEW_CITE = (By.ID, "new-cite")
 
+    MODALITY_FIELD = (By.ID, "id_modality_cite")
     DATE_FIELD = (By.ID, "id_date_assigned")
     DESCRIPTION_DATE = (By.ID, "id_description")
 
@@ -30,7 +32,12 @@ class ScheduleCite(BasePage) :
     def go_to_cite_form(self):
         self.click(self.NEW_CITE)
 
+    def select_modality(self, modality="PRESENCIAL"):
+        select = Select(self.find_element(self.MODALITY_FIELD))
+        select.select_by_value(modality)
+
     def define_date_cite(self, date, hour):
+        self.select_modality()
         self.enter_text(self.DATE_FIELD, date)
         self.enter_text(self.DESCRIPTION_DATE, hour)
 

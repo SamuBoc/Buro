@@ -3,7 +3,7 @@
 {% block title %}{{ case.code }} - Buro Juridico{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
+<div id="case-detail" class="row justify-content-center">
     <div class="col-lg-8">
         <div class="page-header d-flex justify-content-between align-items-center">
             <div>
@@ -50,7 +50,9 @@
                             <i class="bi bi-info-circle-fill text-primary me-2 fs-5"></i>
                             <span class="text-muted small">Estado</span>
                         </div>
-                        <p class="fw-semibold mb-0 ms-4">{{ case.state }}</p>
+                        <p class="fw-semibold mb-0 ms-4">
+                            <span id="case-state">{{ case.state }}</span>
+                        </p>
                     </div>
 
                     <div class="col-md-6">
@@ -59,11 +61,13 @@
                             <span class="text-muted small">Estudiante asignado</span>
                         </div>
                         <p class="fw-semibold mb-0 ms-4">
-                            {% if case.assigned_student %}
-                                {{ case.assigned_student.get_full_name|default:case.assigned_student.username }}
-                            {% else %}
-                                Sin asignar
-                            {% endif %}
+                            <span id="case-assigned-student">
+                                {% if case.assigned_student %}
+                                    {{ case.assigned_student.get_full_name|default:case.assigned_student.username }}
+                                {% else %}
+                                    Sin asignar
+                                {% endif %}
+                            </span>
                         </p>
                     </div>
 
@@ -81,11 +85,13 @@
                             <span class="text-muted small">Fecha limite de atencion</span>
                         </div>
                         <p class="fw-semibold mb-0 ms-4">
-                            {% if case.deadline_date %}
-                                {{ case.deadline_date|date:"d/m/Y" }}
-                            {% else %}
-                                Sin registrar
-                            {% endif %}
+                            <span id="case-deadline-date">
+                                {% if case.deadline_date %}
+                                    {{ case.deadline_date|date:"d/m/Y" }}
+                                {% else %}
+                                    Sin registrar
+                                {% endif %}
+                            </span>
                         </p>
                     </div>
 
@@ -103,7 +109,9 @@
                             <i class="bi bi-exclamation-triangle-fill text-danger me-2 fs-5"></i>
                             <span class="text-muted small">Causal de rechazo</span>
                         </div>
-                        <p class="fw-semibold mb-0 ms-4">{{ case.rejection_reason }}</p>
+                        <p class="fw-semibold mb-0 ms-4">
+                            <span id="case-rejection-reason">{{ case.rejection_reason }}</span>
+                        </p>
                     </div>
                     {% endif %}
                 </div>
@@ -114,7 +122,7 @@
         <div class="card mb-4">
             <div class="card-body p-4">
                 <h5 class="mb-3"><i class="bi bi-calendar-event me-2"></i>Registrar fecha limite</h5>
-                <form method="post" action="{% url 'case_update_deadline' case.pk %}" class="row g-3 align-items-end">
+                <form id="case-deadline-form" method="post" action="{% url 'case_update_deadline' case.pk %}" class="row g-3 align-items-end">
                     {% csrf_token %}
                     <div class="col-md-8">
                         <label for="id_deadline_date" class="form-label">{{ deadline_form.deadline_date.label }}</label>
@@ -124,7 +132,7 @@
                         {% endif %}
                     </div>
                     <div class="col-md-4 d-grid">
-                        <button type="submit" class="btn btn-warning">
+                        <button id="case-deadline-submit" type="submit" class="btn btn-warning">
                             <i class="bi bi-bell me-1"></i>Guardar fecha limite
                         </button>
                     </div>
@@ -137,7 +145,7 @@
         <div class="card mb-4">
             <div class="card-body p-4">
                 <h5 class="mb-3"><i class="bi bi-arrow-left-right me-2"></i>Reasignar caso</h5>
-                <form method="post" action="{% url 'case_reassign' case.pk %}" class="row g-3 align-items-end">
+                <form id="case-reassign-form" method="post" action="{% url 'case_reassign' case.pk %}" class="row g-3 align-items-end">
                     {% csrf_token %}
                     <div class="col-md-8">
                         <label for="id_assigned_student" class="form-label">{{ reassignment_form.assigned_student.label }}</label>
@@ -147,7 +155,7 @@
                         {% endif %}
                     </div>
                     <div class="col-md-4 d-grid">
-                        <button type="submit" class="btn btn-primary">
+                        <button id="case-reassign-submit" type="submit" class="btn btn-primary">
                             <i class="bi bi-check2-circle me-1"></i>Confirmar reasignacion
                         </button>
                     </div>
@@ -160,17 +168,17 @@
         <div class="card mb-4">
             <div class="card-body p-4">
                 <h5 class="mb-3"><i class="bi bi-x-circle me-2"></i>Rechazar caso</h5>
-                <form method="post" action="{% url 'case_reject' case.pk %}">
+                <form id="case-reject-form" method="post" action="{% url 'case_reject' case.pk %}">
                     {% csrf_token %}
                     <div class="mb-3">
                         <label for="id_rejection_reason" class="form-label">{{ rejection_form.rejection_reason.label }}</label>
                         {{ rejection_form.rejection_reason }}
                         {% if rejection_form.rejection_reason.errors %}
-                            <div class="text-danger small mt-1">{{ rejection_form.rejection_reason.errors|striptags }}</div>
+                            <div id="case-reject-error" class="text-danger small mt-1">{{ rejection_form.rejection_reason.errors|striptags }}</div>
                         {% endif %}
                     </div>
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-danger">
+                        <button id="case-reject-submit" type="submit" class="btn btn-danger">
                             <i class="bi bi-x-circle me-1"></i>Rechazar caso
                         </button>
                     </div>
@@ -201,7 +209,7 @@
             <div class="card-body p-4">
                 <h5 class="mb-3"><i class="bi bi-journal-text me-2"></i>Bitacora de reasignaciones</h5>
                 {% if case.reassignment_logs.all %}
-                    <div class="list-group">
+                    <div id="case-reassign-log" class="list-group">
                         {% for log in case.reassignment_logs.all %}
                             <div class="list-group-item">
                                 <div class="d-flex justify-content-between align-items-start">
@@ -227,6 +235,7 @@
                         {% endfor %}
                     </div>
                 {% else %}
+                    <div id="case-reassign-log"></div>
                     <p class="text-muted mb-0">Este caso no tiene reasignaciones registradas.</p>
                 {% endif %}
             </div>

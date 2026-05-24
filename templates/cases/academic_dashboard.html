@@ -3,7 +3,7 @@
 {% block title %}Panel academico - Buro Juridico{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4 py-3">
+<div class="container-fluid px-4 py-3" id="academic-dashboard">
 
   <div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
     <div>
@@ -33,9 +33,9 @@
     </div>
   </div>
 
-  <div class="card mt-3 mb-4">
+  <div class="card mt-3 mb-4" id="academic-filters">
     <div class="card-body">
-      <form method="get" class="row g-3 align-items-end">
+      <form method="get" class="row g-3 align-items-end" id="academic-filters-form">
         <div class="col-md-3">
           <label for="desde" class="form-label fw-semibold">Desde</label>
           <input type="date" class="form-control" id="desde" name="desde" value="{{ filtro_desde }}">
@@ -74,7 +74,7 @@
     </div>
   </div>
 
-  <div class="row g-3 mt-1 mb-4">
+  <div class="row g-3 mt-1 mb-4" id="academic-metrics">
     <div class="col-sm-6 col-xl-3">
       <div class="card h-100">
         <div class="card-body d-flex align-items-start justify-content-between">
@@ -125,7 +125,7 @@
     <div class="card-body p-0">
       {% if students %}
       <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0" id="academic-students-table">
           <thead class="table-dark sticky-top">
             <tr>
               <th class="ps-4">Estudiante</th>
@@ -147,7 +147,7 @@
               <td class="text-end text-danger">{{ student.overdue_cases }}</td>
               <td class="text-end text-warning">{{ student.without_deadline_cases }}</td>
               <td class="text-center">
-                <a href="{% url 'academic_student_detail' student.id %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-sm btn-outline-primary">
+                <a href="{% url 'academic_student_detail' student.id %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-sm btn-outline-primary academic-detail-link">
                   <i class="bi bi-bar-chart-line"></i> Ver detalle
                 </a>
               </td>
@@ -157,7 +157,7 @@
         </table>
       </div>
       {% else %}
-      <div class="text-center py-5 text-muted">
+      <div class="text-center py-5 text-muted" id="academic-empty-state">
         <i class="bi bi-person-x fs-1 d-block mb-2"></i>
         No hay estudiantes registrados aun.
       </div>
