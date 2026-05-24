@@ -217,7 +217,7 @@ class Notification(models.Model):
         ]
 
     def __str__(self):
-        estado = 'Leida' if self.is_read else 'No leida'
+        estado = 'Leída' if self.is_read else 'No leída'
         return f'[{estado}] {self.title} -> {self.recipient_user.get_full_name()}'
 
     def mark_as_read(self):
