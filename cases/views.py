@@ -646,6 +646,10 @@ def case_reject(request, pk):
     if request.method != 'POST':
         return redirect('case_detail', pk=case.pk)
 
+    if case.state == Case.STATE_REJECTED:
+        messages.warning(request, 'Este caso ya fue rechazado anteriormente.')
+        return redirect('case_detail', pk=case.pk)
+
     form = CaseRejectionForm(request.POST, instance=case)
 
     if form.is_valid():
@@ -672,7 +676,6 @@ def case_reject(request, pk):
         'interaction_form':    CommunicationInteractionForm(),
         'interactions':        case.interactions.select_related('registered_by').order_by('-timestamp'),
     })
-
 
 
 @login_required
@@ -1179,6 +1182,8 @@ def export_academic_dashboard_pdf(request):
     response = HttpResponse(buffer, content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="reporte_panel_academico.pdf"'
     return response
+
+
 @login_required
 def serve_case_document(request, document_id):
     """Sirve de forma segura archivos adjuntos a un caso, validando permisos."""
