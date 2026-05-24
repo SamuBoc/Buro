@@ -5,6 +5,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
 
+from django.conf import settings
+
 from .forms import (
     BeneficiaryForm,
     DataDeletionRequestForm,
@@ -42,6 +44,9 @@ def beneficiary_register(request):
             documento.beneficiary = beneficiary
             documento.save()
 
+            notify_beneficiary(beneficiary.id, "Registro Exitoso - Buro Juridico ICESI",
+                               beneficiary.name + " usted a sido registrado exitosamente en la plataforma del Buro Juridíco de Icesi")
+
             return redirect('beneficiary_list')
 
         messages.error(request, 'Por favor corrige los errores del formulario.')
@@ -73,6 +78,10 @@ def beneficiary_update(request, pk):
                 documento.save()
 
             messages.success(request, 'Beneficiario actualizado exitosamente.')
+
+            notify_beneficiary(beneficiary.id, "Actualización de Datos - Buro Juridico ICESI", 
+                               beneficiary.name + " se han actualizado sus datos en la plataforma de Buro")
+
             return redirect('beneficiary_list')
 
         messages.error(request, 'Corrige los errores del formulario')
@@ -163,6 +172,10 @@ def data_deletion_request_create(request, pk):
                 request,
                 'La solicitud de eliminacion de datos fue registrada correctamente.'
             )
+
+            notify_beneficiary(beneficiary.id, "Solicitud de Eliminación de la plataforma - Buro Juridico Universidad Icesi",
+                               beneficiary.name + " usted a realizado una solicitud de eliminación de sus datos personales de la "
+                               "plataforma Buro Juridico de Icesi. Su solicitud sera revisada y se le informara de su estado")
             return redirect('beneficiary_detail', pk=beneficiary.pk)
 
         messages.error(request, 'Por favor confirma la solicitud antes de continuar.')
@@ -198,16 +211,13 @@ def data_deletion_request_list(request):
 from django.core.mail import send_mail
 from django.contrib import messages
 
-@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
-def notify_beneficiary(request, pk, subject, message):
+def notify_beneficiary(pk, subject, message):
     beneficiary = get_object_or_404(Beneficiary, pk=pk)
 
-    if subject and message and destEmail:
+    if subject and message:
         send_mail(
             subject,
             message,
-            None,
+            settings.DEFAULT_FROM_EMAIL,
             [beneficiary.email]
-        )
-    
-
+        )   

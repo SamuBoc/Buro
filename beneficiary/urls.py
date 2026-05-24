@@ -10,4 +10,5 @@ urlpatterns = [
     path('bitacora/global/', views.global_beneficiary_audit_log, name='global_beneficiary_audit_log'),
     path('solicitudes-eliminacion/', views.data_deletion_request_list, name='data_deletion_request_list'),
     path('beneficiario/<str:pk>/editar', views.beneficiary_update, name='beneficiary_update'),
+    path('informar-por-correo/<str:pk>', views.notify_beneficiary, name='send_email')
 ]
