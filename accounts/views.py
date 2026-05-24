@@ -11,12 +11,11 @@ from cases.models import Case, CaseEvaluation
 from .constants import ROLE_ADMINISTRADOR, ROLE_ESTUDIANTE, ROLE_PROFESOR, ROLE_SECRETARIA
 from .decorators import role_required
 from .forms import AcademicStudentRegistrationForm
-from .models import UserProfile
 
 
 @login_required
 def no_permission(request):
-    return render(request, 'accounts/no_permission.html')
+    return render(request, 'accounts/no_permission.html', status=403)
 
 
 def _get_student_case_history(student):
