@@ -70,7 +70,7 @@ class BeneficiaryRegistrationAccessTest(TestCase):
         """
         self.client.login(username='libre_hu1', password='pass1234')
         response = self.client.get(reverse('beneficiary_register'))
-        self.assertRedirects(response, reverse('no_permission'))
+        self.assertRedirects(response, reverse('no_permission'), target_status_code=403)
 
     def test_sin_sesion_redirige_al_login(self):
         """NEGATIVO: Sin sesión activa, el sistema redirige al login."""
