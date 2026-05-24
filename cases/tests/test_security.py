@@ -174,3 +174,71 @@ class ProtectedFileAccessTest(TestCase):
                 action='SECURITY_DENIED',
             ).exists()
         )
+
+@override_settings(
+    ENCRYPTION_KEY='c2VjcmV0a2V5Zm9ydGVzdGluZ3B1cnBvc2VzMTIzNDU2Nzg='
+)
+class EncryptionRobustnessTest(TestCase):
+
+    def test_same_value_encrypted_twice_gives_different_tokens(self):
+        """Fernet usa IV aleatorio — cada cifrado debe ser distinto."""
+        value = 'dato_sensible'
+        self.assertNotEqual(encrypt(value), encrypt(value))
+
+    def test_both_tokens_decrypt_to_same_original(self):
+        value = 'dato_sensible'
+        token1 = encrypt(value)
+        token2 = encrypt(value)
+        self.assertEqual(decrypt(token1), value)
+        self.assertEqual(decrypt(token2), value)
+
+    def test_decrypt_truncated_token_returns_empty(self):
+        token = encrypt('dato_valido')
+        truncated = token[:10]
+        self.assertEqual(decrypt(truncated), '')
+
+    def test_decrypt_random_bytes_returns_empty(self):
+        self.assertEqual(decrypt('abc123xyz!!!'), '')
+
+    def test_encrypt_long_value(self):
+        long_value = 'A' * 5000
+        token = encrypt(long_value)
+        self.assertEqual(decrypt(token), long_value)
+
+    def test_hmac_different_values_give_different_results(self):
+        self.assertNotEqual(compute_hmac('valor1'), compute_hmac('valor2'))
+
+    def test_verify_integrity_empty_string(self):
+        value = ''
+        self.assertTrue(verify_integrity(value, compute_hmac(value)))
+
+    def test_tampered_stored_field_returns_empty_on_read(self):
+        """Si alguien modifica el token en BD directamente, decrypt retorna vacío."""
+        beneficiary = Beneficiary.objects.create(
+            name='Test Tamper',
+            location='Cali',
+            phone='3001234567',
+            email='tamper@test.com',
+            colombian_identification='999888777',
+        )
+        Beneficiary.objects.filter(pk=beneficiary.pk).update(
+            colombian_identification='token_manipulado_directamente'
+        )
+        loaded = Beneficiary.objects.get(pk=beneficiary.pk)
+        self.assertEqual(loaded.colombian_identification, '')
+
+    def test_multiple_reads_return_same_decrypted_value(self):
+        """Lecturas repetidas deben ser idempotentes."""
+        beneficiary = Beneficiary.objects.create(
+            name='Test Idempotente',
+            location='Cali',
+            phone='3007654321',
+            email='idempotente@test.com',
+            colombian_identification='555444333',
+        )
+        reads = [
+            Beneficiary.objects.get(pk=beneficiary.pk).colombian_identification
+            for _ in range(5)
+        ]
+        self.assertEqual(len(set(reads)), 1)
+        self.assertEqual(reads[0], '555444333')
