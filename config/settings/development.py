@@ -10,4 +10,4 @@ DATABASES = {
     )
 }
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+ENABLE_APP_SCHEDULERS = False

@@ -1,17 +1,12 @@
 import os
+import sqlite3
+import sys
 from datetime import date
 
 from behave import given, when, then
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.development')
-import django
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-django.setup()
-
-from django.contrib.auth.models import User
-from django.contrib.auth.models import Group
-from beneficiary.models import Beneficiary
-from cite.models import Cite
 from pages.do_login_page import LoginPage
 from pages.hu15_schedule_cite_page import HU15ScheduleCitePage
 
@@ -24,39 +19,52 @@ def _get_credentials():
     }
 
 
-def _ensure_test_user(username, password):
-    user, _ = User.objects.get_or_create(username=username, defaults={'email': f'{username}@test.com'})
-    user.email = f'{username}@test.com'
-    user.set_password(password)
-    user.save()
-    secretaria_group, _ = Group.objects.get_or_create(name='secretaria')
-    user.groups.add(secretaria_group)
-    return user
+def _repo_root():
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..'))
+
+
+def _db_path():
+    return os.path.join(_repo_root(), 'db.sqlite3')
 
 
 def _ensure_test_beneficiary():
-    beneficiary, _ = Beneficiary.objects.get_or_create(
-        email='hu15_beneficiary@test.com',
-        defaults={
-            'name': 'Beneficiario HU15',
-            'location': 'Cali',
-            'phone': '3001234567',
-        },
-    )
-    beneficiary.name = 'Beneficiario HU15'
-    beneficiary.location = 'Cali'
-    beneficiary.phone = '3001234567'
-    beneficiary.save()
-    return beneficiary
+    beneficiary_id = 'BEN-HU15-0001'
+    today = date.today().isoformat()
+
+    with sqlite3.connect(_db_path()) as connection:
+        connection.execute(
+            '''
+            INSERT INTO beneficiary_beneficiary (
+                name, id, location, email, date_register, colombian_identification, phone
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                location = excluded.location,
+                email = excluded.email,
+                date_register = excluded.date_register,
+                colombian_identification = excluded.colombian_identification,
+                phone = excluded.phone
+            ''',
+            (
+                'Beneficiario HU15',
+                beneficiary_id,
+                'Cali',
+                'hu15_beneficiary@test.com',
+                today,
+                '123456789',
+                '3001234567',
+            ),
+        )
+        connection.commit()
+
+    return beneficiary_id
 
 
 @given('existe un beneficiario disponible para agendar cita')
 def step_given_beneficiary_available(context):
     context.credentials = _get_credentials()
-    _ensure_test_user(context.credentials['user'], context.credentials['password'])
-    beneficiary = _ensure_test_beneficiary()
-    context.beneficiary_id = beneficiary.id
-    context.beneficiary_name = beneficiary.name
+    context.beneficiary_id = _ensure_test_beneficiary()
+    context.beneficiary_name = 'Beneficiario HU15'
 
 
 @given('la secretaria accede al formulario de agendamiento de cita')
