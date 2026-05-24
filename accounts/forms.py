@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 
+from .constants import ROLE_PROFESOR
 from .models import UserProfile
 
 
@@ -39,6 +40,12 @@ class AcademicStudentRegistrationForm(forms.Form):
         choices=UserProfile.ROOM_CHOICES,
         label='Sala preferente',
     )
+    supervising_professor = forms.ModelChoiceField(
+        queryset=User.objects.none(),
+        required=False,
+        label='Profesor supervisor',
+        empty_label='Sin profesor asignado',
+    )
     password = forms.CharField(
         widget=forms.PasswordInput,
         label='Contrasena inicial',
@@ -46,6 +53,14 @@ class AcademicStudentRegistrationForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['supervising_professor'].queryset = (
+            User.objects.filter(
+                is_active=True,
+                groups__name=ROLE_PROFESOR,
+            )
+            .distinct()
+            .order_by('first_name', 'last_name', 'username')
+        )
         for field_name, field in self.fields.items():
             if field_name == 'availability':
                 field.widget.attrs.update({'class': 'form-check-input'})
