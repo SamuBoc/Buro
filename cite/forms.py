@@ -37,7 +37,7 @@ class RescheduleCiteForm(forms.ModelForm):
         model = Cite
         fields = ['date_assigned']
         widgets = {
-            'date_assigned': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'date_assigned': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
         }
         labels = {
             'date_assigned': 'Fecha de Asignación',

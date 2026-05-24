@@ -7,7 +7,7 @@ def step_given_cite_assigned(context):
     context.do_login_page = LoginPage(context.driver)
     context.cancel_cite_page = CancelCite(context.driver)
     context.do_login_page.go_to_homepage()
-    context.do_login_page.make_log_in("stevan", "useruser")
+    context.do_login_page.make_log_in()
     context.cancel_cite_page.go_to_homepage()
     context.cancel_cite_page.go_to_beneficiary_module()
     context.cancel_cite_page.go_to_actions_user()
