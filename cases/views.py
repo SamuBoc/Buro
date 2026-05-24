@@ -1,14 +1,19 @@
 from datetime import datetime
 import io
+import logging
 import mimetypes
 import os
+import time
+import uuid
+
+import jwt
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Count, Q
-from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from openpyxl import Workbook
@@ -22,6 +27,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_ESTUDIANTE, ROLE_PROFESOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
 from accounts.permissions import (
+    can_access_recording,
     can_add_interaction,
     can_manage_case_deadline,
     can_reassign_case,
@@ -560,8 +566,9 @@ def case_detail(request, pk):
         'case':                case,
         'can_reassign':        can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
-        'can_add_interaction': can_add_interaction(request.user, case),
-        'deadline_form':       CaseDeadlineForm(instance=case),
+        'can_add_interaction':   can_add_interaction(request.user, case),
+        'can_access_recording':  can_access_recording(request.user, case),
+        'deadline_form':         CaseDeadlineForm(instance=case),
         'reassignment_form':   CaseReassignmentForm(case=case),
         'rejection_form':      CaseRejectionForm(instance=case),
         'interaction_form':    CommunicationInteractionForm(),
@@ -627,8 +634,9 @@ def case_reassign(request, pk):
         'case':                case,
         'can_reassign':        can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
-        'can_add_interaction': can_add_interaction(request.user, case),
-        'deadline_form':       CaseDeadlineForm(instance=case),
+        'can_add_interaction':   can_add_interaction(request.user, case),
+        'can_access_recording':  can_access_recording(request.user, case),
+        'deadline_form':         CaseDeadlineForm(instance=case),
         'reassignment_form':   form,
         'rejection_form':      CaseRejectionForm(instance=case),
         'interaction_form':    CommunicationInteractionForm(),
@@ -669,8 +677,9 @@ def case_reject(request, pk):
         'case':                case,
         'can_reassign':        can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
-        'can_add_interaction': can_add_interaction(request.user, case),
-        'deadline_form':       CaseDeadlineForm(instance=case),
+        'can_add_interaction':   can_add_interaction(request.user, case),
+        'can_access_recording':  can_access_recording(request.user, case),
+        'deadline_form':         CaseDeadlineForm(instance=case),
         'reassignment_form':   CaseReassignmentForm(case=case),
         'rejection_form':      form,
         'interaction_form':    CommunicationInteractionForm(),
@@ -1218,3 +1227,169 @@ def serve_case_document(request, document_id):
         f'inline; filename="{os.path.basename(file_path)}"'
     )
     return response
+
+
+# ─── HU-22: Grabar llamadas ───────────────────────────────────────────────────
+
+logger = logging.getLogger(__name__)
+
+
+def _build_videosdk_token(room_id=None):
+    api_key = os.environ.get('VIDEOSDK_API_KEY', '')
+    secret = os.environ.get('VIDEOSDK_SECRET_KEY', '')
+    if not api_key or not secret:
+        return None, None, 'Servicio de llamadas no configurado'
+    if room_id is None:
+        room_id = str(uuid.uuid4())
+    payload = {
+        'apikey': api_key,
+        'permissions': ['allow_join', 'allow_mod'],
+        'iat': int(time.time()),
+        'exp': int(time.time()) + 3600,
+    }
+    token = jwt.encode(payload, secret, algorithm='HS256')
+    return token, room_id, None
+
+
+@login_required
+def generate_videosdk_token(request, case_id):
+    case = get_object_or_404(Case, pk=case_id)
+
+    if not can_add_interaction(request.user, case):
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+
+    token, room_id, error = _build_videosdk_token()
+    if error:
+        logger.error(error)
+        return JsonResponse({'error': error}, status=503)
+
+    return JsonResponse({'token': token, 'roomId': room_id})
+
+
+def get_join_token(request, case_id, room_id):
+    """Genera token para unirse a una sala existente (sin login requerido)."""
+    token, _, error = _build_videosdk_token(room_id=room_id)
+    if error:
+        return JsonResponse({'error': error}, status=503)
+    return JsonResponse({'token': token, 'roomId': room_id})
+
+
+def join_call(request, case_id, room_id):
+    """Página pública para que el segundo participante se una a la llamada."""
+    case = get_object_or_404(Case, pk=case_id)
+    return render(request, 'cases/call_room.html', {
+        'case': case,
+        'room_id': room_id,
+        'join_token_url': request.build_absolute_uri(
+            f'/casos/{case_id}/llamada/{room_id}/token/'
+        ),
+    })
+
+
+@login_required
+def upload_call_recording(request, case_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    case = get_object_or_404(Case, pk=case_id)
+
+    if not can_add_interaction(request.user, case):
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+
+    audio = request.FILES.get('audio')
+    if not audio:
+        return JsonResponse({'error': 'No se recibió archivo de audio'}, status=400)
+
+    description = request.POST.get('description', 'Llamada grabada desde la plataforma')
+
+    try:
+        interaction = CommunicationInteraction.objects.create(
+            case=case,
+            registered_by=request.user,
+            interaction_type=CommunicationInteraction.TYPE_CALL,
+            direction=CommunicationInteraction.DIRECTION_OUT,
+            description=description,
+            audio_file=audio,
+        )
+        CaseAuditLog.objects.create(
+            case=case,
+            user=request.user,
+            action='COMMUNICATION',
+            description=f'Grabación de llamada subida para el caso {case.code}.',
+            case_radicado=case.code,
+            ip_address=get_client_ip(request),
+        )
+        return JsonResponse({'status': 'ok', 'interaction_id': interaction.pk})
+    except Exception as exc:
+        logger.error('Error al guardar grabación de llamada para caso %s: %s', case.code, exc)
+        CaseAuditLog.objects.create(
+            case=case,
+            user=request.user,
+            action='COMMUNICATION',
+            description=f'Error al guardar grabación de llamada para el caso {case.code}: {exc}',
+            case_radicado=case.code,
+            ip_address=get_client_ip(request),
+        )
+        return JsonResponse({'error': 'Error al guardar la grabación'}, status=500)
+# ─── HU-24: Métricas de canales de comunicación ──────────────────────────────
+
+@login_required
+@role_required(ROLE_ADMINISTRADOR)
+def communication_metrics(request):
+    tipo_filter = request.GET.get('tipo', '')
+
+    qs = CommunicationInteraction.objects.all()
+    if tipo_filter:
+        qs = qs.filter(interaction_type=tipo_filter)
+
+    by_type = (
+        CommunicationInteraction.objects
+        .values('interaction_type')
+        .annotate(count=Count('id'))
+        .order_by('-count')
+    )
+
+    type_labels = dict(CommunicationInteraction.TYPE_CHOICES)
+    metrics = [
+        {
+            'type': row['interaction_type'],
+            'label': type_labels.get(row['interaction_type'], row['interaction_type']),
+            'count': row['count'],
+        }
+        for row in by_type
+    ]
+
+    interactions = qs.select_related('case', 'registered_by').order_by('-timestamp')[:100]
+
+    return render(request, 'cases/communication_metrics.html', {
+        'metrics':      metrics,
+        'interactions': interactions,
+        'tipo_filter':  tipo_filter,
+        'tipo_choices': CommunicationInteraction.TYPE_CHOICES,
+        'total':        CommunicationInteraction.objects.count(),
+    })
+# ─── HU-23: Acceso controlado a grabaciones ──────────────────────────────────
+
+@login_required
+def serve_call_recording(request, interaction_id):
+    interaction = get_object_or_404(CommunicationInteraction, pk=interaction_id)
+    case = interaction.case
+
+    if not can_access_recording(request.user, case):
+        CaseAuditLog.objects.create(
+            case=case,
+            user=request.user,
+            action='SECURITY_DENIED',
+            description=(
+                f'Acceso denegado a grabacion de llamada del caso {case.code} '
+                f'por el usuario {request.user.username}.'
+            ),
+            case_radicado=case.code,
+            ip_address=get_client_ip(request),
+        )
+        return HttpResponseForbidden('No tienes permiso para acceder a esta grabacion.')
+
+    if not interaction.audio_file:
+        raise Http404('No hay grabacion para esta interaccion.')
+
+    return redirect(interaction.audio_file.url)

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Llamada — Caso {{ case.code }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background: #f8f9fa; }
+        .call-card { max-width: 480px; margin: 80px auto; }
+    </style>
+</head>
+<body>
+<div class="call-card card shadow-sm">
+    <div class="card-body p-4 text-center">
+        <h5 class="mb-1"><i class="bi bi-telephone-fill text-success me-2"></i>Unirse a llamada</h5>
+        <p class="text-muted small mb-4">Caso {{ case.code }}</p>
+
+        <div id="state-waiting">
+            <p class="mb-3">Hacé clic en <strong>Unirse</strong> para conectarte a la llamada.</p>
+            <button id="btn-join" class="btn btn-success btn-lg w-100">
+                <i class="bi bi-telephone-fill me-2"></i>Unirse a la llamada
+            </button>
+        </div>
+
+        <div id="state-connecting" class="d-none">
+            <div class="spinner-border text-success mb-3" role="status"></div>
+            <p class="text-muted">Conectando...</p>
+        </div>
+
+        <div id="state-active" class="d-none">
+            <div class="mb-3">
+                <span class="badge bg-success fs-6"><i class="bi bi-telephone-fill me-1"></i>En llamada</span>
+            </div>
+            <p class="text-muted small mb-3" id="participant-count">Esperando al otro participante...</p>
+            <button id="btn-leave" class="btn btn-danger w-100">
+                <i class="bi bi-telephone-x-fill me-2"></i>Colgar
+            </button>
+        </div>
+
+        <div id="state-ended" class="d-none">
+            <div class="alert alert-secondary mb-0">
+                <i class="bi bi-check-circle me-1"></i>Llamada finalizada. Podés cerrar esta ventana.
+            </div>
+        </div>
+
+        <div id="state-error" class="d-none">
+            <div class="alert alert-danger mb-0">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                <span id="error-msg">Error al conectar.</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://sdk.videosdk.live/js-sdk/0.0.67/videosdk.js"></script>
+<script>
+(function () {
+    const roomId = "{{ room_id }}";
+    const tokenUrl = "{{ join_token_url }}";
+    let meeting = null;
+
+    function show(id) {
+        ['state-waiting','state-connecting','state-active','state-ended','state-error']
+            .forEach(s => document.getElementById(s).classList.add('d-none'));
+        document.getElementById(id).classList.remove('d-none');
+    }
+
+    document.getElementById('btn-join').addEventListener('click', async () => {
+        show('state-connecting');
+        try {
+            await navigator.mediaDevices.getUserMedia({ audio: true });
+
+            const res = await fetch(tokenUrl);
+            if (!res.ok) throw new Error('No se pudo obtener token');
+            const { token } = await res.json();
+
+            window.VideoSDK.config(token);
+            meeting = window.VideoSDK.initMeeting({
+                meetingId: roomId,
+                name: 'Participante externo',
+                micEnabled: true,
+                webcamEnabled: false,
+            });
+
+            meeting.on('meeting-joined', () => show('state-active'));
+            meeting.on('meeting-left', () => show('state-ended'));
+            meeting.on('error', (err) => {
+                document.getElementById('error-msg').textContent = err.message || 'Error en la llamada.';
+                show('state-error');
+            });
+            meeting.on('participant-joined', (p) => {
+                document.getElementById('participant-count').textContent =
+                    `${meeting.participants.size + 1} participante(s) en la llamada`;
+            });
+
+            meeting.join();
+        } catch (err) {
+            document.getElementById('error-msg').textContent = err.message || 'Error al conectar.';
+            show('state-error');
+        }
+    });
+
+    document.getElementById('btn-leave').addEventListener('click', () => {
+        if (meeting) { try { meeting.leave(); } catch(_) {} }
+        show('state-ended');
+    });
+})();
+</script>
+</body>
+</html>
