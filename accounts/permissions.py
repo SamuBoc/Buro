@@ -68,3 +68,16 @@ def can_add_interaction(user, case):
     if ROLE_ESTUDIANTE in roles and case.assigned_student_id == user.id:
         return True
     return False
+
+def can_access_recording(user, case):
+    """Solo administrador, profesor y el estudiante asignado pueden acceder a grabaciones."""
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    roles = _user_roles(user)
+    if roles.intersection({ROLE_ADMINISTRADOR, ROLE_PROFESOR}):
+        return True
+    if ROLE_ESTUDIANTE in roles and case.assigned_student_id == user.id:
+        return True
+    return False

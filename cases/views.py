@@ -13,7 +13,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Count, Q
-from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from openpyxl import Workbook
@@ -27,6 +27,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_ESTUDIANTE, ROLE_PROFESOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
 from accounts.permissions import (
+    can_access_recording,
     can_add_interaction,
     can_manage_case_deadline,
     can_reassign_case,
@@ -565,8 +566,9 @@ def case_detail(request, pk):
         'case':                case,
         'can_reassign':        can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
-        'can_add_interaction': can_add_interaction(request.user, case),
-        'deadline_form':       CaseDeadlineForm(instance=case),
+        'can_add_interaction':   can_add_interaction(request.user, case),
+        'can_access_recording':  can_access_recording(request.user, case),
+        'deadline_form':         CaseDeadlineForm(instance=case),
         'reassignment_form':   CaseReassignmentForm(case=case),
         'rejection_form':      CaseRejectionForm(instance=case),
         'interaction_form':    CommunicationInteractionForm(),
@@ -632,8 +634,9 @@ def case_reassign(request, pk):
         'case':                case,
         'can_reassign':        can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
-        'can_add_interaction': can_add_interaction(request.user, case),
-        'deadline_form':       CaseDeadlineForm(instance=case),
+        'can_add_interaction':   can_add_interaction(request.user, case),
+        'can_access_recording':  can_access_recording(request.user, case),
+        'deadline_form':         CaseDeadlineForm(instance=case),
         'reassignment_form':   form,
         'rejection_form':      CaseRejectionForm(instance=case),
         'interaction_form':    CommunicationInteractionForm(),
@@ -670,8 +673,9 @@ def case_reject(request, pk):
         'case':                case,
         'can_reassign':        can_reassign_case(request.user),
         'can_manage_deadline': can_manage_case_deadline(request.user),
-        'can_add_interaction': can_add_interaction(request.user, case),
-        'deadline_form':       CaseDeadlineForm(instance=case),
+        'can_add_interaction':   can_add_interaction(request.user, case),
+        'can_access_recording':  can_access_recording(request.user, case),
+        'deadline_form':         CaseDeadlineForm(instance=case),
         'reassignment_form':   CaseReassignmentForm(case=case),
         'rejection_form':      form,
         'interaction_form':    CommunicationInteractionForm(),
@@ -1359,3 +1363,28 @@ def communication_metrics(request):
         'tipo_choices': CommunicationInteraction.TYPE_CHOICES,
         'total':        CommunicationInteraction.objects.count(),
     })
+# ─── HU-23: Acceso controlado a grabaciones ──────────────────────────────────
+
+@login_required
+def serve_call_recording(request, interaction_id):
+    interaction = get_object_or_404(CommunicationInteraction, pk=interaction_id)
+    case = interaction.case
+
+    if not can_access_recording(request.user, case):
+        CaseAuditLog.objects.create(
+            case=case,
+            user=request.user,
+            action='SECURITY_DENIED',
+            description=(
+                f'Acceso denegado a grabacion de llamada del caso {case.code} '
+                f'por el usuario {request.user.username}.'
+            ),
+            case_radicado=case.code,
+            ip_address=get_client_ip(request),
+        )
+        return HttpResponseForbidden('No tienes permiso para acceder a esta grabacion.')
+
+    if not interaction.audio_file:
+        raise Http404('No hay grabacion para esta interaccion.')
+
+    return redirect(interaction.audio_file.url)

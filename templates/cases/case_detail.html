@@ -451,10 +451,16 @@
                                         </span>
                                         <p class="mb-0 mt-1 text-muted small">{{ interaction.description }}</p>
                                         {% if interaction.audio_file %}
-                                        <audio controls class="mt-2 w-100" style="max-width:400px;">
-                                            <source src="{{ interaction.audio_file.url }}" type="audio/webm">
-                                            Tu navegador no soporta reproducción de audio.
-                                        </audio>
+                                            {% if can_access_recording %}
+                                            <audio controls class="mt-2 w-100" style="max-width:400px;">
+                                                <source src="{% url 'serve_call_recording' interaction.pk %}" type="audio/webm">
+                                                Tu navegador no soporta reproducción de audio.
+                                            </audio>
+                                            {% else %}
+                                            <p class="text-muted small mt-2 mb-0">
+                                                <i class="bi bi-lock-fill me-1"></i>Grabación disponible solo para administradores, profesores y el estudiante asignado.
+                                            </p>
+                                            {% endif %}
                                         {% endif %}
                                     </div>
                                     <small class="text-muted text-nowrap ms-3">{{ interaction.timestamp|date:"d/m/Y H:i" }}</small>
