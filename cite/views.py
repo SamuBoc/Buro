@@ -6,6 +6,7 @@ from django.db.models import Count
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from reportlab.lib import colors
@@ -23,6 +24,8 @@ from core.utils import get_client_ip
 from .forms import CiteForm, RescheduleCiteForm
 from .models import Cite
 
+from mail import views
+
 
 @login_required
 def create_cite(request, beneficiary_id):
@@ -35,6 +38,10 @@ def create_cite(request, beneficiary_id):
             cite.beneficiary = beneficiary
             cite.save()
             messages.success(request, 'Cita agendada correctamente con la modalidad seleccionada.')
+            
+            format_date = cite.date_assigned.strftime("%Y-%m-%d %I:%M:%S %p")
+            views.notify_beneficiary(beneficiary.id, "Agendamiento de Cita - Buro Juridico de Icesi", beneficiary.name + " se le ha agendado una cita para la siguiente fecha: " +
+            format_date + ". Porfavor presentarse 15 minutos antes de la fecha estipulada.")
             return redirect('beneficiary_detail', pk=beneficiary.id)
         messages.error(request, 'Debes seleccionar una modalidad valida para continuar.')
     else:
@@ -65,6 +72,10 @@ def reschedule_cite(request, pk):
         form = RescheduleCiteForm(request.POST, instance=cite)
         if form.is_valid():
             form.save()
+
+            format_date = cite.date_assigned.strftime("%Y-%m-%d %I:%M:%S %p")
+            views.notify_beneficiary(cite.beneficiary.id, "Reprogramación de Cita - Buro Juridico de Icesi", cite.beneficiary.name + " se ha reprogramado con éxito"
+            " su cita para la siguiente fecha: " + format_date + ". Porfavor presentarse 15 minutos antes de la fecha estipulada.")
             return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
         messages.error(request, 'Corrige los errores del formulario')
     else:
@@ -82,6 +93,10 @@ def cancel_cite(request, pk):
     if request.method == 'POST':
         cite.state_cite = Cite.STATE_CANCELED
         cite.save()
+
+        format_date = cite.date_assigned.strftime("%Y-%m-%d %I:%M:%S %p")
+        views.notify_beneficiary(cite.beneficiary.id, "Cancelación de Cita - Buro Juridico de Icesi", cite.beneficiary.name + " se le ha agendado una cita para la siguiente fecha: " +
+            format_date + ". Porfavor presentarse 15 minutos antes de la fecha estipulada.")
     return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
 
 
@@ -96,7 +111,7 @@ def register_cite_attendance(request, pk, status):
         messages.error(request, 'No puedes registrar asistencia en una cita cancelada.')
         return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
 
-    if cite.date_assigned and cite.date_assigned > date.today():
+    if cite.date_assigned and cite.date_assigned > timezone.now():
         messages.warning(request, 'Solo puedes registrar asistencia en citas de hoy o anteriores.')
         return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
 
@@ -113,7 +128,7 @@ def register_cite_attendance(request, pk, status):
 
     if cite.state_cite != new_state:
         cite.state_cite = new_state
-        cite.save()
+        cite.save(update_fields=['state_cite'])
         log_beneficiary_cite_attendance(
             cite.beneficiary,
             cite,

@@ -18,6 +18,9 @@ from .models import (
     DocumentBeneficiary,
 )
 
+# Module that send mail notifications to beneficiaries
+from mail import views
+
 
 @login_required
 def beneficiary_list(request):
@@ -41,6 +44,9 @@ def beneficiary_register(request):
             documento             = doc_form.save(commit=False)
             documento.beneficiary = beneficiary
             documento.save()
+
+            views.notify_beneficiary(beneficiary.id, "Registro Exitoso - Buro Juridico ICESI",
+                               beneficiary.name + " usted a sido registrado exitosamente en la plataforma del Buro Juridíco de Icesi")
 
             return redirect('beneficiary_list')
 
@@ -73,6 +79,10 @@ def beneficiary_update(request, pk):
                 documento.save()
 
             messages.success(request, 'Beneficiario actualizado exitosamente.')
+
+            views.notify_beneficiary(beneficiary.id, "Actualización de Datos - Buro Juridico ICESI", 
+                               beneficiary.name + " se han actualizado sus datos en la plataforma de Buro")
+
             return redirect('beneficiary_list')
 
         messages.error(request, 'Corrige los errores del formulario')
@@ -163,6 +173,10 @@ def data_deletion_request_create(request, pk):
                 request,
                 'La solicitud de eliminacion de datos fue registrada correctamente.'
             )
+
+            views.notify_beneficiary(beneficiary.id, "Solicitud de Eliminación de la plataforma - Buro Juridico Universidad Icesi",
+                               beneficiary.name + " usted a realizado una solicitud de eliminación de sus datos personales de la "
+                               "plataforma Buro Juridico de Icesi. Su solicitud sera revisada y se le informara de su estado")
             return redirect('beneficiary_detail', pk=beneficiary.pk)
 
         messages.error(request, 'Por favor confirma la solicitud antes de continuar.')
@@ -192,4 +206,4 @@ def data_deletion_request_list(request):
         'requests':       requests,
         'status_choices': DataDeletionRequest.STATUS_CHOICES,
         'current_status': status_filter,
-    })
+    })  

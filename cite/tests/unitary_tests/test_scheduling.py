@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from beneficiary.models import Beneficiary
 from cite.models import Cite
@@ -26,7 +27,7 @@ def make_beneficiary():
 def make_cite(beneficiary, state=Cite.STATE_PENDING, days_offset=0):
     return Cite.objects.create(
         beneficiary=beneficiary,
-        date_assigned=date.today() + timedelta(days=days_offset),
+        date_assigned=timezone.now() + timedelta(days=days_offset),
         modality_cite=Cite.MODALITY_INPERSON,
         state_cite=state,
         request_cite=Cite.CHANNEL_WEB,
@@ -47,7 +48,7 @@ class CiteCreationTest(TestCase):
         data = {
             'modality_cite': Cite.MODALITY_INPERSON,
             'request_cite': Cite.CHANNEL_WEB,
-            'date_assigned': str(date.today()),
+            'date_assigned': str(timezone.now()),
             'description': 'First consultation',
         }
         self.client.post(self.url, data)
@@ -57,7 +58,7 @@ class CiteCreationTest(TestCase):
         data = {
             'modality_cite': Cite.MODALITY_VIRTUAL,
             'request_cite': Cite.CHANNEL_EMAIL,
-            'date_assigned': str(date.today()),
+            'date_assigned': str(timezone.now()),
             'description': 'Virtual consultation',
         }
         response = self.client.post(self.url, data)
@@ -67,7 +68,7 @@ class CiteCreationTest(TestCase):
         data = {
             'modality_cite': Cite.MODALITY_INPERSON,
             'request_cite': Cite.CHANNEL_WEB,
-            'date_assigned': str(date.today()),
+            'date_assigned': str(timezone.now()),
             'description': '',
         }
         self.client.post(self.url, data)
@@ -83,7 +84,7 @@ class CiteCreationTest(TestCase):
         data = {
             'modality_cite': Cite.MODALITY_INPERSON,
             'request_cite': Cite.CHANNEL_WEB,
-            'date_assigned': str(date.today()),
+            'date_assigned': str(timezone.now()),
             'description': 'Check initial state',
         }
         self.client.post(self.url, data)
@@ -176,7 +177,7 @@ class CiteReschedulingTest(TestCase):
 
     def test_rescheduling_updates_date_in_db(self):
         cite = make_cite(self.beneficiary)
-        new_date = date.today() + timedelta(days=7)
+        new_date = timezone.now() + timedelta(days=7)
         self.client.post(reverse('reschedule_cite', args=[cite.pk]), {'date_assigned': str(new_date)})
         cite.refresh_from_db()
         self.assertEqual(cite.date_assigned, new_date)

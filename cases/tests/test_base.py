@@ -802,6 +802,8 @@ class HU7AutoAssignCaseTests(TestCase):
         )
         self.student_a.groups.add(self.student_group)
         self.student_a.profile.max_cases = 3
+        self.student_a.profile.student_code = 'EST001'
+        self.student_a.profile.availability = True
         self.student_a.profile.save()
 
         self.student_b = User.objects.create_user(
@@ -810,6 +812,8 @@ class HU7AutoAssignCaseTests(TestCase):
         )
         self.student_b.groups.add(self.student_group)
         self.student_b.profile.max_cases = 3
+        self.student_b.profile.student_code = 'EST002'
+        self.student_b.profile.availability = True
         self.student_b.profile.save()
 
         self.beneficiary = Beneficiary.objects.create(

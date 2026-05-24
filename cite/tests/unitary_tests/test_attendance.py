@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from beneficiary.models import Beneficiary, BeneficiaryAuditLog
 from cite.models import Cite
@@ -24,7 +25,7 @@ def make_beneficiary():
 def make_cite(beneficiary, state=Cite.STATE_PENDING, days_offset=0):
     return Cite.objects.create(
         beneficiary=beneficiary,
-        date_assigned=date.today() + timedelta(days=days_offset),
+        date_assigned=timezone.now() + timedelta(days=days_offset),
         modality_cite=Cite.MODALITY_INPERSON,
         state_cite=state,
         request_cite=Cite.CHANNEL_WEB,

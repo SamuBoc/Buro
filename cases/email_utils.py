@@ -163,3 +163,48 @@ def send_deadline_alert_email(notification):
             notification.case.code,
             exc,
         )
+
+
+def send_interaction_email(interaction):
+    """Envía email real al beneficiario cuando el tipo de interacción es correo."""
+    if interaction.interaction_type != 'correo':
+        return
+
+    case = interaction.case
+    recipient_email = case.beneficiary.email if case.beneficiary else None
+    if not recipient_email:
+        logger.warning(
+            "Interaction %s: beneficiary has no email. Skipping.",
+            interaction.pk,
+        )
+        return
+
+    subject = f'[Consultorio Jurídico ICESI] Comunicación sobre su caso {case.code}'
+    plain_body = (
+        f'Estimado/a {case.beneficiary.name},\n\n'
+        f'{interaction.description}\n\n'
+        f'Registrado por: {interaction.registered_by.get_full_name() or interaction.registered_by.username}\n\n'
+        f'Consultorio Jurídico — Universidad ICESI'
+    )
+
+    try:
+        from django.core.mail import EmailMessage
+        msg = EmailMessage(
+            subject=subject,
+            body=plain_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[recipient_email],
+        )
+        msg.send(fail_silently=False)
+        logger.info(
+            "Interaction email sent to %s | case %s",
+            recipient_email,
+            case.code,
+        )
+    except Exception as exc:
+        logger.error(
+            "Failed to send interaction email to %s | case %s | error: %s",
+            recipient_email,
+            case.code,
+            exc,
+        )
