@@ -23,6 +23,8 @@ from core.utils import get_client_ip
 from .forms import CiteForm, RescheduleCiteForm
 from .models import Cite
 
+from mail import views
+
 
 @login_required
 def create_cite(request, beneficiary_id):
@@ -35,6 +37,9 @@ def create_cite(request, beneficiary_id):
             cite.beneficiary = beneficiary
             cite.save()
             messages.success(request, 'Cita agendada correctamente con la modalidad seleccionada.')
+            
+            views.notify_beneficiary(beneficiary.id, "Agendamiento de Cita - Buro Juridico de Icesi", beneficiary.name + " se le ha agendado una cita para la siguiente fecha: " +
+            cite.date + ". Porfavor presentarse 15 minutos antes de la fecha estipulada.")
             return redirect('beneficiary_detail', pk=beneficiary.id)
         messages.error(request, 'Debes seleccionar una modalidad valida para continuar.')
     else:
@@ -65,6 +70,8 @@ def reschedule_cite(request, pk):
         form = RescheduleCiteForm(request.POST, instance=cite)
         if form.is_valid():
             form.save()
+            views.notify_beneficiary(cite.beneficiary.id, "Reprogramación de Cita - Buro Juridico de Icesi", cite.beneficiary.name + " se ha reprogramado con éxito"
+            " su cita para la siguiente fecha: " + cite.date + ". Porfavor presentarse 15 minutos antes de la fecha estipulada.")
             return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
         messages.error(request, 'Corrige los errores del formulario')
     else:
@@ -82,6 +89,8 @@ def cancel_cite(request, pk):
     if request.method == 'POST':
         cite.state_cite = Cite.STATE_CANCELED
         cite.save()
+        views.notify_beneficiary(cite.beneficiary.id, "Cancelación de Cita - Buro Juridico de Icesi", cite.beneficiary.name + " se le ha agendado una cita para la siguiente fecha: " +
+            cite.date + ". Porfavor presentarse 15 minutos antes de la fecha estipulada.")
     return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
 
 
