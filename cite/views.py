@@ -15,7 +15,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from accounts.constants import ROLE_ADMINISTRADOR, ROLE_SECRETARIA
+from accounts.constants import ROLE_ADMINISTRADOR, ROLE_PROFESOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
 from beneficiary.models import Beneficiary
 from beneficiary.signals import log_beneficiary_cite_attendance
@@ -107,8 +107,8 @@ def cancel_cite(request, pk):
         views.notify_beneficiary(
             cite.beneficiary.id,
             "Cancelación de Cita - Buro Juridico de Icesi",
-            cite.beneficiary.name + " se le ha agendado una cita para la siguiente fecha: " +
-            format_date + ". Porfavor presentarse 15 minutos antes de la fecha estipulada.",
+            cite.beneficiary.name + " su cita programada para la fecha " +
+            format_date + " ha sido cancelada. Si tiene dudas comuniquese con el Buro Juridico de Icesi.",
         )
     return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
 
@@ -317,7 +317,7 @@ def cite_report_pdf(request):
     return response
 
 
-@role_required(ROLE_ADMINISTRADOR, ROLE_SECRETARIA)
+@role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
 def cite_attendance_report(request):
     """HU-38: Metricas de asistencia de citas."""
     desde_raw = (request.GET.get('desde') or '').strip()
@@ -384,7 +384,7 @@ def cite_attendance_report(request):
     })
 
 
-@role_required(ROLE_ADMINISTRADOR, ROLE_SECRETARIA)
+@role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
 def cite_attendance_report_excel(request):
     """HU-38: Exporta las metricas de asistencia a Excel."""
     desde_raw = (request.GET.get('desde') or '').strip()
@@ -461,7 +461,7 @@ def cite_attendance_report_excel(request):
     return response
 
 
-@role_required(ROLE_ADMINISTRADOR, ROLE_SECRETARIA)
+@role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
 def cite_attendance_report_pdf(request):
     """HU-38: Exporta las metricas de asistencia a PDF."""
     desde_raw = (request.GET.get('desde') or '').strip()
