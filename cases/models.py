@@ -67,8 +67,6 @@ class Case(models.Model):
     beneficiary = models.ForeignKey(
         Beneficiary,
         on_delete=models.CASCADE,
-        null=True,
-        blank=True,
         related_name='cases',
         verbose_name='Beneficiario'
     )
@@ -473,4 +471,4 @@ class CallSession(models.Model):
         verbose_name_plural = 'Sesiones de llamada'
 
     def __str__(self):
-        return f'Llamada {self.room_id[:8]} — {self.case.code}' 
+        return f'Llamada {self.room_id[:8]} — {self.case.code}'
