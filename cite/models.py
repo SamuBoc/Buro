@@ -13,7 +13,7 @@ class Cite(models.Model):
         related_name="cites"
     )
 
-    date_assigned = models.DateField()
+    date_assigned = models.DateTimeField()
     
     MODALITY_INPERSON = 'PRESENCIAL'
     MODALITY_PHONE = 'TELEFONICA'
