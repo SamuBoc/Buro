@@ -1,3 +1,4 @@
+from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -39,3 +40,12 @@ class HU18AttendancePage(BasePage):
 
     def state_text(self, cite_id):
         return self.find_element(self._state_locator(cite_id)).text.strip()
+
+    def wait_for_state(self, cite_id, expected_text):
+        def _state_matches(_driver):
+            try:
+                return self.state_text(cite_id) == expected_text
+            except StaleElementReferenceException:
+                return False
+
+        WebDriverWait(self.driver, self.timeout).until(_state_matches)

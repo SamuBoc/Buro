@@ -6,8 +6,6 @@ from .base_page import BasePage
 
 class HU38AttendanceMetricsPage(BasePage):
     REPORT_TOTAL = (By.XPATH, "//span[contains(., 'Total registros:')]")
-    ATTENDANCE_BADGE = (By.CSS_SELECTOR, 'span.badge.bg-success.me-2')
-    NO_SHOW_BADGE = (By.CSS_SELECTOR, 'span.badge.bg-danger')
     REPORT_TABLE_ROWS = (By.CSS_SELECTOR, 'table tbody tr')
 
     def go_to_report(self, base_url):
@@ -21,11 +19,18 @@ class HU38AttendanceMetricsPage(BasePage):
     def total_text(self):
         return self.find_element(self.REPORT_TOTAL).text.strip()
 
-    def attendance_badge_text(self):
-        return self.find_element(self.ATTENDANCE_BADGE).text.strip()
-
-    def no_show_badge_text(self):
-        return self.find_element(self.NO_SHOW_BADGE).text.strip()
-
     def report_rows_count(self):
         return len(self.driver.find_elements(*self.REPORT_TABLE_ROWS))
+
+    def _row_cell_text(self, state_label, cell_index):
+        locator = (
+            By.XPATH,
+            "//table//tbody/tr[td[normalize-space()='%s']]/td[%d]" % (state_label, cell_index),
+        )
+        return self.find_element(locator).text.strip()
+
+    def row_count_text(self, state_label):
+        return self._row_cell_text(state_label, 2)
+
+    def row_percentage_text(self, state_label):
+        return self._row_cell_text(state_label, 3)

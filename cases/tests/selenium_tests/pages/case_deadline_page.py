@@ -1,3 +1,4 @@
+from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -16,6 +17,7 @@ class CaseDeadlinePage(BasePage):
     DEADLINE_TEXT = (By.ID, 'case-deadline-date')
 
     NOTIF_TITLE = (By.CSS_SELECTOR, '.notif-page-card-title')
+    NOTIF_HEADER = (By.XPATH, "//h2[contains(., 'Notificaciones')]")
 
     CASE_CODE = (By.XPATH, "//small[contains(., 'Codigo:')]")
 
@@ -70,13 +72,35 @@ class CaseDeadlinePage(BasePage):
         )
 
     def submit_deadline(self):
-        self.click_js(self.DEADLINE_SUBMIT)
+        button = self.find_element(self.DEADLINE_SUBMIT)
+        self.driver.execute_script(
+            "arguments[0].scrollIntoView({block: 'center'});",
+            button,
+        )
+        try:
+            button.click()
+        except Exception:
+            self.driver.execute_script("arguments[0].click();", button)
 
     def deadline_text(self):
         return self.find_element(self.DEADLINE_TEXT).text.strip()
 
+    def wait_for_deadline_text(self, expected_text):
+        def _matches(_driver):
+            try:
+                return expected_text in self.deadline_text()
+            except StaleElementReferenceException:
+                return False
+
+        WebDriverWait(self.driver, self.timeout).until(_matches)
+
     def go_to_notifications(self, base_url):
         self.driver.get(f"{base_url}/casos/notificaciones/")
+
+    def wait_for_notifications(self):
+        WebDriverWait(self.driver, self.timeout).until(
+            lambda driver: driver.find_elements(*self.NOTIF_HEADER)
+        )
 
     def has_notification_title(self, expected_text):
         titles = self.driver.find_elements(*self.NOTIF_TITLE)
