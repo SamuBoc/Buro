@@ -2,7 +2,6 @@ import os
 from django.db import models, transaction
 from django.contrib.auth.models import User
 from django.utils import timezone
-from core.encryption import encrypt, decrypt
 
 
 class EncryptedCharField(models.CharField):
@@ -11,11 +10,13 @@ class EncryptedCharField(models.CharField):
     def from_db_value(self, value, expression, connection):
         if not value:
             return value
+        from core.encryption import decrypt
         return decrypt(value)
 
     def get_prep_value(self, value):
         if not value:
             return value
+        from core.encryption import encrypt
         return encrypt(value)
 
 

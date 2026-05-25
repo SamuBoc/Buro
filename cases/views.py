@@ -18,11 +18,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter, landscape
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import inch
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from accounts.constants import ROLE_ADMINISTRADOR, ROLE_ESTUDIANTE, ROLE_PROFESOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
@@ -1169,6 +1164,12 @@ def export_cases_pdf(request):
 
     valid_salas = {value for value, _ in Case.ROOM_CHOICES}
 
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import inch
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
     cases = Case.objects.select_related(
         'beneficiary', 'assigned_student'
     ).filter(status=Case.STATUS_COMPLETE)
@@ -1296,6 +1297,12 @@ def export_academic_dashboard_excel(request):
 
 @role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
 def export_academic_dashboard_pdf(request):
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import inch
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
     filters = _build_academic_dashboard_filters(request)
     assigned_cases_filters = filters['assigned_cases_filters']
 

@@ -7,11 +7,17 @@ from .models import Cite
 
 
 class CiteForm(forms.ModelForm):
+    modality_cite = forms.ChoiceField(
+        choices=[('', 'Seleccione una modalidad')] + list(Cite.MODALITY_CHOICES),
+        required=True,
+        label='Modalidad',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
     class Meta:
         model = Cite
         fields = ['modality_cite', 'request_cite', 'date_assigned', 'description']
         widgets = {
-            'modality_cite': forms.Select(attrs={'class': 'form-select'}),
             'request_cite':  forms.Select(attrs={'class': 'form-select'}),
             'date_assigned': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
             'description':   forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
@@ -30,6 +36,12 @@ class CiteForm(forms.ModelForm):
     def clean_date_assigned(self):
         value = self.cleaned_data.get('date_assigned')
         return value or timezone.localdate()
+
+    def clean_modality_cite(self):
+        modality = self.cleaned_data.get('modality_cite')
+        if not modality:
+            raise forms.ValidationError('Debes seleccionar una modalidad valida para continuar.')
+        return modality
 
 
 class RescheduleCiteForm(forms.ModelForm):

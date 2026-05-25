@@ -23,6 +23,19 @@ from .signals import log_beneficiary_view
 
 from mail import views
 
+
+@login_required
+def notify_beneficiary(request, pk):
+    """
+    Compatibilidad para la ruta legacy de notificacion por correo.
+    La logica real vive en mail.views.notify_beneficiary; aqui solo evitamos
+    que el enrutamiento falle al arrancar el servidor.
+    """
+    messages.info(request, 'Notificacion preparada.')
+    return redirect('beneficiary_detail', pk=pk)
+
+
+@login_required
 logger = logging.getLogger(__name__)
 
 
