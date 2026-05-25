@@ -27,8 +27,17 @@ def can_view_case(user, case):
 
     roles = _user_roles(user)
 
-    if roles.intersection({ROLE_ADMINISTRADOR, ROLE_SECRETARIA, ROLE_PROFESOR}):
+    if roles.intersection({ROLE_ADMINISTRADOR, ROLE_SECRETARIA}):
         return True
+
+    if ROLE_PROFESOR in roles:
+        try:
+            supervised_professor_id = (
+                case.assigned_student.profile.supervising_professor_id
+            )
+            return supervised_professor_id == user.id
+        except AttributeError:
+            return False
 
     if ROLE_ESTUDIANTE in roles and case.assigned_student_id == user.id:
         return True
@@ -57,14 +66,17 @@ def can_manage_case_deadline(user):
     roles = _user_roles(user)
     return bool(roles.intersection({ROLE_ADMINISTRADOR, ROLE_SECRETARIA, ROLE_PROFESOR}))
 
+
 def can_add_interaction(user, case):
     if not user.is_authenticated:
         return False
     if user.is_superuser:
         return True
     roles = _user_roles(user)
-    if roles.intersection({ROLE_ADMINISTRADOR, ROLE_SECRETARIA, ROLE_PROFESOR}):
+
+    if roles.intersection({ROLE_ADMINISTRADOR, ROLE_SECRETARIA}):
         return True
+
     if ROLE_ESTUDIANTE in roles and case.assigned_student_id == user.id:
         return True
     return False

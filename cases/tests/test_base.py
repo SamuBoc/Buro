@@ -187,6 +187,8 @@ class HU12CaseAccessControlTests(TestCase):
             assigned_student=self.assigned_student,
             state=Case.STATE_ASSIGNED,
         )
+        self.assigned_student.profile.supervising_professor = self.profesor
+        self.assigned_student.profile.save()
 
     def test_anonymous_user_is_redirected_to_login(self):
         response = self.client.get(reverse('case_detail', kwargs={'pk': self.case.pk}))

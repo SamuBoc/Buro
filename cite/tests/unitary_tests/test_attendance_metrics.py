@@ -39,7 +39,7 @@ def make_beneficiary(name='Ana Lopez', email='ana@test.com'):
 def make_cite(beneficiary, state, days_offset=0):
     return Cite.objects.create(
         beneficiary=beneficiary,
-        date_assigned=timezone.now + timedelta(days=days_offset),
+        date_assigned=timezone.now() + timedelta(days=days_offset),
         modality_cite=Cite.MODALITY_INPERSON,
         state_cite=state,
         request_cite=Cite.CHANNEL_WEB,

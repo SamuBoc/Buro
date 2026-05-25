@@ -167,10 +167,9 @@ def auto_assign_case(case):
     else:
         case.assigned_student = student
         case.state = Case.STATE_ASSIGNED
+    case._skip_status_log = True
     case.save(update_fields=['assigned_student', 'state'])
 
-    # La carga activa no se incrementa manualmente: se calcula a partir de
-    # los casos asignados no borrador, por lo que queda actualizada tras guardar.
     _log_auto_assignment(case, student)
 
     if student is not None:

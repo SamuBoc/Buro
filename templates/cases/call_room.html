@@ -26,14 +26,13 @@
 
         <div id="state-connecting" class="d-none">
             <div class="spinner-border text-success mb-3" role="status"></div>
-            <p class="text-muted">Conectando...</p>
+            <p class="text-muted">Conectando…</p>
         </div>
 
         <div id="state-active" class="d-none">
             <div class="mb-3">
                 <span class="badge bg-success fs-6"><i class="bi bi-telephone-fill me-1"></i>En llamada</span>
             </div>
-            <p class="text-muted small mb-3" id="participant-count">Esperando al otro participante...</p>
             <button id="btn-leave" class="btn btn-danger w-100">
                 <i class="bi bi-telephone-x-fill me-2"></i>Colgar
             </button>
@@ -53,13 +52,21 @@
         </div>
     </div>
 </div>
+{% csrf_token %}
 
-<script src="https://sdk.videosdk.live/js-sdk/0.0.67/videosdk.js"></script>
 <script>
 (function () {
-    const roomId = "{{ room_id }}";
-    const tokenUrl = "{{ join_token_url }}";
-    let meeting = null;
+    const iceUrl    = "{{ ice_url }}";
+    const offerUrl  = "{{ offer_url }}";
+    const answerUrl = "{{ answer_url }}";
+    let pc = null;
+
+    function getCsrfToken() {
+        const input = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (input) return input.value;
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        return match ? match[1] : '';
+    }
 
     function show(id) {
         ['state-waiting','state-connecting','state-active','state-ended','state-error']
@@ -67,35 +74,68 @@
         document.getElementById(id).classList.remove('d-none');
     }
 
+    function waitForIceGathering(connection) {
+        return new Promise(resolve => {
+            if (connection.iceGatheringState === 'complete') { resolve(); return; }
+            const check = () => {
+                if (connection.iceGatheringState === 'complete') {
+                    connection.removeEventListener('icegatheringstatechange', check);
+                    resolve();
+                }
+            };
+            connection.addEventListener('icegatheringstatechange', check);
+            setTimeout(resolve, 10000);
+        });
+    }
+
+    async function pollForOffer() {
+        for (let i = 0; i < 60; i++) {
+            const res = await fetch(offerUrl);
+            const data = await res.json();
+            if (data.offer) return data.offer;
+            await new Promise(r => setTimeout(r, 1500));
+        }
+        throw new Error('No se recibió oferta del otro participante (timeout).');
+    }
+
     document.getElementById('btn-join').addEventListener('click', async () => {
         show('state-connecting');
         try {
-            await navigator.mediaDevices.getUserMedia({ audio: true });
+            const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-            const res = await fetch(tokenUrl);
-            if (!res.ok) throw new Error('No se pudo obtener token');
-            const { token } = await res.json();
+            const iceRes = await fetch(iceUrl);
+            if (!iceRes.ok) throw new Error('No se pudo obtener servidores ICE');
+            const { iceServers } = await iceRes.json();
 
-            window.VideoSDK.config(token);
-            meeting = window.VideoSDK.initMeeting({
-                meetingId: roomId,
-                name: 'Participante externo',
-                micEnabled: true,
-                webcamEnabled: false,
+            pc = new RTCPeerConnection({ iceServers });
+            localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+            pc.ontrack = (event) => {
+                const remoteStream = event.streams[0] || new MediaStream([event.track]);
+                const remoteAudio = new Audio();
+                remoteAudio.srcObject = remoteStream;
+                remoteAudio.play().catch(() => {});
+                show('state-active');
+            };
+
+            const offer = await pollForOffer();
+            await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            await waitForIceGathering(pc);
+
+            await fetch(answerUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify({ sdp: pc.localDescription }),
             });
 
-            meeting.on('meeting-joined', () => show('state-active'));
-            meeting.on('meeting-left', () => show('state-ended'));
-            meeting.on('error', (err) => {
-                document.getElementById('error-msg').textContent = err.message || 'Error en la llamada.';
-                show('state-error');
-            });
-            meeting.on('participant-joined', (p) => {
-                document.getElementById('participant-count').textContent =
-                    `${meeting.participants.size + 1} participante(s) en la llamada`;
-            });
+            show('state-active');
 
-            meeting.join();
         } catch (err) {
             document.getElementById('error-msg').textContent = err.message || 'Error al conectar.';
             show('state-error');
@@ -103,7 +143,7 @@
     });
 
     document.getElementById('btn-leave').addEventListener('click', () => {
-        if (meeting) { try { meeting.leave(); } catch(_) {} }
+        if (pc) { try { pc.close(); } catch(_) {} }
         show('state-ended');
     });
 })();

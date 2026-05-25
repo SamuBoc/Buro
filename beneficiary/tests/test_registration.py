@@ -1,5 +1,3 @@
-import io
-
 from django.contrib.auth.models import User, Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, Client
@@ -47,9 +45,9 @@ class BeneficiaryRegistrationAccessTest(TestCase):
 
     def setUp(self):
         self.client = Client()
-        self.secretaria = make_user('sec_hu1', group_name=ROLE_SECRETARIA)
+        self.secretaria    = make_user('sec_hu1', group_name=ROLE_SECRETARIA)
         self.administrador = make_user('adm_hu1', group_name=ROLE_ADMINISTRADOR)
-        self.sin_rol = make_user('libre_hu1')
+        self.sin_rol       = make_user('libre_hu1')
 
     def test_secretaria_puede_acceder_al_formulario(self):
         """POSITIVO: La secretaria con sesión activa puede ver el formulario de registro."""
@@ -64,10 +62,15 @@ class BeneficiaryRegistrationAccessTest(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_usuario_sin_rol_no_puede_acceder(self):
-        """NEGATIVO: Un usuario sin rol permitido es bloqueado y redirigido."""
+        """NEGATIVO: Un usuario sin rol permitido es redirigido específicamente a no_permission.
+
+        FIX (Falso Positivo): Antes solo se verificaba status_code 302, lo que hacía
+        que el test pasara incluso si el decorador redirigía al login en lugar de
+        no_permission. Ahora se verifica la URL exacta de destino.
+        """
         self.client.login(username='libre_hu1', password='pass1234')
         response = self.client.get(reverse('beneficiary_register'))
-        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('no_permission'), target_status_code=403)
 
     def test_sin_sesion_redirige_al_login(self):
         """NEGATIVO: Sin sesión activa, el sistema redirige al login."""
@@ -91,7 +94,6 @@ class BeneficiaryRegistrationSuccessTest(TestCase):
     def test_registro_exitoso_redirige_a_lista(self):
         """POSITIVO: Tras un registro exitoso, el sistema redirige a la lista de beneficiarios."""
         response = self.client.post(reverse('beneficiary_register'), datos_validos())
-        self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse('beneficiary_list'))
 
     def test_registro_guarda_nombre_correctamente(self):

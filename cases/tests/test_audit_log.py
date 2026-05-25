@@ -3,7 +3,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.constants import ROLE_ADMINISTRADOR, ROLE_SECRETARIA
+from accounts.constants import ROLE_ADMINISTRADOR, ROLE_ESTUDIANTE, ROLE_SECRETARIA
 from beneficiary.models import Beneficiary
 from cases.models import Case, CaseAuditLog
 from cases.signals import log_case_file_action
@@ -252,3 +252,25 @@ class CaseAuditLogViewTest(TestCase):
         url = reverse('global_audit_log')
         response = self.client.get(url)
         self.assertEqual(response.status_code, 302)
+
+
+    def test_estudiante_con_grupo_no_asignado_no_puede_ver_bitacora(self):
+        make_user('est_ajeno_hu9', group_name=ROLE_ESTUDIANTE)
+
+        self.client.login(username='est_ajeno_hu9', password='pass1234')
+        url = reverse('case_audit_log', args=[self.case.pk])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('case_list'))
+
+    def test_estudiante_asignado_al_caso_puede_ver_bitacora(self):
+        estudiante_asignado = make_user('est_asignado_hu9', group_name=ROLE_ESTUDIANTE)
+        self.case.assigned_student = estudiante_asignado
+        self.case.save(update_fields=['assigned_student'])
+
+        self.client.login(username='est_asignado_hu9', password='pass1234')
+        url = reverse('case_audit_log', args=[self.case.pk])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
