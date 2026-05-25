@@ -1,20 +1,24 @@
-from selenium import webdriver
 import sys
 import os
+import django
 
+# It's your responsability download and put in selenium_tests/ the file chromedriver.exe for the right execute of selenium tests :D
+# Raíz del proyecto
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..')))
+
+# selenium_tests/ para encontrar la carpeta 'pages'
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.development')
+django.setup()
+
+from selenium import webdriver
+
 def before_scenario(context, scenario):
-    """
-    Esta función se ejecuta antes de cada escenario de prueba.
-    Inicializa el WebDriver y lo almacena en el contexto.
-    """
-    context.driver = webdriver.Chrome()  # o webdriver.Firefox()
+    context.driver = webdriver.Chrome()
     context.driver.maximize_window()
 
 def after_scenario(context, scenario):
-    """
-    Esta función se ejecuta después de cada escenario de prueba.
-    Cierra el navegador para limpiar después de cada prueba.
-    """
+    from django.contrib.auth.models import User
+    User.objects.filter(username='Admin').delete()
     context.driver.quit()

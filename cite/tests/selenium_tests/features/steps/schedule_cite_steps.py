@@ -7,7 +7,7 @@ def step_given_module_cite(context):
     context.do_login_page = LoginPage(context.driver)
     context.schedule_cite_page = ScheduleCite(context.driver)
     context.do_login_page.go_to_homepage()
-    context.do_login_page.make_log_in("stevan", "useruser")
+    context.do_login_page.make_log_in()
     context.schedule_cite_page.go_to_homepage()
     context.schedule_cite_page.go_to_beneficiary_module()
     context.schedule_cite_page.go_to_actions_user()
@@ -15,7 +15,7 @@ def step_given_module_cite(context):
 
 @when('Select an avaible date and hour')
 def step_when_select_date(context):
-    context.schedule_cite_page.define_date_cite("20/05/2026", "2:00 PM")
+    context.schedule_cite_page.define_date_cite()
 
 @when('Confirm schedule')
 def step_and_confirm_schedule(context):
@@ -26,4 +26,4 @@ def step_then_check_date_assigment(context):
     context.schedule_cite_page.go_to_cite_module()
     date = context.schedule_cite_page.get_date_assigment()
 
-    assert date is not None and date == "20 de Mayo de 2026"
+    assert date is not None and date == "1 de Enero de 2040 a las 01:00"
