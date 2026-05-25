@@ -81,11 +81,13 @@ def _start_test_server():
 
 def before_all(context):
     """Ensure test users exist and locate recording test data."""
-    from cases.models import CommunicationInteraction
+    from cases.models import Case, CommunicationInteraction
     from beneficiary.models import Beneficiary
 
     _ensure_user('admin_selenium', 'selenium123', 'administrador')
     _ensure_user('secretaria_selenium', 'selenium123', 'secretaria')
+    assigned_student = _ensure_user('estudiante_asignado_selenium', 'selenium123', 'estudiante')
+    unassigned_student = _ensure_user('estudiante_no_autorizado_selenium', 'selenium123', 'estudiante')
 
     selenium_beneficiary = Beneficiary.objects.filter(
         email='beneficiario.selenium.hu6@test.com'
@@ -98,6 +100,35 @@ def before_all(context):
             colombian_identification='1234567890',
         )
     context.selenium_beneficiary = selenium_beneficiary
+
+    selenium_case = (
+        Case.objects
+        .filter(description='Caso Selenium HU-12 con acceso restringido.')
+        .order_by('-pk')
+        .first()
+    )
+    if selenium_case is None:
+        selenium_case = Case.objects.create(
+            sala='civil',
+            description='Caso Selenium HU-12 con acceso restringido.',
+            beneficiary=selenium_beneficiary,
+            assigned_student=assigned_student,
+            created_by=User.objects.filter(username='secretaria_selenium').first(),
+            state=Case.STATE_ASSIGNED,
+            status=Case.STATUS_COMPLETE,
+        )
+    else:
+        selenium_case.beneficiary = selenium_beneficiary
+        selenium_case.assigned_student = assigned_student
+        selenium_case.state = Case.STATE_ASSIGNED
+        selenium_case.status = Case.STATUS_COMPLETE
+        selenium_case.save()
+
+    context.selenium_assigned_student_username = 'estudiante_asignado_selenium'
+    context.selenium_assigned_student_password = 'selenium123'
+    context.selenium_unassigned_student_username = 'estudiante_no_autorizado_selenium'
+    context.selenium_unassigned_student_password = 'selenium123'
+    context.selenium_hu12_case_id = selenium_case.pk
 
     # Find the first interaction with an actual audio_file in the DB.
     # These tests rely on existing data; they cannot run on a completely empty DB.
