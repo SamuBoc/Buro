@@ -2,6 +2,7 @@ import sys
 import os
 import django
 
+# It's your responsability download and put in selenium_tests/ the file chromedriver.exe for the right execute of selenium tests :D
 # Raíz del proyecto
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..')))
 
