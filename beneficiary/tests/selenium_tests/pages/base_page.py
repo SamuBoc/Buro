@@ -14,4 +14,6 @@ class BasePage:
         self.find_element(locator).click()
 
     def enter_text(self, locator, text):
-        self.find_element(locator).send_keys(text)
+        element = self.find_element(locator)
+        element.clear()
+        element.send_keys(text)

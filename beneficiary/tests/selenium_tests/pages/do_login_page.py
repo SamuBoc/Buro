@@ -5,6 +5,8 @@ from .base_page import BasePage
 from accounts.constants import ROLE_ADMINISTRADOR
 from django.contrib.auth.models import Group, User
 
+import time
+
 class LoginPage(BasePage):
     USER_INPUT = (By.ID, 'id_username')
 
@@ -25,6 +27,7 @@ class LoginPage(BasePage):
 
     def go_to_homepage(self, url = "http://127.0.0.1:8000/login/"):
         self.driver.get(url)
+        
 
     def make_log_in(self):
         self.make_user('Admin', 'pass1234')
