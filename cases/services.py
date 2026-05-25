@@ -224,7 +224,7 @@ def get_deadline_recipients(case):
     staff_users = (
         User.objects.filter(
             is_active=True,
-            groups__name__in=[ROLE_SECRETARIA, ROLE_PROFESOR, ROLE_ADMINISTRADOR],
+            groups__name__in=[ ROLE_PROFESOR, ROLE_ADMINISTRADOR],
         )
         .distinct()
         .order_by('id')
