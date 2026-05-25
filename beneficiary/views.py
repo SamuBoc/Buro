@@ -34,7 +34,6 @@ def notify_beneficiary(request, pk):
     messages.info(request, 'Notificacion preparada.')
     return redirect('beneficiary_detail', pk=pk)
 
-
 logger = logging.getLogger(__name__)
 
 
