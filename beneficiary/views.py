@@ -35,7 +35,6 @@ def notify_beneficiary(request, pk):
     return redirect('beneficiary_detail', pk=pk)
 
 
-@login_required
 logger = logging.getLogger(__name__)
 
 
