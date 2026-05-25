@@ -46,6 +46,12 @@ class DocumentBeneficiaryForm(forms.ModelForm):
 
     ALLOWED_EXTENSIONS = {'.pdf', '.png', '.jpg', '.jpeg'}
 
+    ALLOWED_CONTENT_TYPES = {
+        'application/pdf',
+        'image/png',
+        'image/jpeg',
+    }
+
     class Meta:
         model = DocumentBeneficiary
         fields = ['file']
@@ -67,6 +73,14 @@ class DocumentBeneficiaryForm(forms.ModelForm):
                 raise forms.ValidationError(
                     'Formato no permitido. Solo se aceptan archivos PDF, PNG, JPG o JPEG.'
                 )
+
+            content_type = getattr(file, 'content_type', None)
+            if content_type and content_type not in self.ALLOWED_CONTENT_TYPES:
+                raise forms.ValidationError(
+                    'El contenido del archivo no corresponde a un formato permitido '
+                    '(PDF, PNG o JPEG).'
+                )
+
         return file
 
 

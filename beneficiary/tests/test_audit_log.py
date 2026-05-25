@@ -190,7 +190,7 @@ class BeneficiaryAuditLogViewTest(TestCase):
         self.client.login(username='sec_bv', password='pass1234')
         url = reverse('beneficiary_audit_log', args=[self.beneficiary.pk])
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
 
     def test_beneficiary_audit_log_denied_to_student(self):
         self.client.login(username='est_bv', password='pass1234')

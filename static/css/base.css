@@ -381,6 +381,28 @@ thead.audit-thead th {
     color: #ffffff;
 }
 
+/* PDF export button: white background, red border and text/icon */
+.btn-export-pdf {
+    background-color: #ffffff !important;
+    color: #dc3545 !important;
+    border: 1px solid #dc3545 !important;
+}
+.btn-export-pdf:hover,
+.btn-export-pdf:focus {
+    background-color: #ffffff;
+    color: #b02a37;
+    border-color: #b02a37;
+    box-shadow: none;
+}
+
+/* Ensure icon and inner elements are red as well */
+.btn-export-pdf .bi,
+.btn-export-pdf i,
+.btn-export-pdf svg,
+.btn-export-pdf * {
+    color: inherit !important;
+}
+
 /* ══════════════════════════════
    BADGES
 ══════════════════════════════ */

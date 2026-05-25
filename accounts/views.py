@@ -58,7 +58,7 @@ def _build_student_history_context(student, request_user, evaluation_form=None):
     }
 
 
-@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
+@role_required(ROLE_PROFESOR, ROLE_ADMINISTRADOR)
 def academic_student_register(request):
     if request.method == 'POST':
         form = AcademicStudentRegistrationForm(request.POST)
@@ -95,7 +95,7 @@ def academic_student_register(request):
     })
 
 
-@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
+@role_required(ROLE_PROFESOR, ROLE_ADMINISTRADOR)
 def academic_student_list(request):
     students = User.objects.filter(
         groups__name=ROLE_ESTUDIANTE
@@ -113,7 +113,7 @@ def academic_student_list(request):
     })
 
 
-@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
+@role_required(ROLE_PROFESOR, ROLE_ADMINISTRADOR)
 def academic_student_detail(request, pk):
     student = get_object_or_404(
         User.objects.select_related('profile').prefetch_related('assigned_cases__beneficiary'),

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import io
 import json
 import logging
@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Case as DjangoCase, Count, IntegerField, Q, Value, When
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -218,7 +218,100 @@ def _build_academic_dashboard_filters(request):
 @login_required
 def case_list(request):
     today = timezone.localdate()
-    cases = list(Case.objects.select_related('beneficiary', 'assigned_student').all())
+    search_query = (request.GET.get('q') or '').strip()
+    filtro_sala = request.GET.get('sala') or ''
+    filtro_estado = request.GET.get('estado') or ''
+    filtro_prioridad = request.GET.get('prioridad') or ''
+    orden = request.GET.get('orden') or 'fecha_desc'
+    filtro_desde = request.GET.get('desde') or ''
+    filtro_hasta = request.GET.get('hasta') or ''
+
+    cases_qs = Case.objects.select_related('beneficiary', 'assigned_student').all()
+
+    if search_query:
+        cases_qs = cases_qs.filter(
+            Q(code__icontains=search_query)
+            | Q(description__icontains=search_query)
+            | Q(beneficiary__name__icontains=search_query)
+            | Q(assigned_student__username__icontains=search_query)
+            | Q(assigned_student__first_name__icontains=search_query)
+            | Q(assigned_student__last_name__icontains=search_query)
+        )
+
+    if filtro_sala:
+        cases_qs = cases_qs.filter(sala=filtro_sala)
+
+    if filtro_estado:
+        cases_qs = cases_qs.filter(state=filtro_estado)
+
+    if filtro_prioridad:
+        if filtro_prioridad == 'none':
+            cases_qs = cases_qs.filter(deadline_date__isnull=True)
+        elif filtro_prioridad == 'critical':
+            cases_qs = cases_qs.filter(deadline_date__lt=today)
+        elif filtro_prioridad == 'high':
+            cases_qs = cases_qs.filter(
+                deadline_date__gte=today,
+                deadline_date__lte=today + timedelta(days=2),
+            )
+        elif filtro_prioridad == 'medium':
+            cases_qs = cases_qs.filter(
+                deadline_date__gt=today + timedelta(days=2),
+                deadline_date__lte=today + timedelta(days=7),
+            )
+        elif filtro_prioridad == 'low':
+            cases_qs = cases_qs.filter(deadline_date__gt=today + timedelta(days=7))
+
+    if filtro_desde:
+        try:
+            desde_date = datetime.strptime(filtro_desde, '%Y-%m-%d').date()
+            cases_qs = cases_qs.filter(created_at__date__gte=desde_date)
+        except ValueError:
+            filtro_desde = ''
+
+    if filtro_hasta:
+        try:
+            hasta_date = datetime.strptime(filtro_hasta, '%Y-%m-%d').date()
+            cases_qs = cases_qs.filter(created_at__date__lte=hasta_date)
+        except ValueError:
+            filtro_hasta = ''
+
+    order_map = {
+        'fecha_desc': '-created_at',
+        'fecha_asc': 'created_at',
+        'vencimiento_asc': 'deadline_date',
+        'vencimiento_desc': '-deadline_date',
+        'codigo_asc': 'code',
+        'codigo_desc': '-code',
+    }
+
+    if orden in {'prioridad_desc', 'prioridad_asc'}:
+        cases_qs = cases_qs.annotate(
+            priority_rank=DjangoCase(
+                When(deadline_date__lt=today, then=Value(1)),
+                When(deadline_date__gte=today, deadline_date__lte=today + timedelta(days=2), then=Value(2)),
+                When(deadline_date__gt=today + timedelta(days=2), deadline_date__lte=today + timedelta(days=7), then=Value(3)),
+                When(deadline_date__gt=today + timedelta(days=7), then=Value(4)),
+                default=Value(5),
+                output_field=IntegerField(),
+            )
+        )
+        if orden == 'prioridad_desc':
+            cases_qs = cases_qs.order_by('priority_rank', '-created_at')
+        else:
+            cases_qs = cases_qs.order_by('-priority_rank', '-created_at')
+    else:
+        order_by = order_map.get(orden, '-created_at')
+        cases_qs = cases_qs.order_by(order_by)
+
+    total_cases = cases_qs.count()
+    state_choices = (
+        Case.objects
+        .order_by('state')
+        .values_list('state', flat=True)
+        .distinct()
+    )
+    cases = list(cases_qs)
 
     for case in cases:
         deadline_priority = _build_deadline_priority(case, today)
@@ -228,10 +321,39 @@ def case_list(request):
         case.priority_class       = deadline_priority['priority_class']
         case.deadline_class       = deadline_priority['deadline_class']
 
-    return render(request, 'cases/case_list.html', {'cases': cases})
+    return render(request, 'cases/case_list.html', {
+        'cases': cases,
+        'total_cases': total_cases,
+        'search_query': search_query,
+        'filtro_sala': filtro_sala,
+        'filtro_estado': filtro_estado,
+        'filtro_prioridad': filtro_prioridad,
+        'orden': orden,
+        'filtro_desde': filtro_desde,
+        'filtro_hasta': filtro_hasta,
+        'state_choices': state_choices,
+        'room_choices': Case.ROOM_CHOICES,
+        'priority_choices': [
+            {'value': 'critical', 'label': 'Critica'},
+            {'value': 'high', 'label': 'Alta'},
+            {'value': 'medium', 'label': 'Media'},
+            {'value': 'low', 'label': 'Baja'},
+            {'value': 'none', 'label': 'Sin fecha limite'},
+        ],
+        'order_choices': [
+            {'value': 'fecha_desc', 'label': 'Fecha (mas reciente)'},
+            {'value': 'fecha_asc', 'label': 'Fecha (mas antigua)'},
+            {'value': 'vencimiento_asc', 'label': 'Vencimiento (mas proximo)'},
+            {'value': 'vencimiento_desc', 'label': 'Vencimiento (mas lejano)'},
+            {'value': 'prioridad_desc', 'label': 'Prioridad (critica primero)'},
+            {'value': 'prioridad_asc', 'label': 'Prioridad (baja primero)'},
+            {'value': 'codigo_asc', 'label': 'Codigo (A-Z)'},
+            {'value': 'codigo_desc', 'label': 'Codigo (Z-A)'},
+        ],
+    })
 
 
-@role_required(ROLE_PROFESOR, ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
+@role_required(ROLE_PROFESOR, ROLE_ADMINISTRADOR)
 def academic_dashboard(request):
     filters = _build_academic_dashboard_filters(request)
     today = filters['today']
@@ -312,7 +434,7 @@ def academic_dashboard(request):
     })
 
 
-@role_required(ROLE_PROFESOR, ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
+@role_required(ROLE_PROFESOR, ROLE_ADMINISTRADOR)
 def academic_student_detail(request, student_id):
     today = timezone.localdate()
     filtro_desde = request.GET.get('desde')
@@ -396,7 +518,7 @@ def academic_student_detail(request, student_id):
     })
 
 
-@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
+@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR, ROLE_ESTUDIANTE)
 def case_create(request):
     draft_case = _get_user_draft(request.user)
 
@@ -859,7 +981,7 @@ def _parse_report_date(raw_value):
         return None
 
 
-@role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
+@role_required(ROLE_ADMINISTRADOR)
 def case_report_by_state(request):
     desde_raw = (request.GET.get('desde') or '').strip()
     hasta_raw = (request.GET.get('hasta') or '').strip()
@@ -950,11 +1072,26 @@ def case_report_by_sala(request):
     })
 
 
-@role_required(ROLE_ADMINISTRADOR)
+@role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
 def export_cases_excel(request):
+    desde_raw = (request.GET.get('desde') or '').strip()
+    hasta_raw = (request.GET.get('hasta') or '').strip()
+    sala_raw  = (request.GET.get('sala')  or '').strip()
+
+    valid_salas = {value for value, _ in Case.ROOM_CHOICES}
+
     cases = Case.objects.select_related(
         'beneficiary', 'assigned_student'
-    ).filter(status=Case.STATUS_COMPLETE).order_by('-created_at')
+    ).filter(status=Case.STATUS_COMPLETE)
+
+    if _parse_report_date(desde_raw):
+        cases = cases.filter(created_at__date__gte=_parse_report_date(desde_raw))
+    if _parse_report_date(hasta_raw):
+        cases = cases.filter(created_at__date__lte=_parse_report_date(hasta_raw))
+    if sala_raw in valid_salas:
+        cases = cases.filter(sala=sala_raw)
+
+    cases = cases.order_by('-created_at')
 
     wb = Workbook()
     ws = wb.active
@@ -1003,11 +1140,26 @@ def export_cases_excel(request):
     return response
 
 
-@role_required(ROLE_ADMINISTRADOR)
+@role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
 def export_cases_pdf(request):
+    desde_raw = (request.GET.get('desde') or '').strip()
+    hasta_raw = (request.GET.get('hasta') or '').strip()
+    sala_raw  = (request.GET.get('sala')  or '').strip()
+
+    valid_salas = {value for value, _ in Case.ROOM_CHOICES}
+
     cases = Case.objects.select_related(
         'beneficiary', 'assigned_student'
-    ).filter(status=Case.STATUS_COMPLETE).order_by('-created_at')
+    ).filter(status=Case.STATUS_COMPLETE)
+
+    if _parse_report_date(desde_raw):
+        cases = cases.filter(created_at__date__gte=_parse_report_date(desde_raw))
+    if _parse_report_date(hasta_raw):
+        cases = cases.filter(created_at__date__lte=_parse_report_date(hasta_raw))
+    if sala_raw in valid_salas:
+        cases = cases.filter(sala=sala_raw)
+
+    cases = cases.order_by('-created_at')
 
     buffer = io.BytesIO()
     doc    = SimpleDocTemplate(
@@ -1341,8 +1493,240 @@ def serve_call_recording(request, interaction_id):
     if not interaction.audio_file:
         raise Http404('No hay grabación para esta interacción.')
 
-    return redirect(interaction.audio_file.url)
+    try:
+        file_path = interaction.audio_file.path
+        if os.path.exists(file_path):
+            mime_type, _ = mimetypes.guess_type(file_path)
+            return FileResponse(
+                open(file_path, 'rb'),
+                content_type=mime_type or 'audio/mpeg',
+            )
+    except (NotImplementedError, ValueError, AttributeError):
+        pass  # Cloudinary no soporta .path — continúa al proxy
 
+    try:
+        with urllib.request.urlopen(interaction.audio_file.url, timeout=30) as remote:
+            content      = remote.read()
+            content_type = remote.headers.get_content_type() or 'audio/mpeg'
+        filename = os.path.basename(interaction.audio_file.name)
+        response = HttpResponse(content, content_type=content_type)
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        return response
+    except Exception as exc:
+        logger.error('Error sirviendo grabacion %s: %s', interaction_id, exc)
+        raise Http404('No se pudo acceder al archivo de grabacion.')
+
+# ─── HU-39: Métricas de tiempos de atención ──────────────────────────────────
+
+def _build_attention_time_queryset(request):
+    """
+    Helper compartido por las tres vistas de HU-39.
+    Retorna casos completos con deadline, aplicando filtros desde/hasta/sala.
+    """
+    desde_raw = (request.GET.get('desde') or '').strip()
+    hasta_raw = (request.GET.get('hasta') or '').strip()
+    sala_raw  = (request.GET.get('sala')  or '').strip()
+    valid_salas = {value for value, _ in Case.ROOM_CHOICES}
+
+    cases = (
+        Case.objects
+        .filter(
+            status=Case.STATUS_COMPLETE,
+            deadline_date__isnull=False,
+        )
+        .order_by('created_at')
+    )
+
+    if _parse_report_date(desde_raw):
+        cases = cases.filter(created_at__date__gte=_parse_report_date(desde_raw))
+    if _parse_report_date(hasta_raw):
+        cases = cases.filter(created_at__date__lte=_parse_report_date(hasta_raw))
+    if sala_raw in valid_salas:
+        cases = cases.filter(sala=sala_raw)
+
+    return cases, desde_raw, hasta_raw, sala_raw if sala_raw in valid_salas else ''
+
+
+def _compute_attention_metrics(cases):
+    """
+    Calcula métricas de tiempo a partir de un queryset de casos con deadline.
+    """
+    today = timezone.localdate()
+    rows  = []
+    total_days = 0
+
+    for case in cases:
+        days_assigned = (case.deadline_date - case.created_at.date()).days
+        days_remaining = (case.deadline_date - today).days
+        overdue = days_remaining < 0
+
+        rows.append({
+            'code':           case.code,
+            'sala':           case.get_sala_display() if case.sala else '—',
+            'state':          case.state,
+            'created_at':     case.created_at.strftime('%d/%m/%Y'),
+            'deadline_date':  case.deadline_date.strftime('%d/%m/%Y'),
+            'days_assigned':  days_assigned,
+            'days_remaining': days_remaining,
+            'overdue':        overdue,
+        })
+        total_days += days_assigned
+
+    total     = len(rows)
+    overdue   = sum(1 for r in rows if r['overdue'])
+    on_time   = total - overdue
+    avg_days  = round(total_days / total, 1) if total else 0.0
+
+    return rows, total, overdue, on_time, avg_days
+
+
+@role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
+def case_attention_time_report(request):
+    """HU-39: Métricas de tiempos de atención."""
+    cases, desde_raw, hasta_raw, sala_filter = _build_attention_time_queryset(request)
+    rows, total, overdue, on_time, avg_days  = _compute_attention_metrics(cases)
+
+    return render(request, 'cases/attention_time_report.html', {
+        'page_title':    'Métricas de tiempos de atención',
+        'rows':          rows,
+        'total':         total,
+        'overdue':       overdue,
+        'on_time':       on_time,
+        'avg_days':      avg_days,
+        'filtro_desde':  desde_raw,
+        'filtro_hasta':  hasta_raw,
+        'filtro_sala':   sala_filter,
+        'salas':         Case.ROOM_CHOICES,
+        'chart_labels':  ['A tiempo', 'Vencidos'],
+        'chart_values':  [on_time, overdue],
+    })
+
+
+@role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
+def export_attention_time_excel(request):
+    """HU-39: Exporta métricas de tiempos de atención a Excel."""
+    cases, desde_raw, hasta_raw, sala_filter = _build_attention_time_queryset(request)
+    rows, total, overdue, on_time, avg_days  = _compute_attention_metrics(cases)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Tiempos de atención'
+
+    # ── Encabezado resumen ──────────────────────────────────────────────────
+    resumen_fill = PatternFill(start_color='1A3A5C', end_color='1A3A5C', fill_type='solid')
+    resumen_font = Font(color='FFFFFF', bold=True)
+    for col, texto in enumerate(['Total casos', 'A tiempo', 'Vencidos', 'Promedio días'], start=1):
+        c = ws.cell(row=1, column=col, value=texto)
+        c.fill = resumen_fill
+        c.font = resumen_font
+        c.alignment = Alignment(horizontal='center')
+    for col, val in enumerate([total, on_time, overdue, avg_days], start=1):
+        ws.cell(row=2, column=col, value=val).alignment = Alignment(horizontal='center')
+
+    # ── Tabla detalle ───────────────────────────────────────────────────────
+    headers = ['Código', 'Sala', 'Estado', 'Fecha creación',
+               'Fecha límite', 'Días asignados', 'Días restantes', 'Vencido']
+    header_fill = PatternFill(start_color='2E6DA4', end_color='2E6DA4', fill_type='solid')
+    header_font = Font(color='FFFFFF', bold=True)
+
+    for col, header in enumerate(headers, start=1):
+        c = ws.cell(row=4, column=col, value=header)
+        c.fill = header_fill
+        c.font = header_font
+        c.alignment = Alignment(horizontal='center')
+
+    for row_idx, row in enumerate(rows, start=5):
+        ws.cell(row=row_idx, column=1).value = row['code']
+        ws.cell(row=row_idx, column=2).value = row['sala']
+        ws.cell(row=row_idx, column=3).value = row['state']
+        ws.cell(row=row_idx, column=4).value = row['created_at']
+        ws.cell(row=row_idx, column=5).value = row['deadline_date']
+        ws.cell(row=row_idx, column=6).value = row['days_assigned']
+        ws.cell(row=row_idx, column=7).value = row['days_remaining']
+        ws.cell(row=row_idx, column=8).value = 'Sí' if row['overdue'] else 'No'
+        if row['overdue']:
+            for col in range(1, 9):
+                ws.cell(row=row_idx, column=col).font = Font(color='CC0000')
+
+    for col, width in enumerate([15, 12, 38, 15, 15, 16, 16, 10], start=1):
+        ws.column_dimensions[ws.cell(row=4, column=col).column_letter].width = width
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    response = HttpResponse(
+        buffer,
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = 'attachment; filename="reporte_tiempos_atencion.xlsx"'
+    return response
+
+
+@role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
+def export_attention_time_pdf(request):
+    """HU-39: Exporta métricas de tiempos de atención a PDF."""
+    cases, desde_raw, hasta_raw, sala_filter = _build_attention_time_queryset(request)
+    rows, total, overdue, on_time, avg_days  = _compute_attention_metrics(cases)
+
+    buffer = io.BytesIO()
+    doc    = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(letter),
+        rightMargin=0.5 * inch, leftMargin=0.5 * inch,
+        topMargin=0.5 * inch,   bottomMargin=0.5 * inch,
+    )
+
+    styles   = getSampleStyleSheet()
+    elements = [
+        Paragraph('<b>Métricas de Tiempos de Atención — Consultorio Jurídico ICESI</b>', styles['Title']),
+        Spacer(1, 0.15 * inch),
+        Paragraph(
+            f'Total: {total} | A tiempo: {on_time} | Vencidos: {overdue} | '
+            f'Promedio días asignados: {avg_days}',
+            styles['Normal'],
+        ),
+        Spacer(1, 0.15 * inch),
+    ]
+
+    data = [['Código', 'Sala', 'Estado', 'F. Creación', 'F. Límite', 'Días asig.', 'Días rest.', 'Vencido']]
+    for row in rows:
+        data.append([
+            row['code'],
+            row['sala'],
+            row['state'],
+            row['created_at'],
+            row['deadline_date'],
+            str(row['days_assigned']),
+            str(row['days_remaining']),
+            'Sí' if row['overdue'] else 'No',
+        ])
+
+    table = Table(
+        data,
+        colWidths=[1.1*inch, 0.9*inch, 2.2*inch, 1.0*inch, 1.0*inch, 0.8*inch, 0.8*inch, 0.7*inch],
+    )
+    table.setStyle(TableStyle([
+        ('BACKGROUND',     (0, 0), (-1, 0),  colors.HexColor('#1A3A5C')),
+        ('TEXTCOLOR',      (0, 0), (-1, 0),  colors.white),
+        ('FONTNAME',       (0, 0), (-1, 0),  'Helvetica-Bold'),
+        ('FONTSIZE',       (0, 0), (-1, 0),  8),
+        ('ALIGN',          (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN',         (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTSIZE',       (0, 1), (-1, -1), 7),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F4F6F9')]),
+        ('GRID',           (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
+        ('TOPPADDING',     (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING',  (0, 0), (-1, -1), 3),
+    ]))
+
+    elements.append(table)
+    doc.build(elements)
+    buffer.seek(0)
+
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="reporte_tiempos_atencion.pdf"'
+    return response
 
 # ─── WebRTC nativo (reemplaza VideoSDK) ─────────────────────────────────────
 
