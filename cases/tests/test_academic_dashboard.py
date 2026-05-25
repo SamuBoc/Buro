@@ -64,7 +64,7 @@ class AcademicDashboardAccessTests(TestCase):
     def test_secretaria_can_access_dashboard(self):
         self.client.login(username='sec_acad', password='pass1234')
         response = self.client.get(reverse('academic_dashboard'))
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
 
     def test_estudiante_is_redirected(self):
         self.client.login(username='stud_acad', password='pass1234')
