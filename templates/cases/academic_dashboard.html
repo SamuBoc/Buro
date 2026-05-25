@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load l10n %}
 
 {% block title %}Panel academico - Buro Juridico{% endblock %}
 
@@ -9,16 +10,36 @@
     <div>
       <h2 class="fw-bold mb-1"><i class="bi bi-mortarboard-fill me-2"></i>Panel academico</h2>
       <div class="text-muted">Supervision del desempeno y avance de estudiantes.</div>
-      {% if filtro_estado or filtro_sala or filtro_desde or filtro_hasta %}
+      {% if filtro_estado or filtro_sala or filtro_desde or filtro_hasta or filtro_estudiante or filtro_profesor %}
       <div class="d-flex flex-wrap gap-2 mt-2">
-        {% if date_range_label %}
-          <span class="badge rounded-pill bg-light text-dark border">{{ date_range_label }}</span>
+        {% if filtro_desde or filtro_hasta %}
+          <span class="badge rounded-pill bg-light text-dark border">
+            Fecha:
+            {% if filtro_desde %}{{ filtro_desde }}{% else %}-{% endif %}
+            a
+            {% if filtro_hasta %}{{ filtro_hasta }}{% else %}-{% endif %}
+          </span>
         {% endif %}
-        {% if sala_label %}
-          <span class="badge rounded-pill bg-light text-dark border">Sala: {{ sala_label }}</span>
+        {% if filtro_sala %}
+          <span class="badge rounded-pill bg-light text-dark border">
+            Sala:
+            {% for value, label in sala_choices %}{% if filtro_sala == value %}{{ label }}{% endif %}{% endfor %}
+          </span>
         {% endif %}
         {% if filtro_estado %}
           <span class="badge rounded-pill bg-light text-dark border">Estado: {{ filtro_estado }}</span>
+        {% endif %}
+        {% if filtro_estudiante %}
+          <span class="badge rounded-pill bg-light text-dark border">
+            Estudiante:
+            {% for student in students_for_filter %}{% if filtro_estudiante == student.id|stringformat:"s" %}{{ student.get_full_name|default:student.username }}{% endif %}{% endfor %}
+          </span>
+        {% endif %}
+        {% if filtro_profesor %}
+          <span class="badge rounded-pill bg-light text-dark border">
+            Profesor:
+            {% for professor in professors_for_filter %}{% if filtro_profesor == professor.id|stringformat:"s" %}{{ professor.get_full_name|default:professor.username }}{% endif %}{% endfor %}
+          </span>
         {% endif %}
       </div>
       {% endif %}
@@ -54,6 +75,28 @@
           </select>
         </div>
         <div class="col-md-3">
+          <label for="estudiante" class="form-label fw-semibold">Estudiante</label>
+          <select class="form-select" id="estudiante" name="estudiante">
+            <option value="">Todos</option>
+            {% for student in students_for_filter %}
+              <option value="{{ student.id }}" {% if filtro_estudiante == student.id|stringformat:"s" %}selected{% endif %}>
+                {{ student.get_full_name|default:student.username }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="profesor" class="form-label fw-semibold">Profesor supervisor</label>
+          <select class="form-select" id="profesor" name="profesor">
+            <option value="">Todos</option>
+            {% for professor in professors_for_filter %}
+              <option value="{{ professor.id }}" {% if filtro_profesor == professor.id|stringformat:"s" %}selected{% endif %}>
+                {{ professor.get_full_name|default:professor.username }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
           <label for="estado" class="form-label fw-semibold">Estado</label>
           <select class="form-select" id="estado" name="estado">
             <option value="">Todos</option>
@@ -62,7 +105,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-12 d-flex gap-2">
+        <div class="col-12 d-flex gap-2 flex-wrap">
           <button type="submit" class="btn btn-primary">
             <i class="bi bi-funnel-fill me-1"></i>Filtrar
           </button>
@@ -121,6 +164,51 @@
     </div>
   </div>
 
+  {% if sala_distribution %}
+  <div class="card mb-4" id="academic-sala-distribution">
+    <div class="card-body">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <div>
+          <h5 class="fw-bold mb-1">
+            <i class="bi bi-pie-chart-fill me-2"></i>Distribucion por sala juridica
+          </h5>
+          <div class="text-muted small">
+            Resumen de casos segun los filtros activos del panel academico.
+          </div>
+        </div>
+        <a href="{% url 'case_report_by_sala' %}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-bar-chart-line-fill me-1"></i>Ver reporte por sala
+        </a>
+      </div>
+
+      <div class="row g-3">
+        {% for row in sala_distribution %}
+        <div class="col-12 col-lg-6">
+          <div class="border rounded-3 p-3 h-100 bg-white">
+            <div class="d-flex align-items-center justify-content-between gap-3 mb-2">
+              <div class="fw-semibold">{{ row.sala }}</div>
+              <div class="text-muted small">
+                {{ row.cantidad }} caso{{ row.cantidad|pluralize }} · {{ row.porcentaje|floatformat:1 }}%
+              </div>
+            </div>
+            <div class="progress" style="height: 14px;">
+              <div
+                class="progress-bar bg-primary"
+                role="progressbar"
+                style="width: {{ row.porcentaje|unlocalize }}%; min-width: {% if row.porcentaje > 0 %}0.75rem{% else %}0{% endif %};"
+                aria-valuenow="{{ row.porcentaje|unlocalize }}"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              ></div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="card">
     <div class="card-body p-0">
       {% if students %}
@@ -147,7 +235,7 @@
               <td class="text-end text-danger">{{ student.overdue_cases }}</td>
               <td class="text-end text-warning">{{ student.without_deadline_cases }}</td>
               <td class="text-center">
-                <a href="{% url 'academic_student_detail' student.id %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-sm btn-outline-primary academic-detail-link">
+                <a href="{% url 'case_academic_student_detail' student.id %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-sm btn-outline-primary academic-detail-link">
                   <i class="bi bi-bar-chart-line"></i> Ver detalle
                 </a>
               </td>
