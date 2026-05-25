@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import Fernet
 from django.conf import settings
 
 
