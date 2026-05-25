@@ -53,7 +53,7 @@ class RegisterBeneficiarySelenium(BasePage) :
         name_beneficiary = self.find_element(self.BENEFICIARY_NAME)
         return name_beneficiary.text
     
-    #This is for the other scenario HU-1
+    #This is for the other scenario of HU-1
     def incomplete_fields(self):
         self.enter_text(self.FIELD_NAME, "Usuario de prueba selenium")
         self.enter_text(self.FIELD_ID, "123456789")
@@ -65,5 +65,14 @@ class RegisterBeneficiarySelenium(BasePage) :
     def get_empty_alert(self):
         alert = self.find_element(self.EMPTY_CASE)
         return alert.text
+    
+    def dont_mark_authorization(self):
+        self.enter_text(self.FIELD_NAME, "Usuario de prueba selenium")
+        self.enter_text(self.FIELD_ID, "123456789")
+        self.enter_text(self.FIELD_LOCATION, "Pais de la felicidad, Imaginario")
+        self.enter_text(self.FIELD_PHONE, "123456789")
+        self.enter_text(self.FIELD_MAIL, "soyuncorreo@gmail.com")
+        print('Please you need to upload at file from your pc. Its only for this selenium test please')
+        time.sleep(10)
 
     
