@@ -1,5 +1,5 @@
 import tempfile
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from django.contrib.auth.models import User, Group
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -63,17 +63,46 @@ def _make_interaction_with_audio(case, user, media_root):
     )
 
 
+class _MockHTTPResponse:
+    """Simula urllib.request.urlopen para evitar requests reales a Cloudinary."""
+    def read(self):
+        return b'fake_audio_data'
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        pass
+
+    def getheader(self, name, default=None):
+        headers = {
+            'Content-Type': 'audio/webm',
+            'Content-Length': '16',
+        }
+        return headers.get(name, default)
+
+
 @override_settings(STORAGES=_TEST_STORAGES, MEDIA_ROOT=tempfile.mkdtemp())
 class ServeCallRecordingTests(TestCase):
 
     def setUp(self):
-        self.cloudinary_upload_patch = patch('cloudinary.uploader.upload', return_value=_FAKE_CLOUDINARY_RESPONSE)
+        self.cloudinary_upload_patch = patch(
+            'cloudinary.uploader.upload',
+            return_value=_FAKE_CLOUDINARY_RESPONSE,
+        )
         self.cloudinary_url_patch = patch(
             'cloudinary_storage.storage.RawMediaCloudinaryStorage.url',
             return_value='https://res.cloudinary.com/test/raw/upload/v1/rec.webm',
         )
+        self.urlopen_patch = patch(
+            'urllib.request.urlopen',
+            return_value=_MockHTTPResponse(),
+        )
+
         self.cloudinary_upload_patch.start()
         self.cloudinary_url_patch.start()
+        self.urlopen_patch.start()
+
         self.client = Client()
         self.admin = _make_user('admin_hu23', ROLE_ADMINISTRADOR)
         self.profesor = _make_user('profesor_hu23', ROLE_PROFESOR)
@@ -89,6 +118,7 @@ class ServeCallRecordingTests(TestCase):
     def tearDown(self):
         self.cloudinary_upload_patch.stop()
         self.cloudinary_url_patch.stop()
+        self.urlopen_patch.stop()
 
     def test_administrador_puede_acceder(self):
         self.client.login(username='admin_hu23', password='pass1234')
