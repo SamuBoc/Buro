@@ -80,7 +80,7 @@ def _start_test_server():
 
 
 def before_all(context):
-    """Ensure test users exist and locate recording test data."""
+    """Ensure test users exist and locate reusable Selenium test data."""
     from cases.models import Case, CommunicationInteraction
     from beneficiary.models import Beneficiary
 
@@ -100,6 +100,19 @@ def before_all(context):
             colombian_identification='1234567890',
         )
     context.selenium_beneficiary = selenium_beneficiary
+
+    deletion_beneficiary = Beneficiary.objects.filter(
+        email='beneficiario.selenium.hu34@test.com'
+    ).first()
+    if deletion_beneficiary is None:
+        deletion_beneficiary = Beneficiary.objects.create(
+            name='Beneficiario Selenium HU34',
+            email='beneficiario.selenium.hu34@test.com',
+            phone='3011234567',
+            colombian_identification='1234509876',
+            location='Cali',
+        )
+    context.selenium_hu34_beneficiary = deletion_beneficiary
 
     selenium_case = (
         Case.objects
