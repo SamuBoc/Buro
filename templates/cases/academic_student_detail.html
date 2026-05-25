@@ -3,7 +3,7 @@
 {% block title %}Desempeno del estudiante - Buro Juridico{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4 py-3">
+<div class="container-fluid px-4 py-3" id="academic-student-detail">
 
   <div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
     <div>
@@ -23,14 +23,14 @@
       </div>
       {% endif %}
     </div>
-    <a href="{% url 'academic_dashboard' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-outline-secondary">
+    <a href="{% url 'academic_dashboard' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-outline-secondary" id="academic-back-link">
       <i class="bi bi-arrow-left me-1"></i>Volver al panel
     </a>
   </div>
 
-  <div class="card mt-3 mb-4">
+  <div class="card mt-3 mb-4" id="academic-student-filters">
     <div class="card-body">
-      <form method="get" class="row g-3 align-items-end">
+      <form method="get" class="row g-3 align-items-end" id="academic-student-filters-form">
         <div class="col-md-3">
           <label for="desde" class="form-label fw-semibold">Desde</label>
           <input type="date" class="form-control" id="desde" name="desde" value="{{ filtro_desde }}">
@@ -61,7 +61,7 @@
           <button type="submit" class="btn btn-primary">
             <i class="bi bi-funnel-fill me-1"></i>Filtrar
           </button>
-          <a href="{% url 'case_academic_student_detail' student.id %}" class="btn btn-outline-secondary">
+          <a href="{% url 'academic_student_detail' student.id %}" class="btn btn-outline-secondary">
             <i class="bi bi-x-circle me-1"></i>Limpiar
           </a>
         </div>
@@ -69,7 +69,7 @@
     </div>
   </div>
 
-  <div class="row g-3 mt-1 mb-4">
+  <div class="row g-3 mt-1 mb-4" id="academic-student-metrics">
     <div class="col-sm-6 col-xl-3">
       <div class="card h-100">
         <div class="card-body d-flex align-items-start justify-content-between">
@@ -120,7 +120,7 @@
     <div class="card-body p-0">
       {% if student_cases %}
       <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0" id="academic-student-cases-table">
           <thead class="table-dark sticky-top">
             <tr>
               <th class="ps-4">Codigo</th>
@@ -156,7 +156,7 @@
         </table>
       </div>
       {% else %}
-      <div class="text-center py-5 text-muted">
+      <div class="text-center py-5 text-muted" id="academic-student-empty-state">
         <i class="bi bi-folder-x fs-1 d-block mb-2"></i>
         Este estudiante no tiene casos asignados.
       </div>

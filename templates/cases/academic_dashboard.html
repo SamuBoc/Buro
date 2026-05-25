@@ -1,40 +1,21 @@
 {% extends "base.html" %}
-{% load l10n %}
 
 {% block title %}Panel academico - Buro Juridico{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4 py-3">
+<div class="container-fluid px-4 py-3" id="academic-dashboard">
 
   <div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
     <div>
       <h2 class="fw-bold mb-1"><i class="bi bi-mortarboard-fill me-2"></i>Panel academico</h2>
       <div class="text-muted">Supervision del desempeno y avance de estudiantes.</div>
-      {% if filtro_estado or filtro_sala or filtro_estudiante or filtro_profesor or filtro_desde or filtro_hasta %}
+      {% if filtro_estado or filtro_sala or filtro_desde or filtro_hasta %}
       <div class="d-flex flex-wrap gap-2 mt-2">
         {% if date_range_label %}
           <span class="badge rounded-pill bg-light text-dark border">{{ date_range_label }}</span>
         {% endif %}
         {% if sala_label %}
           <span class="badge rounded-pill bg-light text-dark border">Sala: {{ sala_label }}</span>
-        {% endif %}
-        {% if filtro_estudiante %}
-          {% for student in students_for_filter %}
-            {% if filtro_estudiante == student.id|stringformat:"s" %}
-              <span class="badge rounded-pill bg-light text-dark border">
-                Estudiante: {{ student.get_full_name|default:student.username }}
-              </span>
-            {% endif %}
-          {% endfor %}
-        {% endif %}
-        {% if filtro_profesor %}
-          {% for professor in professors_for_filter %}
-            {% if filtro_profesor == professor.id|stringformat:"s" %}
-              <span class="badge rounded-pill bg-light text-dark border">
-                Profesor: {{ professor.get_full_name|default:professor.username }}
-              </span>
-            {% endif %}
-          {% endfor %}
         {% endif %}
         {% if filtro_estado %}
           <span class="badge rounded-pill bg-light text-dark border">Estado: {{ filtro_estado }}</span>
@@ -46,15 +27,15 @@
       <a href="{% url 'academic_dashboard_export_excel' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-success">
         <i class="bi bi-file-earmark-excel-fill me-1"></i>Exportar Excel
       </a>
-      <a href="{% url 'academic_dashboard_export_pdf' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-danger">
+      <a href="{% url 'academic_dashboard_export_pdf' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-export-pdf">
         <i class="bi bi-file-earmark-pdf-fill me-1"></i>Exportar PDF
       </a>
     </div>
   </div>
 
-  <div class="card mt-3 mb-4">
+  <div class="card mt-3 mb-4" id="academic-filters">
     <div class="card-body">
-      <form method="get" class="row g-3 align-items-end">
+      <form method="get" class="row g-3 align-items-end" id="academic-filters-form">
         <div class="col-md-3">
           <label for="desde" class="form-label fw-semibold">Desde</label>
           <input type="date" class="form-control" id="desde" name="desde" value="{{ filtro_desde }}">
@@ -81,28 +62,6 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-md-3">
-          <label for="estudiante" class="form-label fw-semibold">Estudiante</label>
-          <select class="form-select" id="estudiante" name="estudiante">
-            <option value="">Todos</option>
-            {% for student in students_for_filter %}
-              <option value="{{ student.id }}" {% if filtro_estudiante == student.id|stringformat:"s" %}selected{% endif %}>
-                {{ student.get_full_name|default:student.username }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-3">
-          <label for="profesor" class="form-label fw-semibold">Profesor</label>
-          <select class="form-select" id="profesor" name="profesor">
-            <option value="">Todos</option>
-            {% for professor in professors_for_filter %}
-              <option value="{{ professor.id }}" {% if filtro_profesor == professor.id|stringformat:"s" %}selected{% endif %}>
-                {{ professor.get_full_name|default:professor.username }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
         <div class="col-12 d-flex gap-2">
           <button type="submit" class="btn btn-primary">
             <i class="bi bi-funnel-fill me-1"></i>Filtrar
@@ -115,7 +74,7 @@
     </div>
   </div>
 
-  <div class="row g-3 mt-1 mb-4">
+  <div class="row g-3 mt-1 mb-4" id="academic-metrics">
     <div class="col-sm-6 col-xl-3">
       <div class="card h-100">
         <div class="card-body d-flex align-items-start justify-content-between">
@@ -162,44 +121,11 @@
     </div>
   </div>
 
-  <div class="card mb-4">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
-      <div>
-        <h5 class="mb-0"><i class="bi bi-pie-chart-fill me-2"></i>Distribucion por sala juridica</h5>
-        <small class="text-muted">Resumen de casos asignados por tipo de caso con los filtros actuales.</small>
-      </div>
-      <a href="{% url 'case_report_by_sala' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-outline-secondary btn-sm">
-        <i class="bi bi-box-arrow-up-right me-1"></i>Ver reporte por sala
-      </a>
-    </div>
-    <div class="card-body">
-      <div class="row g-3">
-        {% for row in sala_distribution %}
-          <div class="col-sm-6 col-xl-4">
-            <div class="border rounded-3 h-100 p-3 bg-light-subtle">
-              <div class="d-flex justify-content-between align-items-start mb-2">
-                <div class="fw-semibold">{{ row.sala }}</div>
-                <span class="badge text-bg-dark">{{ row.cantidad }}</span>
-              </div>
-              <div class="progress mb-2" role="progressbar" aria-label="Distribucion {{ row.sala }}" aria-valuenow="{{ row.porcentaje|floatformat:0 }}" aria-valuemin="0" aria-valuemax="100" style="height: 10px;">
-                <div
-                  class="progress-bar bg-primary"
-                  style="width: {{ row.porcentaje|unlocalize }}%; min-width: {% if row.porcentaje > 0 %}8px{% else %}0{% endif %};"
-                ></div>
-              </div>
-              <div class="small text-muted">{{ row.porcentaje }}% del total filtrado</div>
-            </div>
-          </div>
-        {% endfor %}
-      </div>
-    </div>
-  </div>
-
   <div class="card">
     <div class="card-body p-0">
       {% if students %}
       <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0" id="academic-students-table">
           <thead class="table-dark sticky-top">
             <tr>
               <th class="ps-4">Estudiante</th>
@@ -221,7 +147,7 @@
               <td class="text-end text-danger">{{ student.overdue_cases }}</td>
               <td class="text-end text-warning">{{ student.without_deadline_cases }}</td>
               <td class="text-center">
-                <a href="{% url 'case_academic_student_detail' student.id %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-sm btn-outline-primary">
+                <a href="{% url 'academic_student_detail' student.id %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-sm btn-outline-primary academic-detail-link">
                   <i class="bi bi-bar-chart-line"></i> Ver detalle
                 </a>
               </td>
@@ -231,7 +157,7 @@
         </table>
       </div>
       {% else %}
-      <div class="text-center py-5 text-muted">
+      <div class="text-center py-5 text-muted" id="academic-empty-state">
         <i class="bi bi-person-x fs-1 d-block mb-2"></i>
         No hay estudiantes registrados aun.
       </div>

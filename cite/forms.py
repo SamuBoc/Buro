@@ -1,18 +1,25 @@
 from datetime import date
 
 from django import forms
+from django.utils import timezone
 
 from .models import Cite
 
 
 class CiteForm(forms.ModelForm):
+    modality_cite = forms.ChoiceField(
+        choices=[('', 'Seleccione una modalidad')] + list(Cite.MODALITY_CHOICES),
+        required=True,
+        label='Modalidad',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
     class Meta:
         model = Cite
         fields = ['modality_cite', 'request_cite', 'date_assigned', 'description']
         widgets = {
-            'modality_cite': forms.Select(attrs={'class': 'form-select'}),
             'request_cite':  forms.Select(attrs={'class': 'form-select'}),
-            'date_assigned': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'date_assigned': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
             'description':   forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
         labels = {
@@ -28,16 +35,34 @@ class CiteForm(forms.ModelForm):
 
     def clean_date_assigned(self):
         value = self.cleaned_data.get('date_assigned')
-        return value or date.today()
+        return value or timezone.localdate()
+
+    def clean_modality_cite(self):
+        modality = self.cleaned_data.get('modality_cite')
+        if not modality:
+            raise forms.ValidationError('Debes seleccionar una modalidad valida para continuar.')
+        return modality
 
 
 class RescheduleCiteForm(forms.ModelForm):
+    date_assigned = forms.DateTimeField(
+        label='Fecha de Asignación',
+        widget=forms.DateTimeInput(
+            format='%Y-%m-%dT%H:%M',
+            attrs={'class': 'form-control', 'type': 'datetime-local'}
+        ),
+        input_formats=['%Y-%m-%dT%H:%M'],
+    )
+
     class Meta:
         model = Cite
         fields = ['date_assigned']
-        widgets = {
-            'date_assigned': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-        }
-        labels = {
-            'date_assigned': 'Fecha de Asignación',
-        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        instance = kwargs.get('instance')
+        if instance and instance.pk and instance.date_assigned:
+            dt = instance.date_assigned
+            if timezone.is_aware(dt):
+                dt = dt.replace(tzinfo=None)
+            self.initial['date_assigned'] = dt

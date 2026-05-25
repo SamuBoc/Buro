@@ -57,6 +57,9 @@ class CaseForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['beneficiary'].empty_label = 'Seleccione un beneficiario'
         self.fields['beneficiary'].queryset = self.fields['beneficiary'].queryset.order_by('name')
+        self.fields['sala'].required = True
+        self.fields['description'].required = True
+        self.fields['beneficiary'].required = True
         self.fields['assigned_student'].required = False
         self.fields['assigned_student'].empty_label = 'Seleccione un estudiante'
         self.fields['assigned_student'].queryset = User.objects.filter(
@@ -111,6 +114,13 @@ class CaseDeadlineForm(forms.ModelForm):
         labels = {
             'deadline_date': 'Fecha limite de atencion',
         }
+
+    def clean_deadline_date(self):
+        from django.utils import timezone
+        value = self.cleaned_data.get('deadline_date')
+        if value and value < timezone.localdate():
+            raise forms.ValidationError('La fecha límite no puede ser anterior a hoy.')
+        return value
 
 
 class CaseReassignmentForm(forms.Form):

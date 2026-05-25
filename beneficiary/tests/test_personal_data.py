@@ -31,11 +31,11 @@ def make_beneficiary(name='Laura Torres', email='laura@test.com'):
 class BeneficiaryUpdateAccessTest(TestCase):
 
     def setUp(self):
-        self.client = Client()
-        self.secretaria = make_user('sec_hu5', group_name=ROLE_SECRETARIA)
-        self.administrador = make_user('adm_hu5', group_name=ROLE_ADMINISTRADOR)
-        self.sin_rol = make_user('libre_hu5')
-        self.beneficiary = make_beneficiary()
+        self.client        = Client()
+        self.secretaria    = make_user('sec_hu5',   group_name=ROLE_SECRETARIA)
+        self.administrador = make_user('adm_hu5',   group_name=ROLE_ADMINISTRADOR)
+        self.sin_rol       = make_user('libre_hu5')
+        self.beneficiary   = make_beneficiary()
 
     def test_secretaria_puede_acceder_al_formulario_de_edicion(self):
         """POSITIVO: La secretaria puede acceder al formulario de edición de un beneficiario."""
@@ -131,13 +131,13 @@ class BeneficiaryUpdateValidationTest(TestCase):
     def test_cancelar_no_modifica_los_datos(self):
         """POSITIVO: Al cancelar, los datos originales se mantienen."""
         response = self.client.get(reverse('beneficiary_list'))
-        intacto = Beneficiary.objects.get(pk=self.beneficiary.pk)
+        intacto  = Beneficiary.objects.get(pk=self.beneficiary.pk)
         self.assertEqual(intacto.name, 'Laura Torres')
         self.assertEqual(response.status_code, 200)
 
     def test_actualizacion_falla_con_email_invalido(self):
         """NEGATIVO: Enviar un email con formato inválido no actualiza el registro."""
-        url = reverse('beneficiary_update', args=[self.beneficiary.pk])
+        url  = reverse('beneficiary_update', args=[self.beneficiary.pk])
         data = {
             'name': 'Laura Torres',
             'colombian_identification': '1001234567',
@@ -145,14 +145,14 @@ class BeneficiaryUpdateValidationTest(TestCase):
             'phone': '3001234567',
             'email': 'esto-no-es-email',
         }
-        response = self.client.post(url, data)
-        self.assertEqual(response.status_code, 200)
+        response    = self.client.post(url, data)
         sin_cambios = Beneficiary.objects.get(pk=self.beneficiary.pk)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(sin_cambios.email, 'laura@test.com')
 
     def test_actualizacion_falla_con_nombre_vacio(self):
         """NEGATIVO: Enviar el nombre vacío no actualiza el registro."""
-        url = reverse('beneficiary_update', args=[self.beneficiary.pk])
+        url  = reverse('beneficiary_update', args=[self.beneficiary.pk])
         data = {
             'name': '',
             'colombian_identification': '1001234567',
@@ -160,7 +160,7 @@ class BeneficiaryUpdateValidationTest(TestCase):
             'phone': '3001234567',
             'email': 'laura@test.com',
         }
-        response = self.client.post(url, data)
-        self.assertEqual(response.status_code, 200)
+        response    = self.client.post(url, data)
         sin_cambios = Beneficiary.objects.get(pk=self.beneficiary.pk)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(sin_cambios.name, 'Laura Torres')

@@ -1,20 +1,16 @@
 import io
-from datetime import date, datetime
+from datetime import datetime
 
 from django.contrib import messages
 from django.db.models import Count
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import landscape, letter
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import inch
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from accounts.constants import ROLE_ADMINISTRADOR, ROLE_SECRETARIA
+from accounts.constants import ROLE_ADMINISTRADOR, ROLE_PROFESOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
 from beneficiary.models import Beneficiary
 from beneficiary.signals import log_beneficiary_cite_attendance
@@ -23,8 +19,10 @@ from core.utils import get_client_ip
 from .forms import CiteForm, RescheduleCiteForm
 from .models import Cite
 
+from mail import views
 
-@login_required
+
+@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
 def create_cite(request, beneficiary_id):
     beneficiary = get_object_or_404(Beneficiary, pk=beneficiary_id)
 
@@ -35,6 +33,14 @@ def create_cite(request, beneficiary_id):
             cite.beneficiary = beneficiary
             cite.save()
             messages.success(request, 'Cita agendada correctamente con la modalidad seleccionada.')
+
+            format_date = cite.date_assigned.strftime("%Y-%m-%d %I:%M:%S %p")
+            views.notify_beneficiary(
+                beneficiary.id,
+                "Agendamiento de Cita - Buro Juridico de Icesi",
+                beneficiary.name + " se le ha agendado una cita para la siguiente fecha: " +
+                format_date + ". Porfavor presentarse 15 minutos antes de la fecha estipulada.",
+            )
             return redirect('beneficiary_detail', pk=beneficiary.id)
         messages.error(request, 'Debes seleccionar una modalidad valida para continuar.')
     else:
@@ -57,7 +63,7 @@ def beneficiary_cites(request, beneficiary_id):
     })
 
 
-@login_required
+@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
 def reschedule_cite(request, pk):
     cite = get_object_or_404(Cite, pk=pk)
 
@@ -65,6 +71,15 @@ def reschedule_cite(request, pk):
         form = RescheduleCiteForm(request.POST, instance=cite)
         if form.is_valid():
             form.save()
+
+            format_date = cite.date_assigned.strftime("%Y-%m-%d %I:%M:%S %p")
+            views.notify_beneficiary(
+                cite.beneficiary.id,
+                "Reprogramación de Cita - Buro Juridico de Icesi",
+                cite.beneficiary.name + " se ha reprogramado con éxito"
+                " su cita para la siguiente fecha: " + format_date +
+                ". Porfavor presentarse 15 minutos antes de la fecha estipulada.",
+            )
             return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
         messages.error(request, 'Corrige los errores del formulario')
     else:
@@ -76,16 +91,24 @@ def reschedule_cite(request, pk):
     })
 
 
-@login_required
+@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
 def cancel_cite(request, pk):
     cite = get_object_or_404(Cite, pk=pk)
     if request.method == 'POST':
         cite.state_cite = Cite.STATE_CANCELED
         cite.save()
+
+        format_date = cite.date_assigned.strftime("%Y-%m-%d %I:%M:%S %p")
+        views.notify_beneficiary(
+            cite.beneficiary.id,
+            "Cancelación de Cita - Buro Juridico de Icesi",
+            cite.beneficiary.name + " su cita programada para la fecha " +
+            format_date + " ha sido cancelada. Si tiene dudas comuniquese con el Buro Juridico de Icesi.",
+        )
     return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
 
 
-@login_required
+@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
 def register_cite_attendance(request, pk, status):
     cite = get_object_or_404(Cite, pk=pk)
 
@@ -96,7 +119,7 @@ def register_cite_attendance(request, pk, status):
         messages.error(request, 'No puedes registrar asistencia en una cita cancelada.')
         return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
 
-    if cite.date_assigned and cite.date_assigned > date.today():
+    if cite.date_assigned and cite.date_assigned > timezone.now():
         messages.warning(request, 'Solo puedes registrar asistencia en citas de hoy o anteriores.')
         return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
 
@@ -113,7 +136,7 @@ def register_cite_attendance(request, pk, status):
 
     if cite.state_cite != new_state:
         cite.state_cite = new_state
-        cite.save()
+        cite.save(update_fields=['state_cite'])
         log_beneficiary_cite_attendance(
             cite.beneficiary,
             cite,
@@ -128,15 +151,18 @@ def register_cite_attendance(request, pk, status):
     return redirect('beneficiary_cites', beneficiary_id=cite.beneficiary_id)
 
 
-@role_required(ROLE_ADMINISTRADOR, ROLE_SECRETARIA)
-def cite_report(request):
-    """HU-19: Reporte de citas no confirmadas o no asistidas."""
+def _build_hu19_queryset(request):
+    """
+    Helper compartido por cite_report, cite_report_excel y cite_report_pdf.
+    Lee los filtros desde/hasta/estado de request.GET y retorna el queryset
+    ya filtrado junto con los valores de filtro para el contexto/nombre de archivo.
+    """
+    estados_validos = [Cite.STATE_PENDING, Cite.STATE_CANCELED, Cite.STATE_NO_SHOW]
+
     desde_raw  = (request.GET.get('desde')  or '').strip()
     hasta_raw  = (request.GET.get('hasta')  or '').strip()
     estado_raw = (request.GET.get('estado') or '').strip()
-
-    estados_validos = [Cite.STATE_PENDING, Cite.STATE_CANCELED]
-    estado_filter   = estado_raw if estado_raw in estados_validos else ''
+    estado_filter = estado_raw if estado_raw in estados_validos else ''
 
     cites = Cite.objects.select_related('beneficiary').filter(
         state_cite__in=estados_validos
@@ -161,7 +187,13 @@ def cite_report(request):
     if estado_filter:
         cites = cites.filter(state_cite=estado_filter)
 
-    cites = cites.order_by('date_assigned')
+    return cites.order_by('date_assigned'), estados_validos, desde_raw, hasta_raw, estado_filter
+
+
+@role_required(ROLE_ADMINISTRADOR, ROLE_SECRETARIA)
+def cite_report(request):
+    """HU-19: Reporte de citas no confirmadas o no asistidas."""
+    cites, estados_validos, desde_raw, hasta_raw, estado_filter = _build_hu19_queryset(request)
 
     return render(request, 'cite/cite_report.html', {
         'cites':         cites,
@@ -176,10 +208,8 @@ def cite_report(request):
 
 @role_required(ROLE_ADMINISTRADOR, ROLE_SECRETARIA)
 def cite_report_excel(request):
-    """HU-19: Exporta el reporte de citas a Excel."""
-    cites = Cite.objects.select_related('beneficiary').filter(
-        state_cite__in=[Cite.STATE_PENDING, Cite.STATE_CANCELED]
-    ).order_by('date_assigned')
+    """HU-19: Exporta el reporte de citas a Excel respetando los filtros activos."""
+    cites, *_ = _build_hu19_queryset(request)
 
     wb = Workbook()
     ws = wb.active
@@ -222,10 +252,8 @@ def cite_report_excel(request):
 
 @role_required(ROLE_ADMINISTRADOR, ROLE_SECRETARIA)
 def cite_report_pdf(request):
-    """HU-19: Exporta el reporte de citas a PDF."""
-    cites = Cite.objects.select_related('beneficiary').filter(
-        state_cite__in=[Cite.STATE_PENDING, Cite.STATE_CANCELED]
-    ).order_by('date_assigned')
+    """HU-19: Exporta el reporte de citas a PDF respetando los filtros activos."""
+    cites, *_ = _build_hu19_queryset(request)
 
     buffer = io.BytesIO()
     doc    = SimpleDocTemplate(
@@ -284,7 +312,7 @@ def cite_report_pdf(request):
     return response
 
 
-@role_required(ROLE_ADMINISTRADOR, ROLE_SECRETARIA)
+@role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
 def cite_attendance_report(request):
     """HU-38: Metricas de asistencia de citas."""
     desde_raw = (request.GET.get('desde') or '').strip()
@@ -351,7 +379,7 @@ def cite_attendance_report(request):
     })
 
 
-@role_required(ROLE_ADMINISTRADOR, ROLE_SECRETARIA)
+@role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
 def cite_attendance_report_excel(request):
     """HU-38: Exporta las metricas de asistencia a Excel."""
     desde_raw = (request.GET.get('desde') or '').strip()
@@ -428,7 +456,7 @@ def cite_attendance_report_excel(request):
     return response
 
 
-@role_required(ROLE_ADMINISTRADOR, ROLE_SECRETARIA)
+@role_required(ROLE_ADMINISTRADOR, ROLE_PROFESOR)
 def cite_attendance_report_pdf(request):
     """HU-38: Exporta las metricas de asistencia a PDF."""
     desde_raw = (request.GET.get('desde') or '').strip()
@@ -463,6 +491,12 @@ def cite_attendance_report_pdf(request):
 
     attendance_percentage = round((attended_count / total) * 100, 1) if total else 0.0
     no_show_percentage = round((no_show_count / total) * 100, 1) if total else 0.0
+
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import landscape, letter
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import inch
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(

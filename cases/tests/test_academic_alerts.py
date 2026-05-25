@@ -42,6 +42,11 @@ class AssignmentNotificationTest(TestCase):
 
     def setUp(self):
         self.student  = _make_user('est_hu28', ROLE_ESTUDIANTE)
+        self.student.profile.student_code = 'EST001'
+        self.student.profile.availability = True
+        self.student.profile.max_cases = 5
+        self.student.profile.save()
+
         self.profesor = _make_user('prof_hu28', ROLE_PROFESOR)
 
     def test_auto_assign_creates_notification_for_student(self):
@@ -199,6 +204,10 @@ class AssignmentEmailTest(TestCase):
 
     def setUp(self):
         self.student  = _make_user('est_email',  ROLE_ESTUDIANTE, email='est@icesi.edu.co')
+        self.student.profile.student_code = 'EST001'
+        self.student.profile.availability = True
+        self.student.profile.max_cases = 5
+        self.student.profile.save()
         self.profesor = _make_user('prof_email', ROLE_PROFESOR,   email='prof@icesi.edu.co')
 
     @patch('cases.signals.send_case_assignment_email')

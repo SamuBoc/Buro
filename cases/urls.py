@@ -39,4 +39,7 @@ urlpatterns = [
     path('<int:case_id>/webrtc/<str:room_id>/sala/', views.join_webrtc_call, name='join_webrtc_call'),
     # HU-24
     path('metricas/comunicaciones/', views.communication_metrics, name='communication_metrics'),
+    path('reportes/tiempos-atencion/',          views.case_attention_time_report,   name='case_attention_time_report'),
+    path('reportes/tiempos-atencion/excel/',    views.export_attention_time_excel,  name='export_attention_time_excel'),
+    path('reportes/tiempos-atencion/pdf/',      views.export_attention_time_pdf,    name='export_attention_time_pdf'),
 ]

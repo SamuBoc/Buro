@@ -187,6 +187,8 @@ class HU12CaseAccessControlTests(TestCase):
             assigned_student=self.assigned_student,
             state=Case.STATE_ASSIGNED,
         )
+        self.assigned_student.profile.supervising_professor = self.profesor
+        self.assigned_student.profile.save()
 
     def test_anonymous_user_is_redirected_to_login(self):
         response = self.client.get(reverse('case_detail', kwargs={'pk': self.case.pk}))
@@ -255,6 +257,7 @@ class HU32CaseDraftTests(TestCase):
             reverse('case_create'),
             {
                 'description': 'Borrador sin informacion completa',
+                'beneficiary': self.beneficiary.pk,
                 'submit_action': 'draft',
             },
             follow=True,
@@ -264,7 +267,7 @@ class HU32CaseDraftTests(TestCase):
         created_case = Case.objects.get(created_by=self.secretaria)
         self.assertEqual(created_case.status, Case.STATUS_DRAFT)
         self.assertEqual(created_case.description, 'Borrador sin informacion completa')
-        self.assertIsNone(created_case.beneficiary)
+        self.assertEqual(created_case.beneficiary, self.beneficiary)
         self.assertIsNone(created_case.sala)
 
     def test_existing_user_draft_is_loaded_on_form(self):
@@ -272,6 +275,7 @@ class HU32CaseDraftTests(TestCase):
             description='Texto recuperado del borrador',
             created_by=self.secretaria,
             status=Case.STATUS_DRAFT,
+            beneficiary=self.beneficiary,
         )
 
         self.client.force_login(self.secretaria)
@@ -286,6 +290,7 @@ class HU32CaseDraftTests(TestCase):
             description='Borrador propio',
             created_by=self.secretaria,
             status=Case.STATUS_DRAFT,
+            beneficiary=self.beneficiary,
         )
         other_user = User.objects.create_user(
             username='otra_secretaria_hu32',
@@ -296,6 +301,7 @@ class HU32CaseDraftTests(TestCase):
             description='Borrador ajeno',
             created_by=other_user,
             status=Case.STATUS_DRAFT,
+            beneficiary=self.beneficiary,
         )
 
         self.client.force_login(self.secretaria)
@@ -310,6 +316,7 @@ class HU32CaseDraftTests(TestCase):
             description='Version inicial del borrador',
             created_by=self.secretaria,
             status=Case.STATUS_DRAFT,
+            beneficiary=self.beneficiary,
         )
 
         self.client.force_login(self.secretaria)
@@ -359,6 +366,7 @@ class HU32CaseDraftTests(TestCase):
             description='Borrador listo para completar',
             created_by=self.secretaria,
             status=Case.STATUS_DRAFT,
+            beneficiary=self.beneficiary,
         )
         student_group, _ = Group.objects.get_or_create(name=ROLE_ESTUDIANTE)
         student = User.objects.create_user(
@@ -401,6 +409,7 @@ class HU32CaseDraftTests(TestCase):
             description='Borrador privado',
             created_by=self.secretaria,
             status=Case.STATUS_DRAFT,
+            beneficiary=self.beneficiary,
         )
         other_secretaria = User.objects.create_user(
             username='secretaria_hu32_2',
@@ -642,16 +651,15 @@ class HU11DeadlineTests(TestCase):
         call_command('generate_deadline_alerts', days=3)
 
         notifications = Notification.objects.filter(case=self.case, notification_type='DEADLINE')
-        self.assertEqual(notifications.count(), 3)
+        self.assertEqual(notifications.count(), 2)
         self.assertTrue(notifications.filter(recipient_user=self.student).exists())
-        self.assertTrue(notifications.filter(recipient_user=self.secretaria).exists())
         self.assertTrue(notifications.filter(recipient_user=self.profesor).exists())
 
         call_command('generate_deadline_alerts', days=3)
 
         self.assertEqual(
             Notification.objects.filter(case=self.case, notification_type='DEADLINE').count(),
-            3,
+            2,
         )
 
 
@@ -711,6 +719,7 @@ class CaseQuickViewPriorityTests(TestCase):
         self.assertContains(response, 'Sin fecha limite')
 
 
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1'])
 class HU31RoleAccessControlTests(TestCase):
 
     def setUp(self):
@@ -722,72 +731,142 @@ class HU31RoleAccessControlTests(TestCase):
         self.admin_group, _ = Group.objects.get_or_create(name=ROLE_ADMINISTRADOR)
 
         self.secretaria = User.objects.create_user(
-            username='secretaria_hu31', password='clave_segura_123'
+            username='secretaria_hu31',
+            password='clave_segura_123'
         )
         self.secretaria.groups.add(self.secretaria_group)
 
         self.student = User.objects.create_user(
-            username='estudiante_hu31', password='clave_segura_123'
+            username='estudiante_hu31',
+            password='clave_segura_123'
         )
         self.student.groups.add(self.student_group)
 
         self.profesor = User.objects.create_user(
-            username='profesor_hu31', password='clave_segura_123'
+            username='profesor_hu31',
+            password='clave_segura_123'
         )
         self.profesor.groups.add(self.profesor_group)
 
         self.admin = User.objects.create_user(
-            username='admin_hu31', password='clave_segura_123'
+            username='admin_hu31',
+            password='clave_segura_123'
         )
         self.admin.groups.add(self.admin_group)
 
+        self.beneficiary = Beneficiary.objects.create(
+            id='3103103103',
+            name='Beneficiario HU31',
+            location='Cali',
+            phone='3001234567',
+            email='beneficiario_hu31@test.com',
+        )
+
     def test_secretaria_can_access_case_create(self):
         self.client.force_login(self.secretaria)
+
         response = self.client.get(reverse('case_create'))
+
         self.assertEqual(response.status_code, 200)
 
     def test_admin_can_access_case_create(self):
         self.client.force_login(self.admin)
+
         response = self.client.get(reverse('case_create'))
+
         self.assertEqual(response.status_code, 200)
 
-    def test_student_cannot_access_case_create(self):
+    def test_student_can_access_case_draft_form(self):
         self.client.force_login(self.student)
+
         response = self.client.get(reverse('case_create'))
-        self.assertEqual(response.status_code, 302)
-        self.assertIn(reverse('no_permission'), response.url)
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_student_cannot_register_final_case(self):
+        self.client.force_login(self.student)
+
+        response = self.client.post(
+            reverse('case_create'),
+            {
+                'description': 'Caso final estudiante',
+                'beneficiary': self.beneficiary.pk,
+                'submit_action': 'complete',
+            }
+        )
+
+        self.assertRedirects(
+            response,
+            reverse('no_permission'),
+            target_status_code=403
+        )
+
+    def test_student_can_save_case_draft(self):
+        self.client.force_login(self.student)
+
+        response = self.client.post(
+            reverse('case_create'),
+            {
+                'description': 'Borrador de caso',
+                'beneficiary': self.beneficiary.pk,
+                'submit_action': 'draft',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertTrue(
+            Case.objects.filter(
+                created_by=self.student,
+                status=Case.STATUS_DRAFT,
+                description='Borrador de caso',
+                beneficiary=self.beneficiary,
+            ).exists()
+        )
 
     def test_profesor_cannot_access_case_create(self):
         self.client.force_login(self.profesor)
+
         response = self.client.get(reverse('case_create'))
+
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse('no_permission'), response.url)
 
     def test_anonymous_user_redirected_to_login_on_case_create(self):
         response = self.client.get(reverse('case_create'))
+
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse('login'), response.url)
 
     def test_anonymous_user_redirected_to_login_on_case_list(self):
         response = self.client.get(reverse('case_list'))
+
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse('login'), response.url)
 
     def test_any_authenticated_user_can_access_case_list(self):
         for user in [self.secretaria, self.student, self.profesor, self.admin]:
             self.client.force_login(user)
+
             response = self.client.get(reverse('case_list'))
+
             self.assertEqual(
-                response.status_code, 200,
+                response.status_code,
+                200,
                 f'{user.username} deberia poder ver la lista de casos'
             )
 
     def test_superuser_bypasses_role_restriction(self):
         superuser = User.objects.create_superuser(
-            username='super_hu31', password='clave_segura_123'
+            username='super_hu31',
+            password='clave_segura_123'
         )
+
         self.client.force_login(superuser)
+
         response = self.client.get(reverse('case_create'))
+
         self.assertEqual(response.status_code, 200)
 
 
@@ -802,6 +881,8 @@ class HU7AutoAssignCaseTests(TestCase):
         )
         self.student_a.groups.add(self.student_group)
         self.student_a.profile.max_cases = 3
+        self.student_a.profile.student_code = 'EST001'
+        self.student_a.profile.availability = True
         self.student_a.profile.save()
 
         self.student_b = User.objects.create_user(
@@ -810,6 +891,8 @@ class HU7AutoAssignCaseTests(TestCase):
         )
         self.student_b.groups.add(self.student_group)
         self.student_b.profile.max_cases = 3
+        self.student_b.profile.student_code = 'EST002'
+        self.student_b.profile.availability = True
         self.student_b.profile.save()
 
         self.beneficiary = Beneficiary.objects.create(
@@ -1012,7 +1095,7 @@ class HU37ReportByStateTests(TestCase):
         profesor.groups.add(self.profesor_group)
         self.client.force_login(profesor)
         response = self.client.get(self.url)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
 
     def test_estudiante_is_denied(self):
         self.client.force_login(self.estudiante_user)

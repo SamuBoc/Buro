@@ -1,6 +1,7 @@
 import io
 import tempfile
-from unittest.mock import patch
+import time
+from unittest.mock import patch, MagicMock
 
 from django.contrib.auth.models import User, Group
 from django.core.files.uploadedfile import SimpleUploadedFile

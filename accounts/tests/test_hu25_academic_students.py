@@ -112,7 +112,7 @@ class HU25AcademicStudentsTests(TestCase):
         self.assertEqual(created_user.profile.preferred_room, 'penal')
 
     def test_registered_student_is_added_to_student_group(self):
-        self.client.login(username='secretaria_hu25', password='clave_segura_123')
+        self.client.login(username='admin_hu25', password='clave_segura_123')
 
         self.client.post(
             reverse('academic_student_register'),
@@ -137,22 +137,26 @@ class HU25AcademicStudentsTests(TestCase):
         self.assertContains(response, '20261001')
         self.assertContains(response, 'Civil')
 
-    def test_secretary_can_view_student_detail(self):
+    def test_secretary_cannot_access_student_detail(self):
         self.client.login(username='secretaria_hu25', password='clave_segura_123')
 
-        response = self.client.get(reverse('academic_student_detail', args=[self.student_user.pk]))
+        response = self.client.get(
+            reverse('academic_student_detail', args=[self.student_user.pk]),
+            follow=True,
+        )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Laura Martinez')
-        self.assertContains(response, '20261001')
-        self.assertContains(response, self.case_assigned.code)
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(response, 'Acceso restringido', status_code=403)
 
     def test_student_role_cannot_access_student_management_views(self):
         self.client.login(username='estudiante_hu25', password='clave_segura_123')
 
         list_response = self.client.get(reverse('academic_student_list'), follow=True)
         register_response = self.client.get(reverse('academic_student_register'), follow=True)
-        detail_response = self.client.get(reverse('academic_student_detail', args=[self.student_user.pk]), follow=True)
+        detail_response = self.client.get(
+            reverse('academic_student_detail', args=[self.student_user.pk]),
+            follow=True,
+        )
 
         self.assertEqual(list_response.status_code, 403)
         self.assertContains(list_response, 'Acceso restringido', status_code=403)
@@ -161,13 +165,13 @@ class HU25AcademicStudentsTests(TestCase):
         self.assertEqual(detail_response.status_code, 403)
         self.assertContains(detail_response, 'Acceso restringido', status_code=403)
 
-    def test_professor_role_cannot_access_student_management_views(self):
+    def test_professor_role_can_access_student_management_views(self):
         self.client.login(username='profesor_hu25', password='clave_segura_123')
 
         response = self.client.get(reverse('academic_student_list'), follow=True)
 
-        self.assertEqual(response.status_code, 403)
-        self.assertContains(response, 'Acceso restringido', status_code=403)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Laura Martinez')
 
     def test_active_cases_count_is_calculated_from_assigned_cases(self):
         self.client.login(username='admin_hu25', password='clave_segura_123')
@@ -190,7 +194,9 @@ class HU25AcademicStudentsTests(TestCase):
         )
 
         list_response = self.client.get(reverse('academic_student_list'))
-        detail_response = self.client.get(reverse('academic_student_detail', args=[self.student_user.pk]))
+        detail_response = self.client.get(
+            reverse('academic_student_detail', args=[self.student_user.pk])
+        )
 
         self.assertContains(list_response, '<td>2</td>', html=True)
         self.assertContains(detail_response, '<div class="fw-semibold">2</div>', html=True)

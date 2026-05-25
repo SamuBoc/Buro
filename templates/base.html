@@ -160,6 +160,13 @@
                     </a>
                     {% endif %}
 
+                    {% if 'administrador' in user_roles %}
+                    <a class="sidebar-link" href="{% url 'communication_metrics' %}">
+                        <i class="bi bi-telephone-fill sidebar-icon" aria-hidden="true"></i>
+                        <span class="sidebar-label">Métricas de Comunicación</span>
+                    </a>
+                    {% endif %}
+
                     {% if 'administrador' in user_roles or 'profesor' in user_roles %}
                     <a class="sidebar-link" href="{% url 'academic_student_history_list' %}">
                         <i class="bi bi-journal-text sidebar-icon" aria-hidden="true"></i>
@@ -175,6 +182,10 @@
                     <a class="sidebar-link" href="{% url 'case_report_by_sala' %}">
                         <i class="bi bi-building sidebar-icon" aria-hidden="true"></i>
                         <span class="sidebar-label">Reporte por Sala</span>
+                    </a>
+                    <a class="sidebar-link" href="{% url 'case_attention_time_report' %}">
+                        <i class="bi bi-clock-history sidebar-icon" aria-hidden="true"></i>
+                        <span class="sidebar-label">Tiempos de Atención</span>
                     </a>
                     <a class="sidebar-link" href="{% url 'academic_dashboard' %}">
                         <i class="bi bi-mortarboard-fill sidebar-icon" aria-hidden="true"></i>
@@ -258,6 +269,12 @@
                     </a>
                     {% endif %}
 
+                    {% if 'administrador' in user_roles %}
+                    <a class="mobile-link" href="{% url 'communication_metrics' %}">
+                        <i class="bi bi-telephone-fill me-2" aria-hidden="true"></i>Métricas de Comunicación
+                    </a>
+                    {% endif %}
+
                     {% if 'administrador' in user_roles or 'profesor' in user_roles %}
                     <a class="mobile-link" href="{% url 'academic_student_history_list' %}">
                         <i class="bi bi-journal-text me-2" aria-hidden="true"></i>Historial academico
@@ -270,6 +287,9 @@
                     </a>
                     <a class="mobile-link" href="{% url 'case_report_by_sala' %}">
                         <i class="bi bi-building me-2" aria-hidden="true"></i>Reporte por Sala
+                    </a>
+                    <a class="mobile-link" href="{% url 'case_attention_time_report' %}">
+                        <i class="bi bi-clock-history me-2" aria-hidden="true"></i>Tiempos de Atención
                     </a>
                     <a class="mobile-link" href="{% url 'academic_dashboard' %}">
                         <i class="bi bi-mortarboard-fill me-2" aria-hidden="true"></i>Panel academico

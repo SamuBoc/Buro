@@ -21,7 +21,7 @@
                         </label>
                         {{ form.name }}
                         {% if form.name.errors %}
-                            <div class="text-danger small mt-1">{{ form.name.errors|join:", " }}</div>
+                            <div class="text-danger small mt-1 cant-be-empty">{{ form.name.errors|join:", " }}</div>
                         {% endif %}
                     </div>
 
@@ -31,7 +31,7 @@
                         </label>
                         {{ form.colombian_identification }}
                         {% if form.colombian_identification.errors %}
-                            <div class="text-danger small mt-1">{{ form.colombian_identification.errors|join:", " }}</div>
+                            <div class="text-danger small mt-1 cant-be-empty">{{ form.colombian_identification.errors|join:", " }}</div>
                         {% endif %}
                     </div>
 
@@ -41,7 +41,7 @@
                         </label>
                         {{ form.location }}
                         {% if form.location.errors %}
-                            <div class="text-danger small mt-1">{{ form.location.errors|join:", " }}</div>
+                            <div class="text-danger small mt-1 cant-be-empty">{{ form.location.errors|join:", " }}</div>
                         {% endif %}
                     </div>
 
@@ -52,7 +52,7 @@
                             </label>
                             {{ form.phone }}
                             {% if form.phone.errors %}
-                                <div class="text-danger small mt-1">{{ form.phone.errors|join:", " }}</div>
+                                <div class="text-danger small mt-1 cant-be-empty">{{ form.phone.errors|join:", " }}</div>
                             {% endif %}
                         </div>
 
@@ -62,7 +62,7 @@
                             </label>
                             {{ form.email }}
                             {% if form.email.errors %}
-                                <div class="text-danger small mt-1">{{ form.email.errors|join:", " }}</div>
+                                <div class="text-danger small mt-1 cant-be-empty">{{ form.email.errors|join:", " }}</div>
                             {% endif %}
                         </div>
 
@@ -72,7 +72,7 @@
                             </label>
                             {{ form.allow_conditions }}
                             {% if form.allow_conditions.errors %}
-                                <div class="text-danger small mt-1">{{ form.allow_conditions.errors|join:", " }}</div>
+                                <div class="text-danger small mt-1 cant-be-empty">{{ form.allow_conditions.errors|join:", " }}</div>
                             {% endif %}
                         </div>
                     </div>
@@ -85,7 +85,7 @@
                         {{ doc_form.file }}
                         <div class="form-text">Formatos permitidos: PDF, JPG, PNG.</div>
                         {% if doc_form.file.errors %}
-                            <div class="text-danger small mt-1">{{ doc_form.file.errors|join:", " }}</div>
+                            <div class="text-danger small mt-1 cant-be-empty">{{ doc_form.file.errors|join:", " }}</div>
                         {% endif %}
                     </div>
                     {% endif %}
@@ -96,7 +96,7 @@
                         <a href="{% url 'beneficiary_list' %}" class="btn btn-secondary px-4">
                             <i class="bi bi-arrow-left me-1"></i>Cancelar
                         </a>
-                        <button type="submit" class="btn btn-primary px-4">
+                        <button type="submit" class="btn btn-primary px-4" id="save-beneficiary">
                             <i class="bi bi-save me-1"></i>Guardar Beneficiario
                         </button>
                     </div>

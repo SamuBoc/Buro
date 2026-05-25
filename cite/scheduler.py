@@ -23,7 +23,7 @@ def send_cite_reminders():
     tomorrow = date.today() + timedelta(days=1)
 
     pending_cites = Cite.objects.filter(
-        date_assigned=tomorrow,
+        date_assigned__date=tomorrow,
         reminder_sent=False,
         state_cite__in=[Cite.STATE_PENDING, Cite.STATE_CONFIRMED],
     ).select_related('beneficiary')

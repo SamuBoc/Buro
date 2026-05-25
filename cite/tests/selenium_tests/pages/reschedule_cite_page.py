@@ -1,5 +1,6 @@
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+import time
 from .base_page import BasePage
 
 class RescheduleCite(BasePage):
@@ -32,8 +33,20 @@ class RescheduleCite(BasePage):
     def reschedule_cite(self):
         self.click(self.BUTTON_RESCHEDULE)
 
-    def new_date(self, date):
-        self.enter_text(self.DATE_INPUT, date)
+
+    # I have the same trouble in schedule:cite_page. Selenium just skip the last instructions about field.send_keys(Keys.ARROW_DOWN)
+    # And this make test can't continue, I use time you can see beter the trouble, I tryed to use other things but don't work
+    def new_date(self):
+        field = self.find_element(self.DATE_INPUT)
+        field.send_keys("01012050")  
+        time.sleep(2)
+        field.send_keys(Keys.TAB)    
+        time.sleep(2)
+        field.send_keys("0100") 
+        time.sleep(2)     
+        field.send_keys(Keys.TAB)
+        time.sleep(2)    
+        field.send_keys(Keys.ARROW_DOWN)
         self.click(self.SUBMIT_RESCHEDULE)
 
     def get_actual_date(self):

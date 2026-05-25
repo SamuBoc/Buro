@@ -2,15 +2,16 @@ import os
 
 from django.contrib.auth.models import Group, User
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from accounts.constants import ROLE_ADMINISTRADOR, ROLE_ESTUDIANTE, ROLE_PROFESOR
+from accounts.constants import ROLE_ESTUDIANTE, ROLE_PROFESOR
 from beneficiary.models import Beneficiary
 from cases.models import Case, CaseAuditLog, CaseDocument
 from core.encryption import compute_hmac, decrypt, encrypt, verify_integrity
 
-TEST_ENCRYPTION_KEY = 'c2VjcmV0a2V5Zm9ydGVzdGluZ3B1cnBvc2VzMTIzNDU2Nzg='
+TEST_ENCRYPTION_KEY = '8IYuHFnOazOvfRE2wBsF9XEFwsrp9lWOTgrCEK38oEI='
 
 
 def _make_user(username, role):
@@ -38,7 +39,7 @@ def _make_case(student=None):
 
 
 @override_settings(
-    ENCRYPTION_KEY='c2VjcmV0a2V5Zm9ydGVzdGluZ3B1cnBvc2VzMTIzNDU2Nzg='
+    ENCRYPTION_KEY='8IYuHFnOazOvfRE2wBsF9XEFwsrp9lWOTgrCEK38oEI='
 )
 class EncryptionUtilsTest(TestCase):
 
@@ -74,7 +75,7 @@ class EncryptionUtilsTest(TestCase):
 
 
 @override_settings(
-    ENCRYPTION_KEY='c2VjcmV0a2V5Zm9ydGVzdGluZ3B1cnBvc2VzMTIzNDU2Nzg=',
+    ENCRYPTION_KEY='8IYuHFnOazOvfRE2wBsF9XEFwsrp9lWOTgrCEK38oEI=',
     MEDIA_ROOT='/tmp/test_media_hu35/',
 )
 class EncryptedFieldTest(TestCase):
@@ -87,9 +88,12 @@ class EncryptedFieldTest(TestCase):
             email='cifrado@test.com',
             colombian_identification='987654321',
         )
-        raw = Beneficiary.objects.filter(
-            pk=beneficiary.pk
-        ).values('colombian_identification').first()['colombian_identification']
+        with connection.cursor() as cursor:
+            cursor.execute(
+                'SELECT colombian_identification FROM beneficiary_beneficiary WHERE id = %s',
+                [beneficiary.pk]
+            )
+            raw = cursor.fetchone()[0]
         self.assertNotEqual(raw, '987654321')
 
     def test_colombian_identification_decrypted_on_read(self):
@@ -111,14 +115,17 @@ class EncryptedFieldTest(TestCase):
             email='phone@test.com',
             colombian_identification='000111222',
         )
-        raw = Beneficiary.objects.filter(
-            pk=beneficiary.pk
-        ).values('phone').first()['phone']
+        with connection.cursor() as cursor:
+            cursor.execute(
+                'SELECT phone FROM beneficiary_beneficiary WHERE id = %s',
+                [beneficiary.pk]
+            )
+            raw = cursor.fetchone()[0]
         self.assertNotEqual(raw, '3009876543')
 
 
 @override_settings(
-    ENCRYPTION_KEY='c2VjcmV0a2V5Zm9ydGVzdGluZ3B1cnBvc2VzMTIzNDU2Nzg=',
+    ENCRYPTION_KEY='8IYuHFnOazOvfRE2wBsF9XEFwsrp9lWOTgrCEK38oEI=',
     MEDIA_ROOT='/tmp/test_media_hu35/',
 )
 class ProtectedFileAccessTest(TestCase):
@@ -127,7 +134,9 @@ class ProtectedFileAccessTest(TestCase):
         self.student  = _make_user('est_seg', ROLE_ESTUDIANTE)
         self.student2 = _make_user('est_seg2', ROLE_ESTUDIANTE)
         self.profesor = _make_user('prof_seg', ROLE_PROFESOR)
-        self.case     = _make_case(student=self.student)
+        self.case = _make_case(student=self.student)
+        self.student.profile.supervising_professor = self.profesor
+        self.student.profile.save()
 
         os.makedirs('/tmp/test_media_hu35/', exist_ok=True)
         uploaded = SimpleUploadedFile('test_doc.pdf', b'contenido pdf', content_type='application/pdf')
@@ -174,3 +183,74 @@ class ProtectedFileAccessTest(TestCase):
                 action='SECURITY_DENIED',
             ).exists()
         )
+
+
+@override_settings(
+    ENCRYPTION_KEY='8IYuHFnOazOvfRE2wBsF9XEFwsrp9lWOTgrCEK38oEI='
+)
+class EncryptionRobustnessTest(TestCase):
+
+    def test_same_value_encrypted_twice_gives_different_tokens(self):
+        """Fernet usa IV aleatorio — cada cifrado debe ser distinto."""
+        value = 'dato_sensible'
+        self.assertNotEqual(encrypt(value), encrypt(value))
+
+    def test_both_tokens_decrypt_to_same_original(self):
+        value = 'dato_sensible'
+        token1 = encrypt(value)
+        token2 = encrypt(value)
+        self.assertEqual(decrypt(token1), value)
+        self.assertEqual(decrypt(token2), value)
+
+    def test_decrypt_truncated_token_returns_empty(self):
+        token = encrypt('dato_valido')
+        truncated = token[:10]
+        self.assertEqual(decrypt(truncated), '')
+
+    def test_decrypt_random_bytes_returns_empty(self):
+        self.assertEqual(decrypt('abc123xyz!!!'), '')
+
+    def test_encrypt_long_value(self):
+        long_value = 'A' * 5000
+        token = encrypt(long_value)
+        self.assertEqual(decrypt(token), long_value)
+
+    def test_hmac_different_values_give_different_results(self):
+        self.assertNotEqual(compute_hmac('valor1'), compute_hmac('valor2'))
+
+    def test_verify_integrity_empty_string(self):
+        value = ''
+        self.assertTrue(verify_integrity(value, compute_hmac(value)))
+
+    def test_tampered_stored_field_returns_empty_on_read(self):
+        """Si alguien modifica el token en BD directamente, decrypt retorna vacío."""
+        beneficiary = Beneficiary.objects.create(
+            name='Test Tamper',
+            location='Cali',
+            phone='3001234567',
+            email='tamper@test.com',
+            colombian_identification='999888777',
+        )
+        with connection.cursor() as cursor:
+            cursor.execute(
+                'UPDATE beneficiary_beneficiary SET colombian_identification = %s WHERE id = %s',
+                ['token_manipulado_directamente', beneficiary.pk]
+            )
+        loaded = Beneficiary.objects.get(pk=beneficiary.pk)
+        self.assertEqual(loaded.colombian_identification, '')
+
+    def test_multiple_reads_return_same_decrypted_value(self):
+        """Lecturas repetidas deben ser idempotentes."""
+        beneficiary = Beneficiary.objects.create(
+            name='Test Idempotente',
+            location='Cali',
+            phone='3007654321',
+            email='idempotente@test.com',
+            colombian_identification='555444333',
+        )
+        reads = [
+            Beneficiary.objects.get(pk=beneficiary.pk).colombian_identification
+            for _ in range(5)
+        ]
+        self.assertEqual(len(set(reads)), 1)
+        self.assertEqual(reads[0], '555444333')
