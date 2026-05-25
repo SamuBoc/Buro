@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import io
 import logging
 import mimetypes
@@ -12,7 +12,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Case as DjangoCase, Count, IntegerField, Q, Value, When
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -218,7 +218,100 @@ def _build_academic_dashboard_filters(request):
 @login_required
 def case_list(request):
     today = timezone.localdate()
-    cases = list(Case.objects.select_related('beneficiary', 'assigned_student').all())
+    search_query = (request.GET.get('q') or '').strip()
+    filtro_sala = request.GET.get('sala') or ''
+    filtro_estado = request.GET.get('estado') or ''
+    filtro_prioridad = request.GET.get('prioridad') or ''
+    orden = request.GET.get('orden') or 'fecha_desc'
+    filtro_desde = request.GET.get('desde') or ''
+    filtro_hasta = request.GET.get('hasta') or ''
+
+    cases_qs = Case.objects.select_related('beneficiary', 'assigned_student').all()
+
+    if search_query:
+        cases_qs = cases_qs.filter(
+            Q(code__icontains=search_query)
+            | Q(description__icontains=search_query)
+            | Q(beneficiary__name__icontains=search_query)
+            | Q(assigned_student__username__icontains=search_query)
+            | Q(assigned_student__first_name__icontains=search_query)
+            | Q(assigned_student__last_name__icontains=search_query)
+        )
+
+    if filtro_sala:
+        cases_qs = cases_qs.filter(sala=filtro_sala)
+
+    if filtro_estado:
+        cases_qs = cases_qs.filter(state=filtro_estado)
+
+    if filtro_prioridad:
+        if filtro_prioridad == 'none':
+            cases_qs = cases_qs.filter(deadline_date__isnull=True)
+        elif filtro_prioridad == 'critical':
+            cases_qs = cases_qs.filter(deadline_date__lt=today)
+        elif filtro_prioridad == 'high':
+            cases_qs = cases_qs.filter(
+                deadline_date__gte=today,
+                deadline_date__lte=today + timedelta(days=2),
+            )
+        elif filtro_prioridad == 'medium':
+            cases_qs = cases_qs.filter(
+                deadline_date__gt=today + timedelta(days=2),
+                deadline_date__lte=today + timedelta(days=7),
+            )
+        elif filtro_prioridad == 'low':
+            cases_qs = cases_qs.filter(deadline_date__gt=today + timedelta(days=7))
+
+    if filtro_desde:
+        try:
+            desde_date = datetime.strptime(filtro_desde, '%Y-%m-%d').date()
+            cases_qs = cases_qs.filter(created_at__date__gte=desde_date)
+        except ValueError:
+            filtro_desde = ''
+
+    if filtro_hasta:
+        try:
+            hasta_date = datetime.strptime(filtro_hasta, '%Y-%m-%d').date()
+            cases_qs = cases_qs.filter(created_at__date__lte=hasta_date)
+        except ValueError:
+            filtro_hasta = ''
+
+    order_map = {
+        'fecha_desc': '-created_at',
+        'fecha_asc': 'created_at',
+        'vencimiento_asc': 'deadline_date',
+        'vencimiento_desc': '-deadline_date',
+        'codigo_asc': 'code',
+        'codigo_desc': '-code',
+    }
+
+    if orden in {'prioridad_desc', 'prioridad_asc'}:
+        cases_qs = cases_qs.annotate(
+            priority_rank=DjangoCase(
+                When(deadline_date__lt=today, then=Value(1)),
+                When(deadline_date__gte=today, deadline_date__lte=today + timedelta(days=2), then=Value(2)),
+                When(deadline_date__gt=today + timedelta(days=2), deadline_date__lte=today + timedelta(days=7), then=Value(3)),
+                When(deadline_date__gt=today + timedelta(days=7), then=Value(4)),
+                default=Value(5),
+                output_field=IntegerField(),
+            )
+        )
+        if orden == 'prioridad_desc':
+            cases_qs = cases_qs.order_by('priority_rank', '-created_at')
+        else:
+            cases_qs = cases_qs.order_by('-priority_rank', '-created_at')
+    else:
+        order_by = order_map.get(orden, '-created_at')
+        cases_qs = cases_qs.order_by(order_by)
+
+    total_cases = cases_qs.count()
+    state_choices = (
+        Case.objects
+        .order_by('state')
+        .values_list('state', flat=True)
+        .distinct()
+    )
+    cases = list(cases_qs)
 
     for case in cases:
         deadline_priority = _build_deadline_priority(case, today)
@@ -228,7 +321,36 @@ def case_list(request):
         case.priority_class       = deadline_priority['priority_class']
         case.deadline_class       = deadline_priority['deadline_class']
 
-    return render(request, 'cases/case_list.html', {'cases': cases})
+    return render(request, 'cases/case_list.html', {
+        'cases': cases,
+        'total_cases': total_cases,
+        'search_query': search_query,
+        'filtro_sala': filtro_sala,
+        'filtro_estado': filtro_estado,
+        'filtro_prioridad': filtro_prioridad,
+        'orden': orden,
+        'filtro_desde': filtro_desde,
+        'filtro_hasta': filtro_hasta,
+        'state_choices': state_choices,
+        'room_choices': Case.ROOM_CHOICES,
+        'priority_choices': [
+            {'value': 'critical', 'label': 'Critica'},
+            {'value': 'high', 'label': 'Alta'},
+            {'value': 'medium', 'label': 'Media'},
+            {'value': 'low', 'label': 'Baja'},
+            {'value': 'none', 'label': 'Sin fecha limite'},
+        ],
+        'order_choices': [
+            {'value': 'fecha_desc', 'label': 'Fecha (mas reciente)'},
+            {'value': 'fecha_asc', 'label': 'Fecha (mas antigua)'},
+            {'value': 'vencimiento_asc', 'label': 'Vencimiento (mas proximo)'},
+            {'value': 'vencimiento_desc', 'label': 'Vencimiento (mas lejano)'},
+            {'value': 'prioridad_desc', 'label': 'Prioridad (critica primero)'},
+            {'value': 'prioridad_asc', 'label': 'Prioridad (baja primero)'},
+            {'value': 'codigo_asc', 'label': 'Codigo (A-Z)'},
+            {'value': 'codigo_desc', 'label': 'Codigo (Z-A)'},
+        ],
+    })
 
 
 @role_required(ROLE_PROFESOR, ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
