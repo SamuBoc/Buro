@@ -18,6 +18,10 @@ class CaseRegistrationPage(BasePage):
         By.CSS_SELECTOR,
         "button[type='submit'][name='submit_action'][value='complete']",
     )
+    DRAFT_SUBMIT = (
+        By.CSS_SELECTOR,
+        "button[type='submit'][name='submit_action'][value='draft']",
+    )
     PAGE_TITLE = (By.TAG_NAME, "h4")
     ALERTS = (By.CSS_SELECTOR, ".alert")
     FIELD_ERRORS = (By.CSS_SELECTOR, ".text-danger.small")
@@ -52,6 +56,19 @@ class CaseRegistrationPage(BasePage):
         self.driver.execute_script("arguments[0].click();", button)
         WebDriverWait(self.driver, self.timeout).until(
             lambda d: d.current_url != previous_url or self.has_validation_feedback()
+        )
+
+    def submit_draft(self):
+        previous_url = self.driver.current_url
+        button = self.find_element(self.DRAFT_SUBMIT)
+        self.driver.execute_script(
+            "arguments[0].scrollIntoView({block: 'center'});", button
+        )
+        self.driver.execute_script("arguments[0].form.requestSubmit(arguments[0]);", button)
+        WebDriverWait(self.driver, self.timeout).until(
+            lambda d: d.current_url != previous_url
+            or self.has_validation_feedback()
+            or "tienes un borrador pendiente" in self.get_page_text().lower()
         )
 
     def submit_complete_with_native_click(self):
@@ -104,3 +121,6 @@ class CaseRegistrationPage(BasePage):
         return self.driver.execute_script(
             "const form = document.querySelector('form'); return form ? form.checkValidity() : true;"
         )
+
+    def get_description_value(self):
+        return self.find_element(self.DESCRIPTION_TEXTAREA).get_attribute("value")
