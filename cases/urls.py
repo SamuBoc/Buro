@@ -38,4 +38,7 @@ urlpatterns = [
     path('<int:case_id>/webrtc/<str:room_id>/estado/', views.get_call_state, name='get_call_state'),
     path('<int:case_id>/webrtc/<str:room_id>/oferta/leer/', views.get_call_offer, name='get_call_offer'),
     path('<int:case_id>/webrtc/<str:room_id>/sala/', views.join_webrtc_call, name='join_webrtc_call'),
+    path('reportes/tiempos-atencion/',          views.case_attention_time_report,   name='case_attention_time_report'),
+    path('reportes/tiempos-atencion/excel/',    views.export_attention_time_excel,  name='export_attention_time_excel'),
+    path('reportes/tiempos-atencion/pdf/',      views.export_attention_time_pdf,    name='export_attention_time_pdf'),
 ]
