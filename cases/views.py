@@ -1370,6 +1370,18 @@ def serve_call_recording(request, interaction_id):
 
     if not interaction.audio_file:
         raise Http404('No hay grabación para esta interacción.')
+
+    try:
+        file_path = interaction.audio_file.path
+        if os.path.exists(file_path):
+            mime_type, _ = mimetypes.guess_type(file_path)
+            return FileResponse(
+                open(file_path, 'rb'),
+                content_type=mime_type or 'audio/mpeg',
+            )
+    except (NotImplementedError, ValueError, AttributeError):
+        pass  # Cloudinary no soporta .path — continúa al proxy
+
     try:
         with urllib.request.urlopen(interaction.audio_file.url, timeout=30) as remote:
             content      = remote.read()
