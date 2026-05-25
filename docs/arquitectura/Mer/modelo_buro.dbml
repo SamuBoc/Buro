@@ -1,0 +1,234 @@
+Table "auth_group" {
+  "id" SERIAL [pk, increment]
+  "name" VARCHAR(150) [unique, not null]
+}
+
+Table "auth_user" {
+  "id" SERIAL [pk, increment]
+  "username" VARCHAR(150) [unique, not null]
+  "password" VARCHAR(128) [not null]
+  "email" VARCHAR(254) [not null]
+  "first_name" VARCHAR(150) [not null, default: '']
+  "last_name" VARCHAR(150) [not null, default: '']
+  "is_superuser" BOOLEAN [not null, default: false]
+  "is_staff" BOOLEAN [not null, default: false]
+  "is_active" BOOLEAN [not null, default: true]
+  "date_joined" TIMESTAMPTZ [not null, default: `NOW()`]
+  "last_login" TIMESTAMPTZ
+}
+
+Table "auth_user_groups" {
+  "id" BIGSERIAL [pk, increment]
+  "user_id" INTEGER [not null]
+  "group_id" INTEGER [not null]
+
+  Indexes {
+    (user_id, group_id) [unique]
+  }
+}
+
+Table "accounts_userprofile" {
+  "id" BIGSERIAL [pk, increment]
+  "user_id" INTEGER [unique, not null]
+  "max_cases" INTEGER [not null, default: 5]
+  "availability" BOOLEAN [not null, default: true]
+  "preferred_room" VARCHAR(20)
+  "student_code" VARCHAR(50)
+  "supervising_professor_id" INTEGER
+}
+
+Table "beneficiary_beneficiary" {
+  "id" VARCHAR(200) [pk]
+  "name" VARCHAR(200) [not null]
+  "location" VARCHAR(300) [not null]
+  "phone" VARCHAR(512) [not null]
+  "email" VARCHAR(254) [not null]
+  "date_register" DATE [not null]
+  "colombian_identification" VARCHAR(512) [not null]
+}
+
+Table "beneficiary_documentbeneficiary" {
+  "id" BIGSERIAL [pk, increment]
+  "file" VARCHAR(100) [not null]
+  "date_upload" TIMESTAMPTZ [not null, default: `NOW()`]
+  "beneficiary_id" VARCHAR(200) [not null]
+}
+
+Table "beneficiary_datadeletionrequest" {
+  "id" BIGSERIAL [pk, increment]
+  "request_date" TIMESTAMPTZ [not null, default: `NOW()`]
+  "status" VARCHAR(20) [not null, default: 'pending']
+  "reason" TEXT [not null]
+  "beneficiary_id" VARCHAR(200) [not null]
+}
+
+Table "beneficiary_beneficiaryauditlog" {
+  "id" BIGSERIAL [pk, increment]
+  "action" VARCHAR(20) [not null]
+  "description" TEXT [not null]
+  "changed_fields" JSONB
+  "beneficiary_document" VARCHAR(30) [not null, default: '']
+  "beneficiary_name" VARCHAR(200) [not null, default: '']
+  "timestamp" TIMESTAMPTZ [not null, default: `NOW()`]
+  "ip_address" INET
+  "beneficiary_id" VARCHAR(200)
+  "user_id" INTEGER
+}
+
+Table "cases_case" {
+  "id" BIGSERIAL [pk, increment]
+  "code" VARCHAR(20) [unique, not null]
+  "status" VARCHAR(20) [not null, default: 'open']
+  "sala" VARCHAR(20)
+  "description" TEXT
+  "state" VARCHAR(100) [not null]
+  "created_at" TIMESTAMPTZ [not null, default: `NOW()`]
+  "deadline_date" DATE
+  "deadline_alert_sent_at" TIMESTAMPTZ
+  "rejection_reason" TEXT
+  "assigned_student_id" INTEGER
+  "beneficiary_id" VARCHAR(200)
+  "created_by_id" INTEGER
+}
+
+Table "cases_casedocument" {
+  "id" BIGSERIAL [pk, increment]
+  "file" VARCHAR(100) [not null]
+  "uploaded_at" TIMESTAMPTZ [not null, default: `NOW()`]
+  "case_id" BIGINT [not null]
+}
+
+Table "cases_communicationinteraction" {
+  "id" BIGSERIAL [pk, increment]
+  "interaction_type" VARCHAR(20) [not null]
+  "direction" VARCHAR(10) [not null]
+  "description" TEXT [not null]
+  "timestamp" TIMESTAMPTZ [not null, default: `NOW()`]
+  "audio_file" VARCHAR(200)
+  "case_id" BIGINT [not null]
+  "registered_by_id" INTEGER
+}
+
+Table "cases_callsession" {
+  "id" BIGSERIAL [pk, increment]
+  "room_id" VARCHAR(64) [unique, not null]
+  "offer_sdp" TEXT
+  "answer_sdp" TEXT
+  "status" VARCHAR(20) [not null, default: 'waiting']
+  "created_at" TIMESTAMPTZ [not null, default: `NOW()`]
+  "case_id" BIGINT [not null]
+  "created_by_id" INTEGER
+}
+
+Table "cases_caseauditlog" {
+  "id" BIGSERIAL [pk, increment]
+  "action" VARCHAR(20) [not null]
+  "description" TEXT [not null]
+  "previous_status" VARCHAR(50)
+  "new_status" VARCHAR(50)
+  "case_radicado" VARCHAR(50) [not null, default: '']
+  "timestamp" TIMESTAMPTZ [not null, default: `NOW()`]
+  "ip_address" INET
+  "case_id" BIGINT
+  "user_id" INTEGER
+}
+
+Table "cases_casereassignmentlog" {
+  "id" BIGSERIAL [pk, increment]
+  "created_at" TIMESTAMPTZ [not null, default: `NOW()`]
+  "case_id" BIGINT [not null]
+  "changed_by_id" INTEGER [not null]
+  "old_student_id" INTEGER
+  "new_student_id" INTEGER
+}
+
+Table "cases_caseevaluation" {
+  "id" BIGSERIAL [pk, increment]
+  "score" SMALLINT
+  "feedback" TEXT [not null]
+  "created_at" TIMESTAMPTZ [not null, default: `NOW()`]
+  "case_id" BIGINT [not null]
+  "professor_id" INTEGER
+  "student_id" INTEGER [not null]
+}
+
+Table "cases_notification" {
+  "id" BIGSERIAL [pk, increment]
+  "notification_type" VARCHAR(20) [not null]
+  "title" VARCHAR(200) [not null]
+  "message" TEXT [not null]
+  "previous_status" VARCHAR(50)
+  "new_status" VARCHAR(50)
+  "is_read" BOOLEAN [not null, default: false]
+  "created_at" TIMESTAMPTZ [not null, default: `NOW()`]
+  "read_at" TIMESTAMPTZ
+  "case_id" BIGINT [not null]
+  "recipient_user_id" INTEGER [not null]
+}
+
+Table "cite_cite" {
+  "id" SERIAL [pk, increment]
+  "date_assigned" DATE [not null]
+  "modality_cite" VARCHAR(20) [not null]
+  "state_cite" VARCHAR(20) [not null, default: 'scheduled']
+  "request_cite" VARCHAR(20) [not null]
+  "description" VARCHAR(2000) [not null]
+  "reminder_sent" BOOLEAN [not null, default: false]
+  "beneficiary_id" VARCHAR(200) [not null]
+}
+
+Ref:"auth_user"."id" < "auth_user_groups"."user_id" [delete: cascade]
+
+Ref:"auth_group"."id" < "auth_user_groups"."group_id" [delete: cascade]
+
+Ref:"auth_user"."id" < "accounts_userprofile"."user_id" [delete: cascade]
+
+Ref:"auth_user"."id" < "accounts_userprofile"."supervising_professor_id" [delete: set null]
+
+Ref:"beneficiary_beneficiary"."id" < "beneficiary_documentbeneficiary"."beneficiary_id" [delete: cascade]
+
+Ref:"beneficiary_beneficiary"."id" < "beneficiary_datadeletionrequest"."beneficiary_id" [delete: cascade]
+
+Ref:"beneficiary_beneficiary"."id" < "beneficiary_beneficiaryauditlog"."beneficiary_id" [delete: set null]
+
+Ref:"auth_user"."id" < "beneficiary_beneficiaryauditlog"."user_id" [delete: set null]
+
+Ref:"auth_user"."id" < "cases_case"."assigned_student_id" [delete: set null]
+
+Ref:"beneficiary_beneficiary"."id" < "cases_case"."beneficiary_id" [delete: set null]
+
+Ref:"auth_user"."id" < "cases_case"."created_by_id" [delete: set null]
+
+Ref:"cases_case"."id" < "cases_casedocument"."case_id" [delete: cascade]
+
+Ref:"cases_case"."id" < "cases_communicationinteraction"."case_id" [delete: cascade]
+
+Ref:"auth_user"."id" < "cases_communicationinteraction"."registered_by_id" [delete: set null]
+
+Ref:"cases_case"."id" < "cases_callsession"."case_id" [delete: cascade]
+
+Ref:"auth_user"."id" < "cases_callsession"."created_by_id" [delete: set null]
+
+Ref:"cases_case"."id" < "cases_caseauditlog"."case_id" [delete: set null]
+
+Ref:"auth_user"."id" < "cases_caseauditlog"."user_id" [delete: set null]
+
+Ref:"cases_case"."id" < "cases_casereassignmentlog"."case_id" [delete: cascade]
+
+Ref:"auth_user"."id" < "cases_casereassignmentlog"."changed_by_id" [delete: cascade]
+
+Ref:"auth_user"."id" < "cases_casereassignmentlog"."old_student_id" [delete: set null]
+
+Ref:"auth_user"."id" < "cases_casereassignmentlog"."new_student_id" [delete: set null]
+
+Ref:"cases_case"."id" < "cases_caseevaluation"."case_id" [delete: cascade]
+
+Ref:"auth_user"."id" < "cases_caseevaluation"."professor_id" [delete: set null]
+
+Ref:"auth_user"."id" < "cases_caseevaluation"."student_id" [delete: cascade]
+
+Ref:"cases_case"."id" < "cases_notification"."case_id" [delete: cascade]
+
+Ref:"auth_user"."id" < "cases_notification"."recipient_user_id" [delete: cascade]
+
+Ref:"beneficiary_beneficiary"."id" < "cite_cite"."beneficiary_id" [delete: cascade]
