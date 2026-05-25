@@ -44,11 +44,11 @@
                     <tr>
                         <td class="ps-4 text-muted">{{ b.id }}</td>
                         <td class="fw-semibold" id="name-beneficiary-{{forloop.counter}}">{{ b.name }}</td>
-                        <td><i class="bi bi-person-vcard me-1"></i>{{ b.colombian_identification }}</td>
-                        <td><i class="bi bi-geo-alt text-muted me-1"></i>{{ b.location }}</td>
-                        <td><i class="bi bi-telephone text-muted me-1"></i>{{ b.phone }}</td>
-                        <td><i class="bi bi-envelope text-muted me-1"></i>{{ b.email }}</td>
-                        <td>{{ b.date_register|date:"d/m/Y" }}</td>
+                        <td><i class="bi bi-person-vcard me-1" id="colombian-id-{{forloop.counter}}"></i>{{ b.colombian_identification }}</td>
+                        <td><i class="bi bi-geo-alt text-muted me-1" id="location-{{forloop.counter}}"></i>{{ b.location }}</td>
+                        <td><i class="bi bi-telephone text-muted me-1" id="phone-{{forloop.counter}}"></i>{{ b.phone }}</td>
+                        <td><i class="bi bi-envelope text-muted me-1" id="mail-{{forloop.counter}}"></i>{{ b.email }}</td>
+                        <td id="date-{{forloop.counter}}">{{ b.date_register|date:"d/m/Y" }}</td>
                         <td class="text-center">
                             <a href="{% url 'beneficiary_detail' b.pk %}" class="btn btn-sm btn-secondary" id="actions-user">
                                 <i class="bi bi-eye"></i> Ver

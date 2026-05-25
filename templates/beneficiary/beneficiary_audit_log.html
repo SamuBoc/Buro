@@ -60,27 +60,27 @@
                 </td>
                 <td>
                   {% if log.action == 'CREATED' %}
-                    <span class="badge badge-icesi-created">
+                    <span class="badge badge-icesi-created" id="description-action-{{log.action}}-{{forloop.counter}}">
                       <i class="bi bi-person-plus me-1"></i>{{ log.get_action_display }}
                     </span>
                   {% elif log.action == 'UPDATED' %}
-                    <span class="badge badge-icesi-updated">
+                    <span class="badge badge-icesi-updated" id="description-action-{{log.action}}-{{forloop.counter}}">
                       <i class="bi bi-pencil me-1"></i>{{ log.get_action_display }}
                     </span>
                   {% elif log.action == 'VIEWED' %}
-                    <span class="badge badge-icesi-viewed">
+                    <span class="badge badge-icesi-viewed" id="description-action-{{log.action}}-{{forloop.counter}}">
                       <i class="bi bi-eye me-1"></i>{{ log.get_action_display }}
                     </span>
                   {% elif log.action == 'DELETED' or log.action == 'DEACTIVATED' %}
-                    <span class="badge badge-icesi-deleted">
+                    <span class="badge badge-icesi-deleted" id="description-action-{{log.action}}-{{forloop.counter}}>
                       <i class="bi bi-trash me-1"></i>{{ log.get_action_display }}
                     </span>
                   {% elif log.action == 'DOC_UPLOADED' %}
-                    <span class="badge badge-icesi-file">
+                    <span class="badge badge-icesi-file" id="description-action-{{log.action}}-{{forloop.counter}}>
                       <i class="bi bi-file-earmark-arrow-up me-1"></i>{{ log.get_action_display }}
                     </span>
                   {% elif log.action == 'DOC_DELETED' %}
-                    <span class="badge badge-icesi-deleted">
+                    <span class="badge badge-icesi-deleted" id="description-action-{{log.action}}-{{forloop.counter}}>
                       <i class="bi bi-file-earmark-x me-1"></i>{{ log.get_action_display }}
                     </span>
                   {% else %}
