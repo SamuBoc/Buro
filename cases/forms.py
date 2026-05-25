@@ -57,6 +57,9 @@ class CaseForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['beneficiary'].empty_label = 'Seleccione un beneficiario'
         self.fields['beneficiary'].queryset = self.fields['beneficiary'].queryset.order_by('name')
+        self.fields['sala'].required = True
+        self.fields['description'].required = True
+        self.fields['beneficiary'].required = True
         self.fields['assigned_student'].required = False
         self.fields['assigned_student'].empty_label = 'Seleccione un estudiante'
         self.fields['assigned_student'].queryset = User.objects.filter(

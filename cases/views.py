@@ -70,6 +70,27 @@ def _render_case_form(request, form, draft_case=None, is_editing_draft=False):
     })
 
 
+def _enforce_complete_case_requirements(form):
+    required_fields = {
+        'sala': 'Este campo es obligatorio.',
+        'description': 'Este campo es obligatorio.',
+        'beneficiary': 'Este campo es obligatorio.',
+    }
+    has_errors = False
+    for field_name, message in required_fields.items():
+        value = form.cleaned_data.get(field_name)
+        if value in (None, ''):
+            form.add_error(field_name, message)
+            has_errors = True
+
+    documents = form.cleaned_data.get('documents') or []
+    if not documents:
+        form.add_error('documents', 'Debe cargar al menos un documento para el caso.')
+        has_errors = True
+
+    return not has_errors
+
+
 def _build_deadline_priority(case, today):
     if not case.deadline_date:
         return {

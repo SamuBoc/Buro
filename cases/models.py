@@ -68,6 +68,8 @@ class Case(models.Model):
         Beneficiary,
         on_delete=models.CASCADE,
         related_name='cases',
+        null=True,
+        blank=True,
         verbose_name='Beneficiario'
     )
     created_by = models.ForeignKey(
