@@ -10,6 +10,7 @@ from selenium.webdriver.edge.service import Service as EdgeService
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.firefox.service import Service as FirefoxService
 
+# selenium_tests/ para encontrar la carpeta 'pages'
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 WINDOWS_BROWSER_PATHS = {

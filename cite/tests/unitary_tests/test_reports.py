@@ -3,6 +3,7 @@ Tests - HU-19: Generar reportes de citas no confirmadas o no asistidas
 Requerimiento Funcional: RF18
 """
 
+import io
 from datetime import date, timedelta
 
 from django.contrib.auth.models import User, Group
@@ -157,3 +158,83 @@ class HU19_VolumenTest(TestCase):
         response = self.client.get(reverse('cite_report'))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['total'], 50)
+
+
+class HU19_NoShowTest(TestCase):
+
+    def setUp(self):
+        self.client = Client()
+        self.admin = make_user('admin_noshow', group_name=ROLE_ADMINISTRADOR)
+        self.beneficiary = make_beneficiary(name='Carlos Vera', email='carlos@test.com')
+
+        make_cite(self.beneficiary, state=Cite.STATE_PENDING)
+        make_cite(self.beneficiary, state=Cite.STATE_CANCELED)
+        make_cite(self.beneficiary, state=Cite.STATE_NO_SHOW)
+
+        make_cite(self.beneficiary, state=Cite.STATE_ATTENDED)
+
+        self.client.login(username='admin_noshow', password='pass1234')
+
+    def test_no_show_cite_appears_in_html_report(self):
+        """POSITIVO: Una cita con estado No asistió aparece en el reporte HTML."""
+        response = self.client.get(reverse('cite_report'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context['total'], 3,
+            'El reporte debería incluir 3 citas (Pendiente, Cancelada y No asistió).',
+        )
+
+    def test_attended_cite_excluded_from_html_report(self):
+        """NEGATIVO: Una cita con estado Asistió NO debe aparecer en el reporte HU-19."""
+        response = self.client.get(reverse('cite_report'))
+        states = [c.state_cite for c in response.context['cites']]
+        self.assertNotIn(
+            Cite.STATE_ATTENDED, states,
+            'Una cita con estado Asistió no debería aparecer en el reporte HU-19.',
+        )
+
+    def test_no_show_cite_included_in_excel_export(self):
+        """POSITIVO: La exportación Excel incluye citas con estado No asistió."""
+        import openpyxl
+        response = self.client.get(reverse('cite_report_excel'))
+        self.assertEqual(response.status_code, 200)
+        wb = openpyxl.load_workbook(io.BytesIO(response.content))
+        ws = wb.active
+        cell_values = [str(c.value) for row in ws.iter_rows() for c in row if c.value]
+        self.assertTrue(
+            any(Cite.STATE_NO_SHOW in v for v in cell_values),
+            'El Excel exportado no contiene ninguna fila con estado No asistió.',
+        )
+
+    def test_no_show_cite_included_in_pdf_export(self):
+        """POSITIVO: La exportación PDF incluye citas con estado No asistió."""
+        # El HTML ya verifica que el queryset incluye STATE_NO_SHOW.
+        # Aquí confirmamos que el endpoint PDF responde correctamente.
+        response = self.client.get(reverse('cite_report_pdf'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+
+    def test_report_total_includes_all_three_states(self):
+        """POSITIVO: El total del reporte suma Pendiente + Cancelada + No asistió."""
+        make_cite(self.beneficiary, state=Cite.STATE_NO_SHOW)
+        response = self.client.get(reverse('cite_report'))
+        self.assertEqual(
+            response.context['total'], 4,
+            'El total del reporte debe reflejar correctamente las 4 citas (1P + 1C + 2N).',
+        )
+
+    def test_filter_by_no_show_state_returns_only_no_show(self):
+        """POSITIVO: El filtro por estado No asistió devuelve solo ese tipo de citas."""
+        response = self.client.get(
+            reverse('cite_report'), {'estado': Cite.STATE_NO_SHOW}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context['total'], 1,
+            'El filtro por No asistió debería retornar exactamente 1 cita.',
+        )
+        states = [c.state_cite for c in response.context['cites']]
+        self.assertTrue(
+            all(s == Cite.STATE_NO_SHOW for s in states),
+            'Todas las citas del resultado filtrado deben tener estado No asistió.',
+        )

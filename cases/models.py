@@ -1,5 +1,7 @@
 import os
+import uuid
 
+from cloudinary_storage.storage import RawMediaCloudinaryStorage
 from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -65,8 +67,6 @@ class Case(models.Model):
     beneficiary = models.ForeignKey(
         Beneficiary,
         on_delete=models.CASCADE,
-        null=True,
-        blank=True,
         related_name='cases',
         verbose_name='Beneficiario'
     )
@@ -149,6 +149,11 @@ def case_document_upload_path(instance, filename):
     return f'case_documents/{instance.case.code}/{timezone.now().strftime("%Y%m%d%H%M%S%f")}{extension}'
 
 
+def call_recording_upload_path(instance, filename):
+    extension = os.path.splitext(filename)[1]
+    return f'call_recordings/{instance.case.code}/{timezone.now().strftime("%Y%m%d%H%M%S%f")}{extension}'
+
+
 class CaseDocument(models.Model):
     case = models.ForeignKey(
         Case,
@@ -217,7 +222,7 @@ class Notification(models.Model):
         ]
 
     def __str__(self):
-        estado = 'Leida' if self.is_read else 'No leida'
+        estado = 'Leída' if self.is_read else 'No leída'
         return f'[{estado}] {self.title} -> {self.recipient_user.get_full_name()}'
 
     def mark_as_read(self):
@@ -373,6 +378,13 @@ class CommunicationInteraction(models.Model):
         default=timezone.now,
         verbose_name='Fecha y hora',
     )
+    audio_file = models.FileField(
+        upload_to=call_recording_upload_path,
+        storage=RawMediaCloudinaryStorage(),
+        null=True,
+        blank=True,
+        verbose_name='Grabacion de llamada',
+    )
 
     class Meta:
         ordering = ['-timestamp']
@@ -434,3 +446,29 @@ class CaseEvaluation(models.Model):
     def __str__(self):
         professor_name = self.professor.get_full_name() if self.professor else 'Sin profesor'
         return f'{self.case.code} - {self.student.get_full_name() or self.student.username} ({professor_name})'
+
+
+class CallSession(models.Model):
+    STATUS_WAITING = 'waiting'
+    STATUS_ACTIVE  = 'active'
+    STATUS_ENDED   = 'ended'
+    STATUS_CHOICES = [
+        (STATUS_WAITING, 'Esperando'),
+        (STATUS_ACTIVE,  'Activa'),
+        (STATUS_ENDED,   'Finalizada'),
+    ]
+
+    case       = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='call_sessions')
+    room_id    = models.CharField(max_length=64, unique=True, default=uuid.uuid4)
+    offer_sdp  = models.TextField(null=True, blank=True)
+    answer_sdp = models.TextField(null=True, blank=True)
+    status     = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_WAITING)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='initiated_calls')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Sesion de llamada'
+        verbose_name_plural = 'Sesiones de llamada'
+
+    def __str__(self):
+        return f'Llamada {self.room_id[:8]} — {self.case.code}'

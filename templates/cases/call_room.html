@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Llamada — Caso {{ case.code }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background: #f8f9fa; }
+        .call-card { max-width: 480px; margin: 80px auto; }
+    </style>
+</head>
+<body>
+<div class="call-card card shadow-sm">
+    <div class="card-body p-4 text-center">
+        <h5 class="mb-1"><i class="bi bi-telephone-fill text-success me-2"></i>Unirse a llamada</h5>
+        <p class="text-muted small mb-4">Caso {{ case.code }}</p>
+
+        <div id="state-waiting">
+            <p class="mb-3">Hacé clic en <strong>Unirse</strong> para conectarte a la llamada.</p>
+            <button id="btn-join" class="btn btn-success btn-lg w-100">
+                <i class="bi bi-telephone-fill me-2"></i>Unirse a la llamada
+            </button>
+        </div>
+
+        <div id="state-connecting" class="d-none">
+            <div class="spinner-border text-success mb-3" role="status"></div>
+            <p class="text-muted">Conectando…</p>
+        </div>
+
+        <div id="state-active" class="d-none">
+            <div class="mb-3">
+                <span class="badge bg-success fs-6"><i class="bi bi-telephone-fill me-1"></i>En llamada</span>
+            </div>
+            <button id="btn-leave" class="btn btn-danger w-100">
+                <i class="bi bi-telephone-x-fill me-2"></i>Colgar
+            </button>
+        </div>
+
+        <div id="state-ended" class="d-none">
+            <div class="alert alert-secondary mb-0">
+                <i class="bi bi-check-circle me-1"></i>Llamada finalizada. Podés cerrar esta ventana.
+            </div>
+        </div>
+
+        <div id="state-error" class="d-none">
+            <div class="alert alert-danger mb-0">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                <span id="error-msg">Error al conectar.</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% csrf_token %}
+
+<script>
+(function () {
+    const iceUrl    = "{{ ice_url }}";
+    const offerUrl  = "{{ offer_url }}";
+    const answerUrl = "{{ answer_url }}";
+    let pc = null;
+
+    function getCsrfToken() {
+        const input = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (input) return input.value;
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        return match ? match[1] : '';
+    }
+
+    function show(id) {
+        ['state-waiting','state-connecting','state-active','state-ended','state-error']
+            .forEach(s => document.getElementById(s).classList.add('d-none'));
+        document.getElementById(id).classList.remove('d-none');
+    }
+
+    function waitForIceGathering(connection) {
+        return new Promise(resolve => {
+            if (connection.iceGatheringState === 'complete') { resolve(); return; }
+            const check = () => {
+                if (connection.iceGatheringState === 'complete') {
+                    connection.removeEventListener('icegatheringstatechange', check);
+                    resolve();
+                }
+            };
+            connection.addEventListener('icegatheringstatechange', check);
+            setTimeout(resolve, 10000);
+        });
+    }
+
+    async function pollForOffer() {
+        for (let i = 0; i < 60; i++) {
+            const res = await fetch(offerUrl);
+            const data = await res.json();
+            if (data.offer) return data.offer;
+            await new Promise(r => setTimeout(r, 1500));
+        }
+        throw new Error('No se recibió oferta del otro participante (timeout).');
+    }
+
+    document.getElementById('btn-join').addEventListener('click', async () => {
+        show('state-connecting');
+        try {
+            const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+            const iceRes = await fetch(iceUrl);
+            if (!iceRes.ok) throw new Error('No se pudo obtener servidores ICE');
+            const { iceServers } = await iceRes.json();
+
+            pc = new RTCPeerConnection({ iceServers });
+            localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+            pc.ontrack = (event) => {
+                const remoteStream = event.streams[0] || new MediaStream([event.track]);
+                const remoteAudio = new Audio();
+                remoteAudio.srcObject = remoteStream;
+                remoteAudio.play().catch(() => {});
+                show('state-active');
+            };
+
+            const offer = await pollForOffer();
+            await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            await waitForIceGathering(pc);
+
+            await fetch(answerUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify({ sdp: pc.localDescription }),
+            });
+
+            show('state-active');
+
+        } catch (err) {
+            document.getElementById('error-msg').textContent = err.message || 'Error al conectar.';
+            show('state-error');
+        }
+    });
+
+    document.getElementById('btn-leave').addEventListener('click', () => {
+        if (pc) { try { pc.close(); } catch(_) {} }
+        show('state-ended');
+    });
+})();
+</script>
+</body>
+</html>

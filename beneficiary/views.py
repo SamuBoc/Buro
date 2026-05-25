@@ -1,8 +1,10 @@
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
-from accounts.constants import ROLE_ADMINISTRADOR, ROLE_SECRETARIA
+from accounts.constants import ROLE_ADMINISTRADOR, ROLE_PROFESOR, ROLE_SECRETARIA
 from accounts.decorators import role_required
 
 from .forms import (
@@ -17,8 +19,8 @@ from .models import (
     DataDeletionRequest,
     DocumentBeneficiary,
 )
+from .signals import log_beneficiary_view
 
-# Module that send mail notifications to beneficiaries
 from mail import views
 
 
@@ -34,6 +36,25 @@ def notify_beneficiary(request, pk):
 
 
 @login_required
+logger = logging.getLogger(__name__)
+
+
+def _safe_notify(pk, subject, message):
+    """
+    HU-1 / HU-5 FIX: Wrapper que llama a notify_beneficiary con manejo de
+    excepciones para que un fallo SMTP nunca revierta la operacion principal.
+    """
+    try:
+        views.notify_beneficiary(pk, subject, message)
+    except Exception as exc:
+        logger.error(
+            "Fallo el envio de notificacion al beneficiario pk=%s: %s",
+            pk,
+            exc,
+        )
+
+
+@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR, ROLE_PROFESOR)
 def beneficiary_list(request):
     beneficiaries = Beneficiary.objects.all()
     return render(request, 'beneficiary/beneficiary_list.html', {
@@ -56,8 +77,11 @@ def beneficiary_register(request):
             documento.beneficiary = beneficiary
             documento.save()
 
-            views.notify_beneficiary(beneficiary.id, "Registro Exitoso - Buro Juridico ICESI",
-                               beneficiary.name + " usted a sido registrado exitosamente en la plataforma del Buro Juridíco de Icesi")
+            _safe_notify(
+                beneficiary.id,
+                "Registro Exitoso - Buro Juridico ICESI",
+                beneficiary.name + " usted a sido registrado exitosamente en la plataforma del Buro Juridíco de Icesi",
+            )
 
             return redirect('beneficiary_list')
 
@@ -82,7 +106,9 @@ def beneficiary_update(request, pk):
         doc_form = DocumentBeneficiaryForm(request.POST, request.FILES, instance=saved_document)
 
         if form.is_valid():
-            form.save()
+            beneficiary          = form.save(commit=False)
+            beneficiary._request = request
+            beneficiary.save()
 
             if request.FILES.get('file'):
                 documento             = doc_form.save(commit=False)
@@ -91,8 +117,11 @@ def beneficiary_update(request, pk):
 
             messages.success(request, 'Beneficiario actualizado exitosamente.')
 
-            notify_beneficiary(beneficiary.id, "Actualización de Datos - Buro Juridico ICESI", 
-                               beneficiary.name + " se han actualizado sus datos en la plataforma de Buro")
+            _safe_notify(
+                beneficiary.id,
+                "Actualización de Datos - Buro Juridico ICESI",
+                beneficiary.name + " se han actualizado sus datos en la plataforma de Buro",
+            )
 
             return redirect('beneficiary_list')
 
@@ -112,6 +141,9 @@ def beneficiary_update(request, pk):
 def beneficiary_detail(request, pk):
     beneficiary = get_object_or_404(Beneficiary, pk=pk)
     documento   = DocumentBeneficiary.objects.filter(beneficiary=beneficiary).first()
+    ip = request.META.get('REMOTE_ADDR')
+    log_beneficiary_view(beneficiary, request.user, ip=ip)
+
     return render(request, 'beneficiary/beneficiary_detail.html', {
         'beneficiary': beneficiary,
         'documento':   documento,
@@ -123,7 +155,7 @@ def beneficiary_audit_log(request, beneficiary_id):
     user = request.user
     has_access = (
         user.is_staff
-        or user.groups.filter(name__in=[ROLE_SECRETARIA, ROLE_ADMINISTRADOR]).exists()
+        or user.groups.filter(name=ROLE_ADMINISTRADOR).exists()
     )
     if not has_access:
         messages.error(request, 'No tienes permiso para ver esta bitacora.')
@@ -185,9 +217,12 @@ def data_deletion_request_create(request, pk):
                 'La solicitud de eliminacion de datos fue registrada correctamente.'
             )
 
-            notify_beneficiary(beneficiary.id, "Solicitud de Eliminación de la plataforma - Buro Juridico Universidad Icesi",
-                               beneficiary.name + " usted a realizado una solicitud de eliminación de sus datos personales de la "
-                               "plataforma Buro Juridico de Icesi. Su solicitud sera revisada y se le informara de su estado")
+            _safe_notify(
+                beneficiary.id,
+                "Solicitud de Eliminación de la plataforma - Buro Juridico Universidad Icesi",
+                beneficiary.name + " usted a realizado una solicitud de eliminación de sus datos personales de la "
+                "plataforma Buro Juridico de Icesi. Su solicitud sera revisada y se le informara de su estado",
+            )
             return redirect('beneficiary_detail', pk=beneficiary.pk)
 
         messages.error(request, 'Por favor confirma la solicitud antes de continuar.')
@@ -200,7 +235,7 @@ def data_deletion_request_create(request, pk):
     })
 
 
-@role_required(ROLE_SECRETARIA, ROLE_ADMINISTRADOR)
+@role_required(ROLE_ADMINISTRADOR)
 def data_deletion_request_list(request):
     status_filter  = (request.GET.get('status') or '').strip()
     valid_statuses = {value for value, _ in DataDeletionRequest.STATUS_CHOICES}
@@ -217,4 +252,4 @@ def data_deletion_request_list(request):
         'requests':       requests,
         'status_choices': DataDeletionRequest.STATUS_CHOICES,
         'current_status': status_filter,
-    })  
+    })

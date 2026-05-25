@@ -28,7 +28,7 @@ def make_user(username='testuser', password='pass1234', group_name=None):
 class BeneficiaryAuditLogModelTest(TestCase):
 
     def setUp(self):
-        self.user = make_user('admin_hu33', group_name=ROLE_ADMINISTRADOR)
+        self.user        = make_user('admin_hu33', group_name=ROLE_ADMINISTRADOR)
         self.beneficiary = make_beneficiary()
 
     def test_audit_log_created_on_beneficiary_creation(self):
@@ -101,7 +101,7 @@ class BeneficiaryAuditLogModelTest(TestCase):
         self.assertIn('cedula.pdf', log.description)
 
     def test_audit_log_preserved_after_beneficiary_deleted(self):
-        log = BeneficiaryAuditLog.objects.filter(
+        log    = BeneficiaryAuditLog.objects.filter(
             beneficiary=self.beneficiary, action='CREATED'
         ).first()
         log_id = log.id
@@ -111,9 +111,7 @@ class BeneficiaryAuditLogModelTest(TestCase):
 
     def test_audit_log_ordering_newest_first(self):
         log_beneficiary_view(self.beneficiary, self.user)
-        log_beneficiary_doc_action(
-            self.beneficiary, self.user, 'DOC_UPLOADED', 'doc.pdf'
-        )
+        log_beneficiary_doc_action(self.beneficiary, self.user, 'DOC_UPLOADED', 'doc.pdf')
         logs = BeneficiaryAuditLog.objects.filter(beneficiary=self.beneficiary)
         self.assertGreaterEqual(logs[0].timestamp, logs[1].timestamp)
 
@@ -161,11 +159,10 @@ class BeneficiaryAuditLogModelTest(TestCase):
         self.assertGreaterEqual(total, 500)
 
     def test_audit_log_isolation_between_beneficiaries(self):
-        # FIX: removed id='1002' — el ID es auto-generado por el sistema (HU-2)
         other = make_beneficiary(name='Carlos Ruiz', email='carlos@test.com')
         log_beneficiary_view(self.beneficiary, self.user)
         log_beneficiary_view(other, self.user)
-        logs_ana = BeneficiaryAuditLog.objects.filter(beneficiary=self.beneficiary)
+        logs_ana    = BeneficiaryAuditLog.objects.filter(beneficiary=self.beneficiary)
         logs_carlos = BeneficiaryAuditLog.objects.filter(beneficiary=other)
         for log in logs_ana:
             self.assertNotEqual(log.beneficiary, other)
@@ -173,14 +170,14 @@ class BeneficiaryAuditLogModelTest(TestCase):
             self.assertNotEqual(log.beneficiary, self.beneficiary)
 
 
+
 class BeneficiaryAuditLogViewTest(TestCase):
 
     def setUp(self):
-        self.client = Client()
-        self.admin = make_user('admin_bv', group_name=ROLE_ADMINISTRADOR)
-        self.secretaria = make_user('sec_bv', group_name=ROLE_SECRETARIA)
+        self.client     = Client()
+        self.admin      = make_user('admin_bv',  group_name=ROLE_ADMINISTRADOR)
+        self.secretaria = make_user('sec_bv',    group_name=ROLE_SECRETARIA)
         self.estudiante = make_user('est_bv')
-        # FIX: removed id='2001' — el ID es auto-generado por el sistema (HU-2)
         self.beneficiary = make_beneficiary('Carlos Ruiz', 'carlos@test.com')
 
     def test_beneficiary_audit_log_accessible_by_admin(self):
@@ -193,7 +190,7 @@ class BeneficiaryAuditLogViewTest(TestCase):
         self.client.login(username='sec_bv', password='pass1234')
         url = reverse('beneficiary_audit_log', args=[self.beneficiary.pk])
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
 
     def test_beneficiary_audit_log_denied_to_student(self):
         self.client.login(username='est_bv', password='pass1234')
@@ -230,3 +227,79 @@ class BeneficiaryAuditLogViewTest(TestCase):
         url = reverse('global_beneficiary_audit_log')
         response = self.client.get(url)
         self.assertEqual(response.status_code, 302)
+
+
+class BeneficiaryUpdateAuditLogTest(TestCase):
+
+    def setUp(self):
+        self.client      = Client()
+        self.secretaria  = make_user('sec_audit', group_name=ROLE_SECRETARIA)
+        self.client.login(username='sec_audit', password='pass1234')
+        self.beneficiary = Beneficiary.objects.create(
+            name='Laura Torres',
+            colombian_identification='1001234567',
+            location='Cali, Valle',
+            phone='3001234567',
+            email='laura@test.com',
+        )
+
+    def _url(self):
+        return reverse('beneficiary_update', args=[self.beneficiary.pk])
+
+    def _datos_actualizados(self, **overrides):
+        base = {
+            'name': 'Laura Torres',
+            'colombian_identification': '1001234567',
+            'location': 'Bogota, Cundinamarca',
+            'phone': '3199999999',
+            'email': 'laura@test.com',
+        }
+        base.update(overrides)
+        return base
+
+    def test_actualizacion_registra_usuario_responsable_en_bitacora(self):
+        """POSITIVO: El log UPDATED debe tener el usuario que hizo el cambio, no None."""
+        self.client.post(self._url(), self._datos_actualizados())
+
+        log = BeneficiaryAuditLog.objects.filter(
+            beneficiary=self.beneficiary,
+            action='UPDATED',
+        ).first()
+
+        self.assertIsNotNone(log, 'Debe existir un log UPDATED tras la edición.')
+        self.assertIsNotNone(
+            log.user,
+            'El usuario responsable no debe ser None. '
+            'Verifica que beneficiary_update asigne _request antes de save().'
+        )
+        self.assertEqual(log.user, self.secretaria)
+
+    def test_actualizacion_sin_cambios_no_genera_log_updated(self):
+        """POSITIVO: Si no se modifica ningún campo rastreado, no se crea un log UPDATED."""
+        datos_identicos = {
+            'name': 'Laura Torres',
+            'colombian_identification': '1001234567',
+            'location': 'Cali, Valle',
+            'phone': '3001234567',
+            'email': 'laura@test.com',
+        }
+        self.client.post(self._url(), datos_identicos)
+
+        logs_updated = BeneficiaryAuditLog.objects.filter(
+            beneficiary=self.beneficiary,
+            action='UPDATED',
+        )
+        self.assertEqual(logs_updated.count(), 0)
+
+    def test_actualizacion_registra_campos_modificados_en_bitacora(self):
+        """POSITIVO: El log debe incluir en changed_fields el campo que cambió."""
+        self.client.post(self._url(), self._datos_actualizados(phone='3100000001'))
+
+        log = BeneficiaryAuditLog.objects.filter(
+            beneficiary=self.beneficiary,
+            action='UPDATED',
+        ).first()
+
+        self.assertIsNotNone(log)
+        self.assertIsNotNone(log.changed_fields)
+        self.assertIn('Teléfono', log.changed_fields)

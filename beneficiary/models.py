@@ -1,5 +1,5 @@
 import os
-from django.db import models
+from django.db import models, transaction
 from django.contrib.auth.models import User
 from django.utils import timezone
 
@@ -29,13 +29,13 @@ class Beneficiary(models.Model):
         editable=False,
     )
     colombian_identification = EncryptedCharField(
-        max_length=512, 
-        verbose_name="Cédula de Ciudadanía", 
+        max_length=512,
+        verbose_name="Cédula de Ciudadanía",
         default=''
     )
     location = models.CharField(max_length=300, verbose_name="Ubicación")
     phone = EncryptedCharField(
-        max_length=512, 
+        max_length=512,
         verbose_name="Teléfono"
     )
     email = models.EmailField(verbose_name="Correo electrónico")
@@ -56,15 +56,24 @@ class Beneficiary(models.Model):
 
     @classmethod
     def _generate_id(cls):
-        year = timezone.now().year
+        year   = timezone.now().year
         prefix = f'BEN-{year}-'
-        last = cls.objects.filter(id__startswith=prefix).order_by('-id').first()
-        if last:
-            last_sequence = int(last.id.split('-')[-1])
-            next_sequence = last_sequence + 1
-        else:
-            next_sequence = 1
-        return f'{prefix}{next_sequence:04d}'
+
+        with transaction.atomic():
+            last = (
+                cls.objects
+                .select_for_update()
+                .filter(id__startswith=prefix)
+                .order_by('-id')
+                .first()
+            )
+            if last:
+                last_sequence = int(last.id.split('-')[-1])
+                next_sequence = last_sequence + 1
+            else:
+                next_sequence = 1
+
+            return f'{prefix}{next_sequence:04d}'
 
 
 def beneficiary_document_path(instance, file_name):
@@ -98,12 +107,12 @@ class DocumentBeneficiary(models.Model):
 
 
 class DataDeletionRequest(models.Model):
-    STATUS_PENDING = 'pendiente'
+    STATUS_PENDING  = 'pendiente'
     STATUS_APPROVED = 'aprobado'
     STATUS_REJECTED = 'rechazado'
 
     STATUS_CHOICES = [
-        (STATUS_PENDING, 'Pendiente'),
+        (STATUS_PENDING,  'Pendiente'),
         (STATUS_APPROVED, 'Aprobado'),
         (STATUS_REJECTED, 'Rechazado'),
     ]

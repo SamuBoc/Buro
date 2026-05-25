@@ -40,6 +40,14 @@ class ScheduleCite(BasePage) :
         self.select_modality()
         self.enter_text(self.DATE_FIELD, date)
         self.enter_text(self.DESCRIPTION_DATE, hour)
+    def define_date_cite(self):
+        field = self.find_element(self.DATE_FIELD)
+        field.send_keys("01012040")  
+        field.send_keys(Keys.TAB)    
+        field.send_keys("0100")      
+        field.send_keys(Keys.TAB)    
+        field.send_keys("p")         
+        self.enter_text(self.DESCRIPTION_DATE, "Prueba selenium")
 
     def send_form(self):
         self.click(self.SUBMIT_BUTTON)

@@ -4,7 +4,6 @@ Clase: DocumentBeneficiary
 Cubre: modelo, carga al registrar, actualización al editar, persistencia y detalle
 """
 
-import io
 from django.contrib.auth.models import User, Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, Client
@@ -46,6 +45,7 @@ def datos_beneficiario_validos():
         'email': 'carlos@test.com',
         'allow_conditions': True,
     }
+
 
 class DocumentBeneficiaryModelTest(TestCase):
 
@@ -93,6 +93,7 @@ class DocumentBeneficiaryModelTest(TestCase):
         )
         self.assertIn('Laura Torres', doc.file.name)
 
+
 class DocumentoAlRegistrarTest(TestCase):
 
     def setUp(self):
@@ -104,7 +105,7 @@ class DocumentoAlRegistrarTest(TestCase):
     def test_registro_con_documento_crea_beneficiario_y_documento(self):
         data = datos_beneficiario_validos()
         data['file'] = make_fake_file()
-        response = self.client.post(self.url, data, format='multipart')
+        self.client.post(self.url, data, format='multipart')
         self.assertEqual(Beneficiary.objects.count(), 1)
         self.assertEqual(DocumentBeneficiary.objects.count(), 1)
 
@@ -127,7 +128,7 @@ class DocumentoAlRegistrarTest(TestCase):
         data['file'] = make_fake_file()
         self.client.post(self.url, data, format='multipart')
         beneficiario = Beneficiary.objects.first()
-        documento = DocumentBeneficiary.objects.first()
+        documento    = DocumentBeneficiary.objects.first()
         self.assertEqual(documento.beneficiary, beneficiario)
 
     def test_registro_con_archivo_png_es_aceptado(self):
@@ -142,6 +143,52 @@ class DocumentoAlRegistrarTest(TestCase):
         self.client.post(self.url, data, format='multipart')
         self.assertEqual(DocumentBeneficiary.objects.count(), 1)
 
+    def test_registro_con_archivo_exe_es_rechazado_por_backend(self):
+        """NEGATIVO: Un archivo .exe debe ser rechazado por clean_file() en el backend.
+
+        FIX (Falso Negativo): El atributo HTML 'accept' solo filtra en el explorador de
+        archivos del navegador y es completamente bypasseable. Este test verifica que
+        la validación real ocurre en el servidor mediante clean_file(), sin importar
+        lo que el cliente envíe.
+        """
+        data = datos_beneficiario_validos()
+        data['file'] = make_fake_file(
+            name='malware.exe',
+            content=b'MZ-fake-executable',
+            content_type='application/octet-stream',
+        )
+        response = self.client.post(self.url, data, format='multipart')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Beneficiary.objects.count(), 0)
+        self.assertEqual(DocumentBeneficiary.objects.count(), 0)
+
+    def test_registro_con_archivo_txt_es_rechazado_por_backend(self):
+        """NEGATIVO: Un archivo .txt también debe ser rechazado por el backend."""
+        data = datos_beneficiario_validos()
+        data['file'] = make_fake_file(
+            name='documento.txt',
+            content=b'contenido de texto plano',
+            content_type='text/plain',
+        )
+        response = self.client.post(self.url, data, format='multipart')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Beneficiary.objects.count(), 0)
+        self.assertEqual(DocumentBeneficiary.objects.count(), 0)
+
+    def test_registro_con_pdf_renombrado_como_exe_es_rechazado(self):
+        """NEGATIVO: Un PDF con extensión .exe debe ser rechazado — la validación usa
+        la extensión del nombre, no el content-type del navegador."""
+        data = datos_beneficiario_validos()
+        data['file'] = make_fake_file(
+            name='cedula.exe',
+            content=b'%PDF-1.4 fake content',  # contenido PDF, extensión incorrecta
+            content_type='application/pdf',
+        )
+        response = self.client.post(self.url, data, format='multipart')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(DocumentBeneficiary.objects.count(), 0)
+
+
 class DocumentoAlEditarTest(TestCase):
 
     def setUp(self):
@@ -149,7 +196,7 @@ class DocumentoAlEditarTest(TestCase):
         make_user('sec_upd', group_name=ROLE_SECRETARIA)
         self.client.login(username='sec_upd', password='pass1234')
         self.beneficiary = make_beneficiary()
-        self.documento = DocumentBeneficiary.objects.create(
+        self.documento   = DocumentBeneficiary.objects.create(
             beneficiary=self.beneficiary,
             file=make_fake_file('original.pdf'),
         )
@@ -190,6 +237,7 @@ class DocumentoAlEditarTest(TestCase):
         data['file'] = make_fake_file('reemplazo.pdf')
         self.client.post(self.url, data, format='multipart')
         self.assertEqual(DocumentBeneficiary.objects.count(), 1)
+
 
 class DocumentoEnDetalleTest(TestCase):
 

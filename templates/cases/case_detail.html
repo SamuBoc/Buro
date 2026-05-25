@@ -280,6 +280,232 @@
         </div>
         {% endif %}
 
+        <!-- HU-22: Llamada con grabación (WebRTC nativo) -->
+        {% if can_add_interaction %}
+        <div class="card mt-4" id="call-section">
+            <div class="card-body p-4">
+                <h5 class="mb-3"><i class="bi bi-telephone me-2"></i>Llamada</h5>
+                <div id="call-idle">
+                    <button id="btn-start-call" class="btn btn-success">
+                        <i class="bi bi-telephone-fill me-1"></i>Iniciar llamada
+                    </button>
+                </div>
+                <div id="call-connecting" class="d-none">
+                    <div class="spinner-border spinner-border-sm text-success me-2" role="status"></div>
+                    <span class="text-muted">Preparando llamada…</span>
+                </div>
+                <div id="call-active" class="d-none">
+                    <div class="alert alert-info mb-3">
+                        <small class="text-muted d-block mb-2">Compartí este link con el otro participante:</small>
+                        <div class="input-group input-group-sm">
+                            <input type="text" id="join-link" class="form-control" readonly>
+                            <button id="btn-copy-link" class="btn btn-outline-secondary" type="button">Copiar</button>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="badge bg-danger"><i class="bi bi-record-circle me-1"></i>Grabando</span>
+                        <span id="call-timer" class="text-muted small">00:00</span>
+                        <span id="call-status-badge" class="badge bg-warning text-dark">Esperando participante…</span>
+                        <span id="mic-indicator" class="badge bg-secondary" title="Nivel de micrófono"><i class="bi bi-mic-fill"></i></span>
+                    </div>
+                    <button id="btn-end-call" class="btn btn-danger">
+                        <i class="bi bi-telephone-x-fill me-1"></i>Colgar y guardar grabación
+                    </button>
+                </div>
+                <div id="call-uploading" class="d-none">
+                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                    Guardando grabación...
+                </div>
+                <div id="call-done" class="d-none">
+                    <div class="alert alert-success mb-0">
+                        <i class="bi bi-check-circle me-1"></i>Grabación guardada correctamente.
+                    </div>
+                </div>
+                <div id="call-error" class="d-none">
+                    <div class="alert alert-danger mb-0">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        <span id="call-error-msg">Error al guardar la grabación.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        (function () {
+            const caseId    = {{ case.pk }};
+            const iceUrl    = "{% url 'get_ice_servers' case.pk %}";
+            const createUrl = "{% url 'create_call_session' case.pk %}";
+            const uploadUrl = "{% url 'upload_call_recording' case.pk %}";
+            const csrfToken = "{{ csrf_token }}";
+            const joinBase  = "{{ request.scheme }}://{{ request.get_host }}/casos/" + caseId + "/webrtc/";
+
+            let pc = null, mediaRecorder, audioChunks = [], timerInterval, seconds = 0;
+            let audioCtx = null, mixDest = null, pollInterval = null;
+            let micAnalyser = null, micAnimFrame = null, remoteAudio = null;
+
+            function showSection(id) {
+                ['call-idle','call-connecting','call-active','call-uploading','call-done','call-error']
+                    .forEach(s => document.getElementById(s).classList.add('d-none'));
+                document.getElementById(id).classList.remove('d-none');
+            }
+
+            function updateTimer() {
+                seconds++;
+                const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+                const s = String(seconds % 60).padStart(2, '0');
+                document.getElementById('call-timer').textContent = `${m}:${s}`;
+            }
+
+            function waitForIceGathering(connection) {
+                return new Promise(resolve => {
+                    if (connection.iceGatheringState === 'complete') { resolve(); return; }
+                    const check = () => {
+                        if (connection.iceGatheringState === 'complete') {
+                            connection.removeEventListener('icegatheringstatechange', check);
+                            resolve();
+                        }
+                    };
+                    connection.addEventListener('icegatheringstatechange', check);
+                    setTimeout(resolve, 10000);
+                });
+            }
+
+            document.getElementById('btn-start-call').addEventListener('click', async () => {
+                showSection('call-connecting');
+                try {
+                    const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+                    const iceRes = await fetch(iceUrl, { headers: { 'X-CSRFToken': csrfToken } });
+                    if (!iceRes.ok) throw new Error('No se pudo obtener servidores ICE');
+                    const { iceServers } = await iceRes.json();
+
+                    const sessionRes = await fetch(createUrl, {
+                        method: 'POST', headers: { 'X-CSRFToken': csrfToken },
+                    });
+                    if (!sessionRes.ok) throw new Error('No se pudo crear la sesión');
+                    const { roomId } = await sessionRes.json();
+
+                    const offerUrl = `/casos/${caseId}/webrtc/${roomId}/oferta/`;
+                    const stateUrl = `/casos/${caseId}/webrtc/${roomId}/estado/`;
+                    const joinLink = `${joinBase}${roomId}/sala/`;
+
+                    pc = new RTCPeerConnection({ iceServers });
+                    audioCtx = new AudioContext();
+                    mixDest  = audioCtx.createMediaStreamDestination();
+
+                    const localSource = audioCtx.createMediaStreamSource(localStream);
+                    localSource.connect(mixDest);
+
+                    // Mic level indicator
+                    micAnalyser = audioCtx.createAnalyser();
+                    micAnalyser.fftSize = 256;
+                    localSource.connect(micAnalyser);
+                    const micData = new Uint8Array(micAnalyser.frequencyBinCount);
+                    const micBadge = document.getElementById('mic-indicator');
+                    function animateMic() {
+                        micAnalyser.getByteFrequencyData(micData);
+                        const avg = micData.reduce((a, b) => a + b, 0) / micData.length;
+                        micBadge.className = avg > 8 ? 'badge bg-danger' : 'badge bg-secondary';
+                        micAnimFrame = requestAnimationFrame(animateMic);
+                    }
+                    animateMic();
+
+                    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+                    function markCallActive() {
+                        document.getElementById('call-status-badge').textContent = 'En llamada';
+                        document.getElementById('call-status-badge').className = 'badge bg-success';
+                    }
+
+                    pc.ontrack = (event) => {
+                        const remoteStream = event.streams[0] || new MediaStream([event.track]);
+                        audioCtx.createMediaStreamSource(remoteStream).connect(mixDest);
+                        // Play remote audio through speakers
+                        remoteAudio = new Audio();
+                        remoteAudio.srcObject = remoteStream;
+                        remoteAudio.play().catch(() => {});
+                        markCallActive();
+                    };
+
+                    pc.onconnectionstatechange = () => {
+                        if (pc.connectionState === 'connected') markCallActive();
+                    };
+
+                    const offer = await pc.createOffer();
+                    await pc.setLocalDescription(offer);
+                    await waitForIceGathering(pc);
+
+                    await fetch(offerUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify({ sdp: pc.localDescription }),
+                    });
+
+                    document.getElementById('join-link').value = joinLink;
+                    audioChunks = [];
+                    mediaRecorder = new MediaRecorder(mixDest.stream);
+                    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+                    mediaRecorder.start(1000);
+                    seconds = 0;
+                    timerInterval = setInterval(updateTimer, 1000);
+                    showSection('call-active');
+
+                    pollInterval = setInterval(async () => {
+                        try {
+                            const s = await (await fetch(stateUrl)).json();
+                            if (s.answer && pc.signalingState !== 'stable') {
+                                clearInterval(pollInterval);
+                                await pc.setRemoteDescription(new RTCSessionDescription(s.answer));
+                            }
+                        } catch (_) {}
+                    }, 1500);
+
+                } catch (err) {
+                    document.getElementById('call-error-msg').textContent = err.message || 'Error al iniciar la llamada.';
+                    showSection('call-error');
+                }
+            });
+
+            document.getElementById('btn-copy-link').addEventListener('click', () => {
+                const link = document.getElementById('join-link').value;
+                navigator.clipboard.writeText(link).then(() => {
+                    document.getElementById('btn-copy-link').textContent = '¡Copiado!';
+                    setTimeout(() => document.getElementById('btn-copy-link').textContent = 'Copiar', 2000);
+                });
+            });
+
+            document.getElementById('btn-end-call').addEventListener('click', () => {
+                clearInterval(timerInterval);
+                clearInterval(pollInterval);
+                if (micAnimFrame) cancelAnimationFrame(micAnimFrame);
+                if (remoteAudio) { remoteAudio.pause(); remoteAudio.srcObject = null; }
+                if (pc) pc.close();
+                if (audioCtx) audioCtx.close();
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.onstop = async () => {
+                        showSection('call-uploading');
+                        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const formData = new FormData();
+                        formData.append('audio', blob, 'grabacion.webm');
+                        formData.append('description', 'Llamada grabada desde la plataforma');
+                        formData.append('csrfmiddlewaretoken', csrfToken);
+                        try {
+                            const res = await fetch(uploadUrl, { method: 'POST', body: formData });
+                            if (!res.ok) throw new Error('Error del servidor al guardar la grabación');
+                            showSection('call-done');
+                            setTimeout(() => location.reload(), 1500);
+                        } catch (err) {
+                            document.getElementById('call-error-msg').textContent = err.message;
+                            showSection('call-error');
+                        }
+                    };
+                    mediaRecorder.stop();
+                }
+            });
+        })();
+        </script>
+        {% endif %}
+
         <!-- HU-21: Historial de comunicaciones -->
         <div class="card mt-4">
             <div class="card-body p-4">
@@ -300,6 +526,18 @@
                                             {% endif %}
                                         </span>
                                         <p class="mb-0 mt-1 text-muted small">{{ interaction.description }}</p>
+                                        {% if interaction.audio_file %}
+                                            {% if can_access_recording %}
+                                            <audio controls class="mt-2 w-100" style="max-width:400px;">
+                                                <source src="{% url 'serve_call_recording' interaction.pk %}" type="audio/webm">
+                                                Tu navegador no soporta reproducción de audio.
+                                            </audio>
+                                            {% else %}
+                                            <p class="text-muted small mt-2 mb-0">
+                                                <i class="bi bi-lock-fill me-1"></i>Grabación disponible solo para administradores, profesores y el estudiante asignado.
+                                            </p>
+                                            {% endif %}
+                                        {% endif %}
                                     </div>
                                     <small class="text-muted text-nowrap ms-3">{{ interaction.timestamp|date:"d/m/Y H:i" }}</small>
                                 </div>

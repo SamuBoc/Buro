@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import Fernet
 from django.conf import settings
 
 
@@ -30,7 +30,7 @@ def decrypt(value: str) -> str:
         return value
     try:
         return _get_fernet().decrypt(value.encode()).decode()
-    except InvalidToken:
+    except Exception:
         return ''
 
 
