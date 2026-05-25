@@ -45,12 +45,24 @@ class CiteForm(forms.ModelForm):
 
 
 class RescheduleCiteForm(forms.ModelForm):
+    date_assigned = forms.DateTimeField(
+        label='Fecha de Asignación',
+        widget=forms.DateTimeInput(
+            format='%Y-%m-%dT%H:%M',
+            attrs={'class': 'form-control', 'type': 'datetime-local'}
+        ),
+        input_formats=['%Y-%m-%dT%H:%M'],
+    )
+
     class Meta:
         model = Cite
         fields = ['date_assigned']
-        widgets = {
-            'date_assigned': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
-        }
-        labels = {
-            'date_assigned': 'Fecha de Asignación',
-        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        instance = kwargs.get('instance')
+        if instance and instance.pk and instance.date_assigned:
+            dt = instance.date_assigned
+            if timezone.is_aware(dt):
+                dt = dt.replace(tzinfo=None)
+            self.initial['date_assigned'] = dt

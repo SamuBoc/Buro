@@ -207,9 +207,8 @@ class CiteReschedulingTest(TestCase):
     def test_get_request_shows_form_with_current_date(self):
         cite = make_cite(self.beneficiary)
         response = self.client.get(reverse('reschedule_cite', args=[cite.pk]))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, cite.date_assigned.strftime('%d/%m/%Y'))
-
+        self.assertEqual(response.status_code, 200)        
+        self.assertContains(response, cite.date_assigned.strftime('%Y-%m-%d'))
 
 class CiteAccessControlTest(TestCase):
     """

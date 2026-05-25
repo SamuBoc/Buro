@@ -5,7 +5,6 @@ import logging
 import mimetypes
 import os
 import urllib.request
-import uuid
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -541,6 +540,11 @@ def case_create(request):
     if request.method == 'POST':
         submit_action = request.POST.get('submit_action', 'complete')
         is_draft_submission = submit_action == 'draft'
+
+        user_is_student = request.user.groups.filter(name=ROLE_ESTUDIANTE).exists()
+        if user_is_student and not is_draft_submission:
+            return redirect('no_permission')
+
         form = CaseForm(
             request.POST,
             request.FILES,
@@ -1534,8 +1538,8 @@ def serve_call_recording(request, interaction_id):
 
     try:
         with urllib.request.urlopen(interaction.audio_file.url, timeout=30) as remote:
-            content      = remote.read()
-            content_type = remote.headers.get_content_type() or 'audio/mpeg'
+            content = remote.read()
+            content_type = remote.getheader('Content-Type', 'audio/mpeg') or 'audio/mpeg'
         filename = os.path.basename(interaction.audio_file.name)
         response = HttpResponse(content, content_type=content_type)
         response['Content-Disposition'] = f'inline; filename="{filename}"'
