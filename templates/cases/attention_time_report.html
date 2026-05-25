@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+    <h2 class="fw-bold mb-0">
+      <i class="bi bi-stopwatch-fill me-2"></i>{{ page_title }}
+    </h2>
+    <span class="badge bg-light text-dark fs-6">Total: {{ total }}</span>
+  </div>
+
+  <!-- ── Tarjetas resumen ──────────────────────────────────────────── -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card text-center border-0 shadow-sm h-100">
+        <div class="card-body py-3">
+          <div class="fs-1 fw-bold text-primary">{{ total }}</div>
+          <div class="text-muted small">Casos con fecha límite</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center border-0 shadow-sm h-100">
+        <div class="card-body py-3">
+          <div class="fs-1 fw-bold text-success">{{ on_time }}</div>
+          <div class="text-muted small">A tiempo</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center border-0 shadow-sm h-100">
+        <div class="card-body py-3">
+          <div class="fs-1 fw-bold text-danger">{{ overdue }}</div>
+          <div class="text-muted small">Vencidos</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center border-0 shadow-sm h-100">
+        <div class="card-body py-3">
+          <div class="fs-1 fw-bold text-warning">{{ avg_days }}</div>
+          <div class="text-muted small">Promedio días asignados</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Filtros ───────────────────────────────────────────────────── -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label for="desde" class="form-label fw-semibold">Desde</label>
+          <input type="date" class="form-control" id="desde" name="desde" value="{{ filtro_desde }}">
+        </div>
+        <div class="col-md-3">
+          <label for="hasta" class="form-label fw-semibold">Hasta</label>
+          <input type="date" class="form-control" id="hasta" name="hasta" value="{{ filtro_hasta }}">
+        </div>
+        <div class="col-md-3">
+          <label for="sala" class="form-label fw-semibold">Sala jurídica</label>
+          <select class="form-select" id="sala" name="sala">
+            <option value="">Todas</option>
+            {% for value, label in salas %}
+              <option value="{{ value }}" {% if filtro_sala == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button type="submit" class="btn btn-primary flex-grow-1">
+            <i class="bi bi-funnel-fill me-1"></i>Filtrar
+          </button>
+          <a href="{% url 'case_attention_time_report' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle me-1"></i>Limpiar
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Tabla + gráfico ──────────────────────────────────────────── -->
+  <div class="row g-4 mb-4">
+
+    <div class="col-lg-8">
+      <div class="card h-100">
+        <div class="card-body p-0">
+          {% if total > 0 %}
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                  <tr>
+                    <th>Código</th>
+                    <th>Sala</th>
+                    <th>Estado</th>
+                    <th class="text-end">F. Creación</th>
+                    <th class="text-end">F. Límite</th>
+                    <th class="text-end">Días asig.</th>
+                    <th class="text-end">Días rest.</th>
+                    <th class="text-center">Vencido</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in rows %}
+                    <tr {% if row.overdue %}class="table-danger"{% endif %}>
+                      <td class="fw-semibold">{{ row.code }}</td>
+                      <td>{{ row.sala }}</td>
+                      <td><span class="text-truncate d-inline-block" style="max-width:200px" title="{{ row.state }}">{{ row.state }}</span></td>
+                      <td class="text-end text-muted">{{ row.created_at }}</td>
+                      <td class="text-end text-muted">{{ row.deadline_date }}</td>
+                      <td class="text-end">{{ row.days_assigned }}</td>
+                      <td class="text-end {% if row.overdue %}text-danger fw-bold{% endif %}">
+                        {{ row.days_remaining }}
+                      </td>
+                      <td class="text-center">
+                        {% if row.overdue %}
+                          <span class="badge bg-danger">Sí</span>
+                        {% else %}
+                          <span class="badge bg-success">No</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                  <tr>
+                    <th colspan="5">Total</th>
+                    <th class="text-end">{{ avg_days }} días prom.</th>
+                    <th colspan="2"></th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-center py-5 text-muted">
+              <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+              No hay casos con fecha límite registrados con los filtros aplicados.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="fw-bold mb-3">A tiempo vs. Vencidos</h5>
+          {% if total > 0 %}
+            <canvas id="attentionChart" height="220"></canvas>
+          {% else %}
+            <p class="text-muted mb-0">Sin datos para graficar.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Botones de exportación ────────────────────────────────────── -->
+  {% if total > 0 %}
+  <div class="d-flex gap-2 justify-content-end">
+    <a href="{% url 'export_attention_time_excel' %}?{{ request.GET.urlencode }}"
+       class="btn btn-success">
+      <i class="bi bi-file-earmark-excel-fill me-1"></i>Exportar Excel
+    </a>
+    <a href="{% url 'export_attention_time_pdf' %}?{{ request.GET.urlencode }}"
+       class="btn btn-danger">
+      <i class="bi bi-file-earmark-pdf-fill me-1"></i>Exportar PDF
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+
+{% if total > 0 %}
+{{ chart_labels|json_script:"chartLabelsData" }}
+{{ chart_values|json_script:"chartValuesData" }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+  (function () {
+    var labels = JSON.parse(document.getElementById('chartLabelsData').textContent);
+    var values = JSON.parse(document.getElementById('chartValuesData').textContent);
+    var ctx = document.getElementById('attentionChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          backgroundColor: ['#198754', '#dc3545'],
+          borderWidth: 1,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom' }
+        }
+      }
+    });
+  })();
+</script>
+{% endif %}
+{% endblock %}

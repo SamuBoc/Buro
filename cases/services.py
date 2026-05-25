@@ -190,6 +190,26 @@ def reassign_case(case, new_student, changed_by):
             new_student=new_student,
             changed_by=changed_by,
         )
+        old_name = (
+            old_student.get_full_name() or old_student.username
+            if old_student else 'Sin asignar'
+        )
+        new_name = (
+            new_student.get_full_name() or new_student.username
+            if new_student else 'Sin asignar'
+        )
+        CaseAuditLog.objects.create(
+            case=case,
+            user=changed_by,
+            action='REASSIGNED',
+            description=(
+                f'El caso {case.code} fue reasignado de {old_name} a {new_name} '
+                f'por {changed_by.get_full_name() or changed_by.username}.'
+            ),
+            previous_status=Case.STATE_ASSIGNED,
+            new_status=case.state,
+            case_radicado=case.code,
+        )
 
     _notify_assignment(case, new_student)
 
@@ -204,7 +224,7 @@ def get_deadline_recipients(case):
     staff_users = (
         User.objects.filter(
             is_active=True,
-            groups__name__in=[ROLE_SECRETARIA, ROLE_PROFESOR, ROLE_ADMINISTRADOR],
+            groups__name__in=[ ROLE_PROFESOR, ROLE_ADMINISTRADOR],
         )
         .distinct()
         .order_by('id')
