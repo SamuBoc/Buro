@@ -46,7 +46,7 @@
       <a href="{% url 'academic_dashboard_export_excel' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-success">
         <i class="bi bi-file-earmark-excel-fill me-1"></i>Exportar Excel
       </a>
-      <a href="{% url 'academic_dashboard_export_pdf' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-danger">
+      <a href="{% url 'academic_dashboard_export_pdf' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-export-pdf">
         <i class="bi bi-file-earmark-pdf-fill me-1"></i>Exportar PDF
       </a>
     </div>

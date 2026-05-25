@@ -15,7 +15,7 @@
         </a>
         {% endif %}
         {% if 'secretaria' in user_roles or 'administrador' in user_roles %}
-        <a href="{% url 'beneficiary_register' %}" class="btn btn-primary">
+        <a href="{% url 'beneficiary_register' %}" class="btn btn-primary" id="register-beneficiary">
             <i class="bi bi-person-plus-fill me-1"></i> Nuevo Beneficiario
         </a>
         {% endif %}
@@ -43,7 +43,7 @@
                     {% for b in beneficiaries %}
                     <tr>
                         <td class="ps-4 text-muted">{{ b.id }}</td>
-                        <td class="fw-semibold">{{ b.name }}</td>
+                        <td class="fw-semibold" id="name-beneficiary-{{forloop.counter}}">{{ b.name }}</td>
                         <td><i class="bi bi-person-vcard me-1"></i>{{ b.colombian_identification }}</td>
                         <td><i class="bi bi-geo-alt text-muted me-1"></i>{{ b.location }}</td>
                         <td><i class="bi bi-telephone text-muted me-1"></i>{{ b.phone }}</td>
