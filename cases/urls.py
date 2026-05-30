@@ -28,7 +28,6 @@ urlpatterns = [
     path('documentos/<int:document_id>/ver/', views.serve_case_document, name='serve_case_document'),
     path('<int:case_id>/interacciones/', views.case_add_interaction, name='case_add_interaction'),
     path('<int:case_id>/llamada/subir/', views.upload_call_recording, name='upload_call_recording'),
-    path('metricas/comunicaciones/', views.communication_metrics, name='communication_metrics'),
     path('grabaciones/<int:interaction_id>/', views.serve_call_recording, name='serve_call_recording'),
     # WebRTC nativo
     path('<int:case_id>/webrtc/ice/', views.get_ice_servers, name='get_ice_servers'),
@@ -38,6 +37,8 @@ urlpatterns = [
     path('<int:case_id>/webrtc/<str:room_id>/estado/', views.get_call_state, name='get_call_state'),
     path('<int:case_id>/webrtc/<str:room_id>/oferta/leer/', views.get_call_offer, name='get_call_offer'),
     path('<int:case_id>/webrtc/<str:room_id>/sala/', views.join_webrtc_call, name='join_webrtc_call'),
+    # HU-24
+    path('metricas/comunicaciones/', views.communication_metrics, name='communication_metrics'),
     path('reportes/tiempos-atencion/',          views.case_attention_time_report,   name='case_attention_time_report'),
     path('reportes/tiempos-atencion/excel/',    views.export_attention_time_excel,  name='export_attention_time_excel'),
     path('reportes/tiempos-atencion/pdf/',      views.export_attention_time_pdf,    name='export_attention_time_pdf'),

@@ -5,6 +5,7 @@ import logging
 import mimetypes
 import os
 import urllib.request
+import uuid
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -707,14 +708,14 @@ def case_detail(request, pk):
     return render(request, 'cases/case_detail.html', {
         'case':                case,
         'can_reassign':        can_reassign_case(request.user),
-        'can_manage_deadline': can_manage_case_deadline(request.user),
+        'can_manage_deadline':   can_manage_case_deadline(request.user),
         'can_add_interaction':   can_add_interaction(request.user, case),
         'can_access_recording':  can_access_recording(request.user, case),
         'deadline_form':         CaseDeadlineForm(instance=case),
-        'reassignment_form':   CaseReassignmentForm(case=case),
-        'rejection_form':      CaseRejectionForm(instance=case),
-        'interaction_form':    CommunicationInteractionForm(),
-        'interactions':        case.interactions.select_related('registered_by').order_by('-timestamp'),
+        'reassignment_form':     CaseReassignmentForm(case=case),
+        'rejection_form':        CaseRejectionForm(instance=case),
+        'interaction_form':      CommunicationInteractionForm(),
+        'interactions':          case.interactions.select_related('registered_by').order_by('-timestamp'),
     })
 
 
@@ -1464,6 +1465,8 @@ def upload_call_recording(request, case_id):
             ip_address=get_client_ip(request),
         )
         return JsonResponse({'error': 'Error al guardar la grabación'}, status=500)
+
+
 # ─── HU-24: Métricas de canales de comunicación ──────────────────────────────
 
 @login_required
@@ -1501,6 +1504,7 @@ def communication_metrics(request):
         'tipo_choices': CommunicationInteraction.TYPE_CHOICES,
         'total':        CommunicationInteraction.objects.count(),
     })
+
 # ─── HU-23: Acceso controlado a grabaciones ──────────────────────────────────
 
 @login_required

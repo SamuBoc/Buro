@@ -1,0 +1,330 @@
+================================================================
+HU SELECCIONADAS PARA EL SPRINT — Samuel Bonilla
+Proyecto: Buró — Gestión de Casos Jurídicos (Consultorio ICESI)
+================================================================
+
+
+----------------------------------------------------------------
+HU-22: Grabar llamadas realizadas desde la plataforma
+----------------------------------------------------------------
+Requerimiento Funcional : RF22 (COM4.3)
+Épica                   : Notificaciones e integración externa
+Prioridad (MoSCoW)      : Must Have
+Estimación              : 8 Story Points (complejidad media)
+
+Descripción:
+  Como estudiante del consultorio jurídico, quiero que las llamadas
+  realizadas desde la plataforma puedan ser grabadas automáticamente,
+  para conservar evidencia de las comunicaciones realizadas con los
+  beneficiarios.
+
+Criterios de aceptación:
+  1. El sistema graba el audio de la llamada en ambas direcciones al
+     iniciarla desde la plataforma.
+  2. La grabación queda guardada como archivo adjunto a la interacción
+     del caso en el repositorio de Cloudinary.
+  3. El estudiante asignado puede iniciar una llamada usando el botón
+     "Iniciar llamada" en la vista de detalle del caso.
+  4. Un segundo participante puede unirse desde un enlace público sin
+     necesidad de iniciar sesión.
+  5. Si ocurre un error durante el guardado de la grabación, este se
+     registra en el CaseAuditLog del caso correspondiente.
+
+Subtareas:
+  [DONE] ST-1  Configurar Cloudinary como storage de archivos de media.
+               - Agregar django-cloudinary-storage a requirements.txt.
+               - Definir CLOUDINARY_STORAGE en settings/base.py con
+                 variables de entorno (CLOUDINARY_CLOUD_NAME, API_KEY,
+                 API_SECRET).
+
+  [DONE] ST-2  Agregar campo audio_file a CommunicationInteraction.
+               - Campo FileField opcional con RawMediaCloudinaryStorage
+                 para soportar archivos .webm sin procesamiento de imagen.
+               - Migración 0004_add_audio_file_to_communicationinteraction.
+
+  [DONE] ST-3  Implementar vista generate_videosdk_token.
+               - Genera JWT firmado con VideoSDK API Key para crear sala.
+               - Solo accesible para usuarios con permiso can_add_interaction.
+               - URL: /casos/<id>/llamada/token/
+
+  [DONE] ST-4  Implementar vista upload_call_recording.
+               - Recibe blob de audio (.webm) vía POST.
+               - Crea CommunicationInteraction de tipo CALL y sube a Cloudinary.
+               - URL: /casos/<id>/llamada/subir/
+
+  [DONE] ST-5  Actualizar case_detail.html con UI de llamada.
+               - Botón "Iniciar llamada" que activa MediaRecorder + VideoSDK.
+               - Captura audio local y remoto con AudioContext mixing.
+               - Sube la grabación al finalizar la llamada.
+               - Enlace copiable para el segundo participante.
+               - Reproductor de audio en el historial de interacciones.
+
+  [DONE] ST-6  Crear template call_room.html (sala pública).
+               - Permite al segundo participante unirse sin login.
+               - URL: /casos/<id>/llamada/<room>/unirse/
+
+  [DONE] ST-7  Tests unitarios (10 casos en test_hu22_recordings.py).
+               - Generación correcta de token VideoSDK.
+               - Subida de audio crea interacción y registra en AuditLog.
+               - Subida sin archivo retorna 400.
+               - Usuario sin permiso retorna 403.
+               - Error de guardado retorna 500 y registra en AuditLog.
+
+Evidencia de finalización:
+  - Rama mergeada: feat/hu-22-grabacion-llamadas → develop (PR #83).
+  - 10 tests unitarios pasando en CI.
+  - Grabaciones visibles en Cloudinary bajo /media/call_recordings/.
+  - Vista operativa en producción (Render + Supabase).
+
+Estado: 100% COMPLETADA
+
+
+----------------------------------------------------------------
+HU-23: Permitir acceso controlado a grabaciones de llamadas
+----------------------------------------------------------------
+Requerimiento Funcional : RF23 (COM4.4)
+Épica                   : Control y seguimiento de casos
+Prioridad (MoSCoW)      : Must Have
+Estimación              : 5 Story Points (complejidad media)
+
+Descripción:
+  Como administrador del consultorio jurídico, quiero que solo usuarios
+  autorizados puedan reproducir las grabaciones de llamadas, para
+  proteger la confidencialidad de las comunicaciones.
+
+Criterios de aceptación:
+  1. Administrador y profesor pueden reproducir cualquier grabación.
+  2. El estudiante asignado al caso puede reproducir sus grabaciones.
+  3. Secretaria y estudiante no asignado reciben error 403 al intentar
+     acceder y el intento queda registrado en el CaseAuditLog.
+  4. El reproductor de audio en case_detail.html solo se muestra para
+     usuarios autorizados; los demás ven un candado con mensaje informativo.
+
+Subtareas:
+  [DONE] ST-1  Implementar can_access_recording en accounts/permissions.py.
+               - Retorna True para admin, profesor y estudiante asignado.
+               - Retorna False para secretaria y estudiante no asignado.
+
+  [DONE] ST-2  Implementar vista serve_call_recording.
+               - Verifica permisos antes de redirigir a la URL de Cloudinary.
+               - Acceso denegado crea registro SECURITY_DENIED en AuditLog.
+               - URL: /casos/grabaciones/<interaction_id>/
+
+  [DONE] ST-3  Actualizar case_detail.html con control de permisos.
+               - Reproductor visible solo si can_access_recording es True.
+               - Muestra candado con mensaje para usuarios no autorizados.
+               - La URL del audio pasa por serve_call_recording (no directa).
+
+  [DONE] ST-4  Tests unitarios (10 casos en test_hu23_recording_access.py).
+               - Admin accede OK.
+               - Profesor accede OK.
+               - Secretaria recibe 403 y queda en AuditLog.
+               - Estudiante no asignado recibe 403.
+               - Estudiante asignado accede OK.
+               - Acceso a interacción sin audio retorna 404.
+
+Evidencia de finalización:
+  - Rama mergeada: feat/hu-23-acceso-grabaciones → develop.
+  - 10 tests unitarios pasando.
+  - Verificado manualmente en producción con los 4 roles del sistema.
+
+Estado: 100% COMPLETADA
+
+
+----------------------------------------------------------------
+HU-24: Generar métricas de uso de canales de comunicación
+----------------------------------------------------------------
+Requerimiento Funcional : Derivado de COM4.5
+Épica                   : Análisis de requisitos
+Prioridad (MoSCoW)      : Must Have
+Estimación              : 5 Story Points (complejidad media)
+
+Descripción:
+  Como administrador del consultorio jurídico, quiero visualizar métricas
+  sobre el uso de los canales de comunicación, para analizar el volumen
+  de contactos por tipo de canal y evaluar su efectividad.
+
+Criterios de aceptación:
+  1. Solo el administrador puede acceder al panel de métricas.
+     Otros roles reciben 403.
+  2. El panel muestra tarjetas con el conteo de interacciones por canal
+     (llamada, email, presencial, WhatsApp, etc.).
+  3. El administrador puede filtrar la tabla por tipo de canal.
+  4. La tabla muestra las últimas 100 interacciones con caso y fecha.
+  5. Se muestra el total acumulado de interacciones.
+
+Subtareas:
+  [DONE] ST-1  Implementar vista communication_metrics en cases/views.py.
+               - Agrupa CommunicationInteraction por interaction_type con Count.
+               - Aplica filtro opcional por tipo desde query param.
+               - Solo accesible con @role_required(ROLE_ADMINISTRADOR).
+               - URL: /casos/metricas/comunicaciones/
+
+  [DONE] ST-2  Crear template communication_metrics.html.
+               - Tarjetas de resumen por canal de comunicación.
+               - Tabla paginada (máx. 100 filas) con filtro por tipo.
+               - Total acumulado en encabezado.
+
+  [DONE] ST-3  Tests unitarios (13 casos en test_hu24_metrics.py).
+               - Admin accede OK (200).
+               - Profesor, secretaria, estudiante y anónimo reciben 403/302.
+               - Agrupación por canal retorna conteos correctos.
+               - Filtro por tipo reduce resultados correctamente.
+               - Total acumulado es correcto.
+               - Template correcto renderizado.
+
+Evidencia de finalización:
+  - Rama mergeada: feat/hu-24-metricas-canales → develop (PR #82).
+  - 13 tests unitarios pasando.
+  - Panel accesible en producción en /casos/metricas/comunicaciones/
+    con los 36 casos y beneficiarios sembrados.
+
+Estado: 100% COMPLETADA
+
+
+================================================================
+RESUMEN DEL SPRINT
+================================================================
+
+HU      | Prioridad   | Estimación | Estado    | Avance
+--------|-------------|------------|-----------|--------
+HU-22   | Must Have   | 8 SP       | Completada| 100%
+HU-23   | Must Have   | 5 SP       | Completada| 100%
+HU-24   | Must Have   | 5 SP       | Completada| 100%
+--------|-------------|------------|-----------|--------
+TOTAL   |             | 18 SP      |           | 100%
+
+Todas las HU del sprint fueron completadas e integradas a la rama
+develop del repositorio oficial del proyecto.
+
+
+================================================================
+BASE DE DATOS Y SERVIDOR DE DESPLIEGUE
+================================================================
+
+----------------------------------------------------------------
+Base de datos
+----------------------------------------------------------------
+
+Entorno de desarrollo (local):
+  Motor   : SQLite 3
+  Archivo : db.sqlite3 (en la raíz del proyecto, excluido de git)
+  Config  : config/settings/development.py
+            ENGINE = django.db.backends.sqlite3
+
+Entorno de producción:
+  Motor   : PostgreSQL 15 (Supabase — plan gratuito)
+  Host    : aws-1-us-west-2.pooler.supabase.com  puerto 6543
+            (Transaction pooler, necesario en entornos serverless)
+  Config  : config/settings/production.py
+            DATABASES = dj_database_url.config(conn_max_age=600)
+            La URI completa se lee desde la variable de entorno
+            DATABASE_URL definida en el dashboard de Render.
+
+Scripts DDL (migraciones de Django):
+  Las migraciones están en la carpeta migrations/ de cada app
+  y se ejecutan automáticamente con:
+    python manage.py migrate --noinput
+
+  App accounts/:
+    0001_initial.py                         — tabla CustomUser / UserProfile
+    0002_userprofile_academic_fields.py     — campos académicos en perfil
+    0003_userprofile_supervising_professor.py — profesor supervisor
+
+  App beneficiary/:
+    0001_initial.py                         — tabla Beneficiary
+    0002_beneficiary_colombian_identification.py — identificación colombiana
+    0003_documentbeneficiary.py             — tabla DocumentBeneficiary
+    0004_alter_beneficiaryauditlog_action.py — acciones de auditoría
+    0005_datadeletionrequest.py             — tabla DataDeletionRequest
+    0006_encrypt_sensitive_fields.py        — cifrado campos sensibles
+
+  App cases/:
+    0001_initial.py                         — tabla Case, CaseDocument,
+                                              CommunicationInteraction,
+                                              CaseAuditLog, Notification
+    0002_add_security_denied_action.py      — acción SECURITY_DENIED
+    0002_alter_caseauditlog_action_communicationinteraction.py
+    0003_merge_20260519_2315.py / 0003_merge_20260523_1853.py
+    0004_add_audio_file_to_communicationinteraction.py — campo audio_file
+    0004_alter_caseauditlog_options_and_more.py
+    0004_caseevaluation.py                  — tabla CaseEvaluation
+    0005_add_callsession_model.py           — tabla CallSession (WebRTC)
+    0005_caseevaluation_score_decimal.py
+    0006_audio_file_raw_storage.py          — almacenamiento raw para .webm
+    0006_merge_20260523_2304.py / 0006_merge_20260524_1133.py
+    0007_rename_cases_casee_*.py / 0008_merge_20260524_1418.py
+
+  App cite/:
+    0001_initial.py                         — tabla Cite
+    0002_alter_cite_state_cite.py / 0002_cite_reminder_sent.py
+    0003_merge / 0004_merge / 0005_alter_cite_date_assigned.py
+
+Scripts DML (datos iniciales):
+  accounts/management/commands/seed_roles.py
+    — Crea los cuatro grupos de roles del sistema:
+      Administrador, Secretaria, Estudiante, Profesor.
+    — Ejecución: python manage.py seed_roles
+
+  cases/management/commands/generate_deadline_alerts.py
+    — Genera notificaciones de alerta para casos próximos a vencer.
+    — Se ejecuta periódicamente vía APScheduler en producción
+      (ENABLE_APP_SCHEDULERS = True en production.py).
+
+----------------------------------------------------------------
+Servidor de despliegue
+----------------------------------------------------------------
+
+Plataforma : Render  (render.com — plan gratuito Web Service)
+Repositorio: https://github.com/ICESI-PI1-202601/
+             20261-g3-pi1-t4-gestion-de-casos
+Branch     : develop  (despliegue automático en cada push)
+URL        : https://buro-2wvs.onrender.com
+
+Configuración de despliegue en Render:
+  Language        : Python 3
+
+  Build Command:
+    pip install -r requirements.txt && \
+    python manage.py collectstatic --noinput
+
+  Start Command:
+    python manage.py migrate --noinput && \
+    gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+
+  Settings module : config.settings.production
+                    (variable DJANGO_SETTINGS_MODULE)
+
+Variables de entorno configuradas en el dashboard de Render:
+
+  Variable               | Descripción
+  -----------------------|------------------------------------------
+  SECRET_KEY             | Clave secreta Django (generada aleatoriamente)
+  DEBUG                  | False
+  ALLOWED_HOSTS          | <app>.onrender.com
+  CSRF_TRUSTED_ORIGINS   | https://<app>.onrender.com
+  DATABASE_URL           | URI PostgreSQL de Supabase (Transaction pooler)
+  DJANGO_SETTINGS_MODULE | config.settings.production
+  CLOUDINARY_CLOUD_NAME  | Nombre del cloud en Cloudinary
+  CLOUDINARY_API_KEY     | API Key de Cloudinary
+  CLOUDINARY_API_SECRET  | API Secret de Cloudinary
+  METERED_API_KEY        | API Key de Metered.ca (servidores TURN/ICE)
+  METERED_DOMAIN         | Dominio de Metered.ca
+  EMAIL_HOST_USER        | Cuenta Gmail de envío (burodjango@gmail.com)
+  EMAIL_HOST_PASSWORD    | App Password de Gmail
+
+Archivos de configuración relevantes:
+  config/settings/base.py        — configuración común a todos los entornos
+  config/settings/development.py — sobreescribe para local (SQLite,
+                                   FileSystemStorage, console email)
+  config/settings/production.py  — sobreescribe para Render (PostgreSQL,
+                                   Cloudinary, WhiteNoise, SMTP)
+
+Servidor WSGI : Gunicorn
+Archivos estáticos : WhiteNoise con CompressedManifestStaticFilesStorage
+                     (comprime y versiona CSS/JS/imágenes en build)
+Archivos de media  : Cloudinary (grabaciones .webm en
+                     /media/call_recordings/, documentos de casos)
+
+Nota: el plan gratuito de Render duerme la instancia tras 15 minutos
+de inactividad; el primer request tarda ~30 segundos en despertar.
