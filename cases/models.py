@@ -474,29 +474,3 @@ class CaseEvaluation(models.Model):
     def __str__(self):
         professor_name = self.professor.get_full_name() if self.professor else 'Sin profesor'
         return f'{self.case.code} - {self.student.get_full_name() or self.student.username} ({professor_name})'
-
-
-class CallSession(models.Model):
-    STATUS_WAITING = 'waiting'
-    STATUS_ACTIVE  = 'active'
-    STATUS_ENDED   = 'ended'
-    STATUS_CHOICES = [
-        (STATUS_WAITING, 'Esperando'),
-        (STATUS_ACTIVE,  'Activa'),
-        (STATUS_ENDED,   'Finalizada'),
-    ]
-
-    case       = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='call_sessions')
-    room_id    = models.CharField(max_length=64, unique=True, default=uuid.uuid4)
-    offer_sdp  = models.TextField(null=True, blank=True)
-    answer_sdp = models.TextField(null=True, blank=True)
-    status     = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_WAITING)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='initiated_calls')
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        verbose_name = 'Sesion de llamada'
-        verbose_name_plural = 'Sesiones de llamada'
-
-    def __str__(self):
-        return f'Llamada {self.room_id[:8]} — {self.case.code}'
