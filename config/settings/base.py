@@ -101,6 +101,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'burodjango@gmail.com'
 EMAIL_HOST_PASSWORD = 'cudt sfpy mlri cgig'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+EMAIL_TIMEOUT = 10
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY', 'gBaEftHUk6JepNdWxqPOn17SQaFAdYHfgwQds5v8-W0=')

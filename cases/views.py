@@ -1399,19 +1399,32 @@ def serve_case_document(request, document_id):
         messages.error(request, 'No tienes permiso para acceder a este archivo.')
         return redirect('case_list')
 
-    file_path = document.file.path
-    if not os.path.exists(file_path):
-        raise Http404('El archivo no existe.')
+    try:
+        file_path = document.file.path
+        if os.path.exists(file_path):
+            mime_type, _ = mimetypes.guess_type(file_path)
+            response = FileResponse(
+                open(file_path, 'rb'),
+                content_type=mime_type or 'application/octet-stream',
+            )
+            response['Content-Disposition'] = (
+                f'inline; filename="{os.path.basename(file_path)}"'
+            )
+            return response
+    except (NotImplementedError, ValueError, AttributeError):
+        pass  # Cloudinary no soporta .path — continúa al proxy
 
-    mime_type, _ = mimetypes.guess_type(file_path)
-    response = FileResponse(
-        open(file_path, 'rb'),
-        content_type=mime_type or 'application/octet-stream',
-    )
-    response['Content-Disposition'] = (
-        f'inline; filename="{os.path.basename(file_path)}"'
-    )
-    return response
+    try:
+        with urllib.request.urlopen(document.file.url, timeout=30) as remote:
+            content = remote.read()
+            content_type = remote.getheader('Content-Type', 'application/octet-stream') or 'application/octet-stream'
+        filename = os.path.basename(document.file.name)
+        response = HttpResponse(content, content_type=content_type)
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        return response
+    except Exception as exc:
+        logger.error('Error sirviendo documento %s: %s', document_id, exc)
+        raise Http404('No se pudo acceder al archivo.')
 
 
 # ─── HU-22: Grabar llamadas ───────────────────────────────────────────────────
